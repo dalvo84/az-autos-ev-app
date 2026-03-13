@@ -737,8 +737,9 @@ if vehicle:
 
             generate_certificate(pdf_data, output_path)
 
-            # Store generated data in session state for Auto Trader image reuse
+            # Store generated data in session state for Auto Trader image
             st.session_state.last_cert_ref = cert_ref
+            st.session_state.last_cert_reg = reg_input
             st.session_state.last_cert_data = {
                 "soh": soh,
                 "grade": grade,
@@ -752,6 +753,7 @@ if vehicle:
                 "bosch_logo": BOSCH_LOGO,
                 "mileage": mileage_val,
                 "first_registered": vehicle.get("first_registered", ""),
+                "wltp_range": wltp_range,
             }
 
             st.success(f"Certificate generated: **{cert_ref}**")
@@ -766,54 +768,31 @@ if vehicle:
                     use_container_width=True,
                 )
 
-    # ── Generate Auto Trader Image ───────────────────────────────
-    if st.button("Generate Auto Trader Image", use_container_width=True):
-        # Use stored cert data if available, otherwise compute fresh
-        if "last_cert_data" in st.session_state and st.session_state.get("last_cert_ref"):
+    # ── Generate Auto Trader Image (only after certificate) ──────
+    if st.session_state.get("last_cert_data"):
+        st.write("")
+        if st.button("Generate Auto Trader Image", use_container_width=True):
             at_data = st.session_state.last_cert_data
-        else:
-            # Generate fresh cert ref and compute warranty
-            mileage_val = int(vehicle.get("mileage", 0) or 0)
-            w_years = selected_spec["warranty_years"] if selected_spec else 8
-            w_miles = selected_spec["warranty_miles"] if selected_spec else 100000
-            warranty_status = determine_warranty_status(
-                vehicle.get("first_registered", ""),
-                mileage_val, w_years, w_miles,
-            )
-            cert_ref = generate_cert_ref()
-            at_data = {
-                "soh": soh,
-                "grade": grade,
-                "ranges": ranges,
-                "warranty_status": warranty_status,
-                "warranty_years": w_years,
-                "warranty_miles": w_miles,
-                "battery_usable_kwh": selected_spec.get("battery_usable_kwh", "N/A") if selected_spec else (man_battery if manual_spec else "N/A"),
-                "cert_ref": cert_ref,
-                "logo_white": LOGO_WHITE,
-                "bosch_logo": BOSCH_LOGO,
-                "mileage": mileage_val,
-                "first_registered": vehicle.get("first_registered", ""),
-            }
+            at_reg = st.session_state.get("last_cert_reg", "UNKNOWN").replace(" ", "")
 
-        with st.spinner("Generating Auto Trader image..."):
-            from autotrader_image import generate_autotrader_image
+            with st.spinner("Generating Auto Trader image..."):
+                from autotrader_image import generate_autotrader_image
 
-            at_filename = f"{at_data['cert_ref']}_{reg_input.replace(' ', '')}_autotrader.png"
-            at_output_path = os.path.join(OUTPUT_DIR, at_filename)
-            generate_autotrader_image(at_data, at_output_path)
+                at_filename = f"{at_data['cert_ref']}_{at_reg}_autotrader.png"
+                at_output_path = os.path.join(OUTPUT_DIR, at_filename)
+                generate_autotrader_image(at_data, at_output_path)
 
-        st.success("Auto Trader image generated!")
-        st.image(at_output_path, caption="Auto Trader advert image preview", use_container_width=True)
+            st.success("Auto Trader image generated!")
+            st.image(at_output_path, caption="Auto Trader advert image preview", use_container_width=True)
 
-        with open(at_output_path, "rb") as img_file:
-            st.download_button(
-                label="Download Auto Trader Image",
-                data=img_file.read(),
-                file_name=at_filename,
-                mime="image/png",
-                use_container_width=True,
-            )
+            with open(at_output_path, "rb") as img_file:
+                st.download_button(
+                    label="Download Auto Trader Image",
+                    data=img_file.read(),
+                    file_name=at_filename,
+                    mime="image/png",
+                    use_container_width=True,
+                )
 
 # Footer
 st.divider()
