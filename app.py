@@ -758,6 +758,9 @@ if vehicle:
                 "mileage": mileage_val,
                 "first_registered": vehicle.get("first_registered", ""),
                 "wltp_range": wltp_range,
+                "narrative": narrative,
+                "ac_connector": ac_connector or "Not available",
+                "dc_connector": dc_connector or "Not available",
             }
 
             st.success(f"Certificate generated: **{cert_ref}**")

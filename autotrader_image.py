@@ -210,6 +210,24 @@ def _parse_reg_date(date_str):
     return None
 
 
+def _wrap_text(c, text, font_name, font_size, max_width):
+    """Word-wrap text to fit within max_width, returning a list of lines."""
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        test = f"{current} {word}".strip()
+        if c.stringWidth(test, font_name, font_size) <= max_width:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
 # ── Main generator ────────────────────────────────────────────────
 
 def generate_autotrader_image(data: dict, output_path: str):
@@ -323,26 +341,18 @@ def generate_autotrader_image(data: dict, output_path: str):
     # ══════════════════════════════════════════════════════════════
     # LAYOUT GEOMETRY
     # ══════════════════════════════════════════════════════════════
-    content_top = header_y - 14       # 14pt below header
-    content_bottom = footer_h + 14    # 14pt above footer
+    content_top = header_y - 10       # 10pt below header
+    content_bottom = footer_h + 10    # 10pt above footer
     available_h = content_top - content_bottom
 
-    # Section heights (proportional to content)
-    status_h = 148                    # SoH gauge + battery info card
-    gap = 14                          # gap between sections
-    warranty_h = 110                  # warranty card
-    range_h = 116                     # range table
+    # Section heights
+    status_h = 140                    # SoH gauge + battery info card
+    gap = 10                          # gap between sections
+    mid_row_h = 108                   # warranty + range row
+    # Assessment summary gets the remaining space
+    narrative_h = available_h - status_h - mid_row_h - 3 * gap
 
-    total_needed = status_h + warranty_h + range_h + 2 * gap
-    # If we have more space, distribute evenly
-    extra = available_h - total_needed
-    if extra > 0:
-        top_pad = extra * 0.3
-        gap = gap + extra * 0.15
-    else:
-        top_pad = 0
-
-    y = content_top - top_pad
+    y = content_top
 
     # ══════════════════════════════════════════════════════════════
     # BATTERY STATUS SECTION — Grey card with gauge, info, Bosch logo
@@ -355,12 +365,12 @@ def generate_autotrader_image(data: dict, output_path: str):
 
     # Three-column layout inside the card
     box_bottom = status_y
-    baseline = box_bottom + BOX_PAD + 10
+    baseline = box_bottom + BOX_PAD + 8
 
     # LEFT: SoH Gauge — bottom-aligned
-    gauge_cx = MARGIN + 120
-    gauge_cy = baseline + 38 + 14
-    gauge_r = 48
+    gauge_cx = MARGIN + 115
+    gauge_cy = baseline + 38 + 12
+    gauge_r = 46
     _draw_soh_gauge(c, gauge_cx, gauge_cy, gauge_r, soh, grade)
 
     # CENTRE: Battery Status info — bottom-aligned
@@ -423,21 +433,16 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.restoreState()
 
     # ══════════════════════════════════════════════════════════════
-    # BOTTOM ROW: Warranty (left) + Range Table (right)
+    # MIDDLE ROW: Warranty (left) + Range Table (right)
     # ══════════════════════════════════════════════════════════════
     y = status_y - gap
+    card_h = mid_row_h
 
     # Split into two columns
-    col_gap = 16
+    col_gap = 14
     left_w = CONTENT_W * 0.38
     right_w = CONTENT_W - left_w - col_gap
     right_x = MARGIN + left_w + col_gap
-
-    # Use the larger of warranty_h and range_h for both cards
-    card_h = max(warranty_h, range_h)
-    # But don't exceed available space
-    max_card_h = y - content_bottom
-    card_h = min(card_h, max_card_h)
 
     # ── LEFT: Battery Warranty Card ──────────────────────────────
     w_y = y - card_h
@@ -456,7 +461,7 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.saveState()
     c.setFont("Helvetica-Bold", 10)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(MARGIN + BOX_PAD, y - 18, "Battery Warranty")
+    c.drawString(MARGIN + BOX_PAD, y - 16, "Battery Warranty")
     c.restoreState()
 
     # Status badge (matches certificate style)
@@ -471,10 +476,10 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.saveState()
     tw = c.stringWidth(badge_text, "Helvetica-Bold", 7.5) + 14
     badge_x = MARGIN + left_w - BOX_PAD - tw
-    _draw_rounded_rect(c, badge_x, y - 22, tw, 16, r=4, fill_color=badge_color)
+    _draw_rounded_rect(c, badge_x, y - 20, tw, 15, r=4, fill_color=badge_color)
     c.setFont("Helvetica-Bold", 7.5)
     c.setFillColor(WHITE)
-    c.drawString(badge_x + 7, y - 17, badge_text)
+    c.drawString(badge_x + 7, y - 16, badge_text)
     c.restoreState()
 
     # Warranty terms
@@ -482,7 +487,7 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.setFont("Helvetica", 7.5)
     c.setFillColor(TEXT_GREY)
     terms_text = f"{warranty_years} yrs / {warranty_miles:,} mi  |  SoH threshold: {warranty_soh_thresh}%"
-    c.drawString(MARGIN + BOX_PAD, y - 38, terms_text)
+    c.drawString(MARGIN + BOX_PAD, y - 33, terms_text)
     c.restoreState()
 
     # Progress bars
@@ -510,9 +515,9 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.saveState()
         c.setFont("Helvetica", 7.5)
         c.setFillColor(DARK_CHARCOAL)
-        c.drawString(MARGIN + BOX_PAD, y - 54, f"Time: {time_text}")
+        c.drawString(MARGIN + BOX_PAD, y - 48, f"Time: {time_text}")
         c.restoreState()
-        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 68, bar_w, 8,
+        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 60, bar_w, 7,
                            min(1.0, time_fraction))
 
         # Mileage bar
@@ -523,16 +528,16 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.saveState()
         c.setFont("Helvetica", 7.5)
         c.setFillColor(DARK_CHARCOAL)
-        c.drawString(MARGIN + BOX_PAD, y - 82, f"Mileage: {miles_text}")
+        c.drawString(MARGIN + BOX_PAD, y - 75, f"Mileage: {miles_text}")
         c.restoreState()
-        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 96, bar_w, 8,
+        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 87, bar_w, 7,
                            min(1.0, miles_fraction))
 
         # Legend
         c.saveState()
         c.setFont("Helvetica", 6)
         c.setFillColor(TEXT_GREY)
-        c.drawString(MARGIN + BOX_PAD, y - card_h + 6, "Green = used portion")
+        c.drawString(MARGIN + BOX_PAD, w_y + 4, "Green = used portion")
         c.restoreState()
 
     # ── RIGHT: Range Estimates Table ─────────────────────────────
@@ -544,18 +549,17 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.saveState()
     c.setFont("Helvetica-Bold", 10)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(right_x + BOX_PAD, y - 18, "Range Estimates (Miles)")
+    c.drawString(right_x + BOX_PAD, y - 16, "Range Estimates (Miles)")
     c.restoreState()
 
-    # Table header
-    # Column positions (relative to right_x)
+    # Table header — column positions
     inner_w = right_w - 2 * BOX_PAD
     col_scenario_x = right_x + BOX_PAD
     col_new_x = right_x + BOX_PAD + inner_w * 0.45
     col_current_x = right_x + BOX_PAD + inner_w * 0.65
     col_diff_x = right_x + BOX_PAD + inner_w * 0.85
 
-    th_y = y - 34
+    th_y = y - 32
     c.saveState()
     c.setFont("Helvetica-Bold", 8)
     c.setFillColor(TEXT_GREY)
@@ -569,8 +573,8 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.saveState()
     c.setStrokeColor(MID_GREY)
     c.setLineWidth(0.5)
-    c.line(col_scenario_x, th_y - 6,
-           right_x + right_w - BOX_PAD, th_y - 6)
+    c.line(col_scenario_x, th_y - 5,
+           right_x + right_w - BOX_PAD, th_y - 5)
     c.restoreState()
 
     # Range data
@@ -583,19 +587,19 @@ def generate_autotrader_image(data: dict, output_path: str):
 
     scenarios = [
         ("Best Case (Urban)", range_best_new, range_best_cur, AZ_GREEN_LIGHT),
-        ("Typical (Mixed Driving)", range_typical_new, range_typical_cur, LIGHT_GREY),
+        ("Typical (Mixed)", range_typical_new, range_typical_cur, LIGHT_GREY),
         ("Worst Case (Winter Mway)", range_worst_new, range_worst_cur, AZ_GREEN_LIGHT),
     ]
 
-    ry = th_y - 22
-    row_h = 22
+    ry = th_y - 20
+    row_h = 20
     for label, new_val, cur_val, bg in scenarios:
         diff = cur_val - new_val
 
         # Row background
         c.saveState()
         c.setFillColor(bg)
-        c.rect(right_x + 6, ry - 4, right_w - 12, row_h, fill=1, stroke=0)
+        c.rect(right_x + 6, ry - 3, right_w - 12, row_h, fill=1, stroke=0)
         c.restoreState()
 
         # Row text
@@ -616,7 +620,69 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.drawString(col_diff_x, ry + 2, f"{diff} mi")
         c.restoreState()
 
-        ry -= (row_h + 4)
+        ry -= (row_h + 3)
+
+    # ══════════════════════════════════════════════════════════════
+    # ASSESSMENT SUMMARY — Full-width grey card with narrative
+    # ══════════════════════════════════════════════════════════════
+    y = w_y - gap
+    narr_card_h = max(narrative_h, 60)  # minimum 60pt
+
+    _draw_rounded_rect(c, MARGIN, y - narr_card_h, CONTENT_W, narr_card_h,
+                       r=BOX_RADIUS, fill_color=LIGHT_GREY,
+                       stroke_color=MID_GREY, stroke_width=0.3)
+
+    # Heading
+    c.saveState()
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(DARK_CHARCOAL)
+    c.drawString(MARGIN + BOX_PAD, y - 16, "Assessment Summary")
+    c.restoreState()
+
+    # Charging compatibility line (right-aligned in heading row)
+    ac_connector = data.get("ac_connector", "Not available")
+    dc_connector = data.get("dc_connector", "Not available")
+    if ac_connector != "Not available" or dc_connector != "Not available":
+        charging_text = f"AC: {ac_connector} — {ac_charge} kW  |  DC: {dc_connector} — {dc_charge} kW"
+        c.saveState()
+        c.setFont("Helvetica", 7.5)
+        c.setFillColor(TEXT_GREY)
+        c.drawRightString(MARGIN + CONTENT_W - BOX_PAD, y - 14, charging_text)
+        c.restoreState()
+
+    # Narrative text — 11pt for readability at thumbnail size
+    narrative = data.get("narrative", "")
+    if narrative:
+        narr_font = "Helvetica"
+        narr_size = 11
+        narr_max_w = CONTENT_W - 2 * BOX_PAD
+        narr_lines = _wrap_text(c, narrative, narr_font, narr_size, narr_max_w)
+
+        # Calculate how many lines fit in the available space
+        line_height = narr_size + 3.5  # 14.5pt line spacing for 11pt text
+        text_area_h = narr_card_h - 28  # below heading
+        max_lines = int(text_area_h / line_height)
+
+        truncated = False
+        if len(narr_lines) > max_lines:
+            narr_lines = narr_lines[:max_lines]
+            truncated = True
+
+        c.saveState()
+        c.setFont(narr_font, narr_size)
+        c.setFillColor(DARK_CHARCOAL)
+        ny = y - 30  # start below heading
+        for line in narr_lines:
+            c.drawString(MARGIN + BOX_PAD, ny, line)
+            ny -= line_height
+        c.restoreState()
+
+        if truncated:
+            c.saveState()
+            c.setFont("Helvetica-Oblique", 9)
+            c.setFillColor(TEXT_GREY)
+            c.drawString(MARGIN + BOX_PAD, ny, "... See full certificate for details")
+            c.restoreState()
 
     # ── Finish PDF ────────────────────────────────────────────────
     c.showPage()
