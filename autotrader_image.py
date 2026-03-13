@@ -2,6 +2,13 @@
 Auto Trader advert image generator for AZ Autos EV Battery Health Certificate.
 Uses ReportLab to render a high-quality single-page PDF, then converts to
 1024x768 PNG via PyMuPDF for uploading as a photo in an Auto Trader listing.
+
+Design matches the certificate PDF (page 1) visual language:
+  - Green header bar with AZ Autos logo, title, ref/date
+  - Grey SoH card with gauge, battery status info, Bosch logo
+  - Warranty card with badge, progress bars
+  - Range estimates table with 3 scenarios
+  - Light grey footer with ref, disclaimer
 """
 
 import os
@@ -16,7 +23,7 @@ from reportlab.lib.utils import ImageReader
 from PIL import Image
 import numpy as np
 
-# ── Colour palette (same as certificate) ─────────────────────────
+# ── Colour palette (identical to certificate) ────────────────────
 AZ_GREEN = HexColor("#2CAE66")
 AZ_GREEN_LIGHT = HexColor("#E8F8EF")
 AZ_GREEN_DARK = HexColor("#1E8C4E")
@@ -40,8 +47,8 @@ PAGE_W = 1024
 PAGE_H = 768
 MARGIN = 40
 CONTENT_W = PAGE_W - 2 * MARGIN
-BOX_RADIUS = 10
-BOX_PAD = 14
+BOX_RADIUS = 8
+BOX_PAD = 12
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -69,13 +76,13 @@ def _draw_rounded_rect(c, x, y, w, h, r=BOX_RADIUS, fill_color=None,
 
 
 def _draw_progress_bar(c, x, y, w, h, fraction, fill_color=None):
-    """Draw a horizontal progress bar. fraction is 0.0–1.0."""
+    """Draw a horizontal progress bar. fraction is 0.0–1.0 (used portion)."""
     if fill_color is None:
         fill_color = AZ_GREEN
-    _draw_rounded_rect(c, x, y, w, h, r=h / 2, fill_color=MID_GREY)
+    _draw_rounded_rect(c, x, y, w, h, r=3, fill_color=MID_GREY)
     fill_w = max(0, min(w, w * fraction))
-    if fill_w > h:
-        _draw_rounded_rect(c, x, y, fill_w, h, r=h / 2, fill_color=fill_color)
+    if fill_w > 6:
+        _draw_rounded_rect(c, x, y, fill_w, h, r=3, fill_color=fill_color)
 
 
 def _draw_soh_gauge(c, cx, cy, radius, soh, grade):
@@ -85,7 +92,7 @@ def _draw_soh_gauge(c, cx, cy, radius, soh, grade):
     # Background arc (full 180°)
     c.saveState()
     c.setStrokeColor(MID_GREY)
-    c.setLineWidth(18)
+    c.setLineWidth(14)
     c.setLineCap(1)
     for i in range(0, 181, 2):
         a1 = math.radians(180 - i)
@@ -98,7 +105,7 @@ def _draw_soh_gauge(c, cx, cy, radius, soh, grade):
     sweep = int(soh * 1.8)
     c.saveState()
     c.setStrokeColor(grade_colour)
-    c.setLineWidth(18)
+    c.setLineWidth(14)
     c.setLineCap(1)
     for i in range(0, min(sweep, 180), 2):
         a1 = math.radians(180 - i)
@@ -109,24 +116,24 @@ def _draw_soh_gauge(c, cx, cy, radius, soh, grade):
 
     # SoH text inside gauge
     c.saveState()
-    c.setFont("Helvetica-Bold", 48)
+    c.setFont("Helvetica-Bold", 28)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawCentredString(cx, cy + 6, f"{soh}%")
-    c.setFont("Helvetica", 13)
+    c.drawCentredString(cx, cy - 2, f"{soh}%")
+    c.setFont("Helvetica", 9)
     c.setFillColor(TEXT_GREY)
-    c.drawCentredString(cx, cy - 14, "State of Health")
+    c.drawCentredString(cx, cy - 16, "State of Health")
     c.restoreState()
 
     # Grade label below gauge
     c.saveState()
-    c.setFont("Helvetica-Bold", 20)
+    c.setFont("Helvetica-Bold", 13)
     c.setFillColor(grade_colour)
-    c.drawCentredString(cx, cy - 46, grade.upper())
+    c.drawCentredString(cx, cy - 38, grade.upper())
     c.restoreState()
 
 
-def _prepare_logo_for_header(logo_path):
-    """Prepare Az-02.png for the dark charcoal header: crop and make green bg transparent."""
+def _prepare_logo_for_green_bg(logo_path):
+    """Crop Az-02.png (white logo on green bg), make green bg transparent."""
     try:
         img = Image.open(logo_path).convert("RGBA")
         data = np.array(img)
@@ -157,33 +164,34 @@ def _prepare_logo_for_header(logo_path):
         return None
 
 
-def _prepare_bosch_logo(logo_path, bg_hex="#1A1A2E"):
-    """Prepare Bosch logo for the dark header: crop whitespace and make
-    white areas transparent for clean overlay on dark background."""
+def _prepare_bosch_logo(logo_path, bg_hex="#F5F5F5"):
+    """Load Bosch logo, crop whitespace, composite onto bg colour."""
     try:
-        img = Image.open(logo_path).convert("RGBA")
+        img = Image.open(logo_path).convert("RGB")
         data = np.array(img)
         r, g, b = data[:, :, 0], data[:, :, 1], data[:, :, 2]
         is_content = (r < 240) | (g < 240) | (b < 240)
         rows = np.any(is_content, axis=1)
         cols = np.any(is_content, axis=0)
-        if not (np.any(rows) and np.any(cols)):
-            return None
-        rmin, rmax = np.where(rows)[0][[0, -1]]
-        cmin, cmax = np.where(cols)[0][[0, -1]]
-        pad = 5
-        rmin = max(0, rmin - pad)
-        rmax = min(data.shape[0] - 1, rmax + pad)
-        cmin = max(0, cmin - pad)
-        cmax = min(data.shape[1] - 1, cmax + pad)
-        img = img.crop((cmin, rmin, cmax + 1, rmax + 1))
-        # Put on a small white rounded badge background for visibility
-        badge_w = img.width + 16
-        badge_h = img.height + 10
-        badge = Image.new("RGBA", (badge_w, badge_h), (255, 255, 255, 230))
-        badge.paste(img, (8, 5), img if img.mode == "RGBA" else None)
+        if np.any(rows) and np.any(cols):
+            rmin, rmax = np.where(rows)[0][[0, -1]]
+            cmin, cmax = np.where(cols)[0][[0, -1]]
+            pad = 10
+            rmin = max(0, rmin - pad)
+            rmax = min(data.shape[0] - 1, rmax + pad)
+            cmin = max(0, cmin - pad)
+            cmax = min(data.shape[1] - 1, cmax + pad)
+            img = img.crop((cmin, rmin, cmax + 1, rmax + 1))
+        bg_r = int(bg_hex[1:3], 16)
+        bg_g = int(bg_hex[3:5], 16)
+        bg_b = int(bg_hex[5:7], 16)
+        data2 = np.array(img)
+        r2, g2, b2 = data2[:, :, 0], data2[:, :, 1], data2[:, :, 2]
+        white_mask = (r2 > 240) & (g2 > 240) & (b2 > 240)
+        data2[white_mask] = [bg_r, bg_g, bg_b]
+        result = Image.fromarray(data2, "RGB")
         buf = io.BytesIO()
-        badge.save(buf, format="PNG")
+        result.save(buf, format="PNG")
         buf.seek(0)
         return ImageReader(buf)
     except Exception:
@@ -208,15 +216,15 @@ def generate_autotrader_image(data: dict, output_path: str):
     """
     Generate an Auto Trader advert image (1024x768 PNG).
 
-    Uses ReportLab to create a high-quality PDF, then converts to PNG
-    via PyMuPDF (fitz) for crisp rendering.
+    Matches the certificate PDF (page 1) visual language:
+    green header, grey SoH card, warranty card, range table, footer.
 
     Required data keys:
         soh, grade, ranges, warranty_status, warranty_years, warranty_miles,
-        battery_usable_kwh, cert_ref, logo_white, bosch_logo,
-        mileage, first_registered, wltp_range (when-new range for bars)
+        battery_usable_kwh, battery_gross_kwh, cert_ref, logo_white,
+        bosch_logo, mileage, first_registered, wltp_range,
+        ac_charge_kw, dc_charge_kw
     """
-    # Create PDF in memory
     pdf_buf = io.BytesIO()
     c = canvas.Canvas(pdf_buf, pagesize=(PAGE_W, PAGE_H))
 
@@ -225,33 +233,36 @@ def generate_autotrader_image(data: dict, output_path: str):
     grade_colour = GRADE_COLOURS.get(grade, AZ_GREEN)
     ranges = data.get("ranges", {})
     cert_ref = data.get("cert_ref", "AZ-XXXXXXXXXX")
+    issue_date = datetime.now().strftime("%d %B %Y")
+
+    battery_usable = data.get("battery_usable_kwh", "N/A")
+    battery_gross = data.get("battery_gross_kwh", "N/A")
+    wltp_range = data.get("wltp_range", 0)
+    ac_charge = data.get("ac_charge_kw", "N/A")
+    dc_charge = data.get("dc_charge_kw", "N/A")
 
     # ── Background ────────────────────────────────────────────────
     c.saveState()
-    c.setFillColor(LIGHT_GREY)
+    c.setFillColor(WHITE)
     c.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
     c.restoreState()
 
-    # ── Header bar ────────────────────────────────────────────────
-    header_h = 60
+    # ══════════════════════════════════════════════════════════════
+    # HEADER — Green bar (matches certificate _draw_header)
+    # ══════════════════════════════════════════════════════════════
+    header_h = 62
     header_y = PAGE_H - header_h
 
     c.saveState()
-    c.setFillColor(DARK_CHARCOAL)
-    c.rect(0, header_y, PAGE_W, header_h, fill=1, stroke=0)
-    c.restoreState()
-
-    # Green accent line below header
-    c.saveState()
     c.setFillColor(AZ_GREEN)
-    c.rect(0, header_y - 4, PAGE_W, 4, fill=1, stroke=0)
+    c.rect(0, header_y, PAGE_W, header_h, fill=1, stroke=0)
     c.restoreState()
 
     # AZ Autos logo (left)
     logo_path = data.get("logo_white", "")
     logo_drawn = False
     if logo_path and os.path.exists(logo_path):
-        logo_img = _prepare_logo_for_header(logo_path)
+        logo_img = _prepare_logo_for_green_bg(logo_path)
         if logo_img:
             try:
                 c.drawImage(logo_img, MARGIN, header_y + 8,
@@ -263,265 +274,349 @@ def generate_autotrader_image(data: dict, output_path: str):
     if not logo_drawn:
         c.saveState()
         c.setFont("Helvetica-Bold", 18)
-        c.setFillColor(AZ_GREEN)
+        c.setFillColor(WHITE)
         c.drawString(MARGIN, header_y + 22, "AZ AUTOS")
         c.restoreState()
 
     # Title (centre)
     c.saveState()
-    c.setFont("Helvetica-Bold", 20)
+    c.setFont("Helvetica-Bold", 16)
     c.setFillColor(WHITE)
-    c.drawCentredString(PAGE_W / 2, header_y + 28, "EV Battery Health Certificate")
-    c.setFont("Helvetica", 9)
-    c.setFillColor(HexColor("#FFFFFFBB"))
-    c.drawCentredString(PAGE_W / 2, header_y + 12, "Tested with Bosch KTS 590 / ESItronic 2.0")
+    c.drawCentredString(PAGE_W / 2, header_y + 32, "EV Battery Health Certificate")
+    c.setFont("Helvetica", 8)
+    c.setFillColor(HexColor("#FFFFFFCC"))
+    c.drawCentredString(PAGE_W / 2, header_y + 16, "Tested with Bosch KTS 590 / ESItronic 2.0")
     c.restoreState()
 
-    # Bosch logo (right)
+    # Cert ref and date (right)
+    c.saveState()
+    c.setFont("Helvetica", 8)
+    c.setFillColor(WHITE)
+    c.drawRightString(PAGE_W - MARGIN, header_y + 36, f"Ref: {cert_ref}")
+    c.drawRightString(PAGE_W - MARGIN, header_y + 22, f"Issued: {issue_date}")
+    c.restoreState()
+
+    # ══════════════════════════════════════════════════════════════
+    # FOOTER — Light grey bar (matches certificate _draw_footer)
+    # ══════════════════════════════════════════════════════════════
+    footer_h = 36
+    c.saveState()
+    c.setFillColor(LIGHT_GREY)
+    c.rect(0, 0, PAGE_W, footer_h, fill=1, stroke=0)
+    c.setStrokeColor(MID_GREY)
+    c.setLineWidth(0.5)
+    c.line(0, footer_h, PAGE_W, footer_h)
+    c.restoreState()
+
+    c.saveState()
+    c.setFont("Helvetica", 7.5)
+    c.setFillColor(TEXT_GREY)
+    c.drawString(MARGIN, 16, f"Ref: {cert_ref}  |  {issue_date}")
+    c.setFont("Helvetica", 6.5)
+    c.drawCentredString(PAGE_W / 2, 6,
+                        "All data shown on this report is for informational purposes only")
+    c.setFont("Helvetica-Bold", 8)
+    c.setFillColor(AZ_GREEN)
+    c.drawRightString(PAGE_W - MARGIN, 16, "azautos.co.uk")
+    c.restoreState()
+
+    # ══════════════════════════════════════════════════════════════
+    # LAYOUT GEOMETRY
+    # ══════════════════════════════════════════════════════════════
+    content_top = header_y - 14       # 14pt below header
+    content_bottom = footer_h + 14    # 14pt above footer
+    available_h = content_top - content_bottom
+
+    # Section heights (proportional to content)
+    status_h = 148                    # SoH gauge + battery info card
+    gap = 14                          # gap between sections
+    warranty_h = 110                  # warranty card
+    range_h = 116                     # range table
+
+    total_needed = status_h + warranty_h + range_h + 2 * gap
+    # If we have more space, distribute evenly
+    extra = available_h - total_needed
+    if extra > 0:
+        top_pad = extra * 0.3
+        gap = gap + extra * 0.15
+    else:
+        top_pad = 0
+
+    y = content_top - top_pad
+
+    # ══════════════════════════════════════════════════════════════
+    # BATTERY STATUS SECTION — Grey card with gauge, info, Bosch logo
+    # (matches certificate Battery Status section)
+    # ══════════════════════════════════════════════════════════════
+    status_y = y - status_h
+    _draw_rounded_rect(c, MARGIN, status_y, CONTENT_W, status_h,
+                       r=BOX_RADIUS, fill_color=LIGHT_GREY,
+                       stroke_color=MID_GREY, stroke_width=0.3)
+
+    # Three-column layout inside the card
+    box_bottom = status_y
+    baseline = box_bottom + BOX_PAD + 10
+
+    # LEFT: SoH Gauge — bottom-aligned
+    gauge_cx = MARGIN + 120
+    gauge_cy = baseline + 38 + 14
+    gauge_r = 48
+    _draw_soh_gauge(c, gauge_cx, gauge_cy, gauge_r, soh, grade)
+
+    # CENTRE: Battery Status info — bottom-aligned
+    info_x = MARGIN + 260
+    c.saveState()
+    c.setFont("Helvetica-Bold", 11)
+    c.setFillColor(DARK_CHARCOAL)
+    c.drawString(info_x, baseline + 72, "Battery Status")
+    c.setFont("Helvetica", 8.5)
+    c.setFillColor(TEXT_GREY)
+
+    info_lines = []
+    if battery_gross != "N/A":
+        info_lines.append(f"Gross Capacity: {battery_gross} kWh")
+    if battery_usable != "N/A":
+        info_lines.append(f"Usable Capacity: {battery_usable} kWh")
+    if wltp_range:
+        info_lines.append(f"WLTP Range (new): {wltp_range} miles")
+    if ac_charge != "N/A" and dc_charge != "N/A":
+        info_lines.append(f"Charge Rate: {ac_charge} kW AC / {dc_charge} kW DC")
+    elif ac_charge != "N/A":
+        info_lines.append(f"AC Charge Rate: {ac_charge} kW")
+    elif dc_charge != "N/A":
+        info_lines.append(f"DC Charge Rate: {dc_charge} kW")
+
+    info_y = baseline + 54
+    for line in info_lines:
+        c.drawString(info_x, info_y, line)
+        info_y -= 16
+    c.restoreState()
+
+    # RIGHT: Bosch logo + label — bottom-aligned
+    bosch_x = PAGE_W - MARGIN - 180
     bosch_path = data.get("bosch_logo", "")
     bosch_drawn = False
     if bosch_path and os.path.exists(bosch_path):
-        bosch_img = _prepare_bosch_logo(bosch_path)
-        if bosch_img:
-            try:
-                c.drawImage(bosch_img, PAGE_W - MARGIN - 110, header_y + 8,
-                            width=110, height=header_h - 16,
-                            preserveAspectRatio=True, mask='auto')
+        try:
+            bosch_img = _prepare_bosch_logo(bosch_path, "#F5F5F5")
+            if bosch_img:
+                c.drawImage(bosch_img, bosch_x + 10, baseline + 24,
+                            width=140, height=60,
+                            preserveAspectRatio=True)
                 bosch_drawn = True
-            except Exception:
-                pass
+        except Exception:
+            pass
     if not bosch_drawn:
         c.saveState()
-        c.setFont("Helvetica-Bold", 11)
-        c.setFillColor(HexColor("#FFFFFFAA"))
-        c.drawRightString(PAGE_W - MARGIN, header_y + 24, "BOSCH KTS 590")
-        c.restoreState()
-
-    # ── Layout geometry ──────────────────────────────────────────
-    # Available vertical space: from below header accent to above footer
-    footer_h = 32
-    footer_accent = 3
-    content_top = header_y - 4 - 12
-    content_bottom = footer_h + footer_accent + 14
-
-    available_h = content_top - content_bottom
-    # Allocate proportionally: top 65%, gap 5%, bottom 30%
-    gap_between = 18
-    top_section_h = available_h * 0.65
-    bottom_card_h = available_h * 0.30
-    top_section_top = content_top
-
-    # ── Compute range card dimensions first (needed for gauge sizing) ─
-    left_col_w = 320
-    right_col_x = MARGIN + left_col_w + 20
-    right_col_w = PAGE_W - right_col_x - MARGIN
-    card_gap = 12
-    card_h = (top_section_h - 18 - 2 * card_gap) / 3
-    range_total_h = 3 * card_h + 2 * card_gap + 18
-
-    # ── LEFT COLUMN: SoH Gauge ────────────────────────────────────
-    gauge_card_h = range_total_h
-    gauge_card_y = top_section_top - gauge_card_h
-    gauge_cx = MARGIN + left_col_w / 2
-    gauge_cy = gauge_card_y + gauge_card_h * 0.58
-    gauge_r = min(gauge_card_h * 0.34, left_col_w * 0.30)
-
-    # Gauge background card
-    _draw_rounded_rect(c, MARGIN, gauge_card_y, left_col_w, gauge_card_h,
-                       r=BOX_RADIUS, fill_color=WHITE, stroke_color=MID_GREY, stroke_width=0.5)
-
-    _draw_soh_gauge(c, gauge_cx, gauge_cy, gauge_r, soh, grade)
-
-    # ── RIGHT COLUMN: Range Estimates ─────────────────────────────
-
-    range_items = [
-        ("Best Case — Urban",       ranges.get("best_current", 0),    ranges.get("best_new", 0)),
-        ("Typical — Mixed Driving",  ranges.get("typical_current", 0), ranges.get("typical_new", 0)),
-        ("Worst Case — Winter Mway", ranges.get("worst_current", 0),  ranges.get("worst_new", 0)),
-    ]
-
-    # Section label
-    c.saveState()
-    c.setFont("Helvetica-Bold", 12)
-    c.setFillColor(DARK_CHARCOAL)
-    c.drawString(right_col_x, content_top, "Estimated Range")
-    c.restoreState()
-
-    card_top = content_top - 14
-
-    for i, (label, current_mi, new_mi) in enumerate(range_items):
-        cy = card_top - i * (card_h + card_gap)
-        is_typical = (i == 1)
-
-        # Card
-        border_col = AZ_GREEN if is_typical else MID_GREY
-        border_w = 1.5 if is_typical else 0.5
-        _draw_rounded_rect(c, right_col_x, cy - card_h, right_col_w, card_h,
-                           r=BOX_RADIUS, fill_color=WHITE,
-                           stroke_color=border_col, stroke_width=border_w)
-
-        # Label
-        c.saveState()
+        c.setFont("Helvetica-Bold", 13)
+        c.setFillColor(DARK_CHARCOAL)
+        c.drawString(bosch_x + 20, baseline + 42, "BOSCH KTS 590")
         c.setFont("Helvetica", 9)
         c.setFillColor(TEXT_GREY)
-        c.drawString(right_col_x + BOX_PAD, cy - 16, label)
+        c.drawString(bosch_x + 20, baseline + 26, "ESItronic 2.0")
         c.restoreState()
 
-        # Miles figure (large)
-        c.saveState()
-        c.setFont("Helvetica-Bold", 28)
-        miles_col = AZ_GREEN if is_typical else DARK_CHARCOAL
-        c.setFillColor(miles_col)
-        c.drawString(right_col_x + BOX_PAD, cy - 48, f"{current_mi} mi")
-        c.restoreState()
+    c.saveState()
+    c.setFont("Helvetica-Bold", 8)
+    c.setFillColor(DARK_CHARCOAL)
+    c.drawCentredString(bosch_x + 80, baseline + 8, "KTS 590 / ESItronic 2.0")
+    c.restoreState()
 
-        # "When new" text
-        c.saveState()
-        c.setFont("Helvetica", 8)
-        c.setFillColor(TEXT_GREY)
-        c.drawRightString(right_col_x + right_col_w - BOX_PAD, cy - 16,
-                          f"When new: {new_mi} mi")
-        c.restoreState()
+    # ══════════════════════════════════════════════════════════════
+    # BOTTOM ROW: Warranty (left) + Range Table (right)
+    # ══════════════════════════════════════════════════════════════
+    y = status_y - gap
 
-        # Progress bar: current vs new
-        bar_x = right_col_x + BOX_PAD
-        bar_w = right_col_w - 2 * BOX_PAD
-        bar_y = cy - card_h + 8
-        bar_h = 8
-        fraction = current_mi / new_mi if new_mi > 0 else 0
-        bar_col = AZ_GREEN if is_typical else HexColor("#A0A0A0")
-        _draw_progress_bar(c, bar_x, bar_y, bar_w, bar_h, fraction, fill_color=bar_col)
+    # Split into two columns
+    col_gap = 16
+    left_w = CONTENT_W * 0.38
+    right_w = CONTENT_W - left_w - col_gap
+    right_x = MARGIN + left_w + col_gap
 
-    # ── Bottom row: Warranty + Battery Capacity ───────────────────
-    half_w = (CONTENT_W - 20) / 2
+    # Use the larger of warranty_h and range_h for both cards
+    card_h = max(warranty_h, range_h)
+    # But don't exceed available space
+    max_card_h = y - content_bottom
+    card_h = min(card_h, max_card_h)
 
-    # --- Warranty card ---
-    w_card_x = MARGIN
-    w_card_y = gauge_card_y - gap_between - bottom_card_h
-    _draw_rounded_rect(c, w_card_x, w_card_y, half_w, bottom_card_h,
-                       r=BOX_RADIUS, fill_color=WHITE, stroke_color=MID_GREY, stroke_width=0.5)
+    # ── LEFT: Battery Warranty Card ──────────────────────────────
+    w_y = y - card_h
+    _draw_rounded_rect(c, MARGIN, w_y, left_w, card_h,
+                       r=BOX_RADIUS, fill_color=LIGHT_GREY,
+                       stroke_color=MID_GREY, stroke_width=0.3)
 
     warranty_status = data.get("warranty_status", "Unknown")
     warranty_years = data.get("warranty_years", 8)
     warranty_miles = data.get("warranty_miles", 100000)
+    warranty_soh_thresh = data.get("warranty_soh_threshold", 70)
     mileage = data.get("mileage", 0)
     first_registered = data.get("first_registered", "")
 
-    # Content block is ~78pt tall (title 11pt + status 13pt + gap + 2 bars)
-    # Centre it vertically in the card
-    content_h = 78
-    content_base = w_card_y + (bottom_card_h - content_h) / 2
-
+    # Heading
     c.saveState()
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont("Helvetica-Bold", 10)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(w_card_x + BOX_PAD, content_base + content_h - 4, "Battery Warranty")
+    c.drawString(MARGIN + BOX_PAD, y - 18, "Battery Warranty")
     c.restoreState()
 
-    # Status badge
-    ws_col = GRADE_COLOURS["Excellent"] if warranty_status == "In Warranty" else \
-             GRADE_COLOURS["Critical"] if warranty_status == "Expired" else TEXT_GREY
+    # Status badge (matches certificate style)
+    if warranty_status == "In Warranty":
+        badge_color = AZ_GREEN
+    elif warranty_status == "Expired":
+        badge_color = HexColor("#E8602C")
+    else:
+        badge_color = TEXT_GREY
+
+    badge_text = warranty_status.upper()
     c.saveState()
-    c.setFont("Helvetica-Bold", 13)
-    c.setFillColor(ws_col)
-    c.drawString(w_card_x + BOX_PAD, content_base + content_h - 22, warranty_status)
+    tw = c.stringWidth(badge_text, "Helvetica-Bold", 7.5) + 14
+    badge_x = MARGIN + left_w - BOX_PAD - tw
+    _draw_rounded_rect(c, badge_x, y - 22, tw, 16, r=4, fill_color=badge_color)
+    c.setFont("Helvetica-Bold", 7.5)
+    c.setFillColor(WHITE)
+    c.drawString(badge_x + 7, y - 17, badge_text)
     c.restoreState()
 
-    # Warranty progress bars
-    bar_inner_w = half_w - 2 * BOX_PAD - 80
+    # Warranty terms
+    c.saveState()
+    c.setFont("Helvetica", 7.5)
+    c.setFillColor(TEXT_GREY)
+    terms_text = f"{warranty_years} yrs / {warranty_miles:,} mi  |  SoH threshold: {warranty_soh_thresh}%"
+    c.drawString(MARGIN + BOX_PAD, y - 38, terms_text)
+    c.restoreState()
+
+    # Progress bars
     reg_date = _parse_reg_date(first_registered)
+    bar_w = left_w - 2 * BOX_PAD
 
-    # Time remaining bar
-    c.saveState()
-    c.setFont("Helvetica", 8)
-    c.setFillColor(TEXT_GREY)
-    c.drawString(w_card_x + BOX_PAD, content_base + 20, "Time:")
-    c.restoreState()
-
-    time_fraction = 1.0
-    time_label = ""
     if reg_date and warranty_years > 0:
-        years_elapsed = (datetime.now() - reg_date).days / 365.25
-        time_fraction = min(1.0, max(0, years_elapsed / warranty_years))
-        remaining_yrs = max(0, warranty_years - years_elapsed)
-        if remaining_yrs > 0:
-            time_label = f"{remaining_yrs:.1f} yrs left"
+        now = datetime.now()
+        try:
+            warranty_end = reg_date.replace(year=reg_date.year + warranty_years)
+        except ValueError:
+            warranty_end = reg_date.replace(year=reg_date.year + warranty_years, day=28)
+
+        if now < warranty_end:
+            remaining_days = (warranty_end - now).days
+            rem_years = remaining_days // 365
+            rem_months = (remaining_days % 365) // 30
+            time_text = f"{rem_years}y {rem_months}m remaining"
+            time_fraction = (now - reg_date).days / ((warranty_end - reg_date).days or 1)
         else:
-            time_label = "Expired"
+            time_text = "Expired"
+            time_fraction = 1.0
 
-    time_bar_col = AZ_GREEN if time_fraction < 1.0 else GRADE_COLOURS["Critical"]
-    _draw_progress_bar(c, w_card_x + BOX_PAD + 48, content_base + 18, bar_inner_w, 10,
-                       time_fraction, fill_color=time_bar_col)
+        # Time bar
+        c.saveState()
+        c.setFont("Helvetica", 7.5)
+        c.setFillColor(DARK_CHARCOAL)
+        c.drawString(MARGIN + BOX_PAD, y - 54, f"Time: {time_text}")
+        c.restoreState()
+        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 68, bar_w, 8,
+                           min(1.0, time_fraction))
+
+        # Mileage bar
+        remaining_miles = max(0, warranty_miles - mileage)
+        miles_text = f"{remaining_miles:,} miles remaining"
+        miles_fraction = mileage / warranty_miles if warranty_miles else 1.0
+
+        c.saveState()
+        c.setFont("Helvetica", 7.5)
+        c.setFillColor(DARK_CHARCOAL)
+        c.drawString(MARGIN + BOX_PAD, y - 82, f"Mileage: {miles_text}")
+        c.restoreState()
+        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 96, bar_w, 8,
+                           min(1.0, miles_fraction))
+
+        # Legend
+        c.saveState()
+        c.setFont("Helvetica", 6)
+        c.setFillColor(TEXT_GREY)
+        c.drawString(MARGIN + BOX_PAD, y - card_h + 6, "Green = used portion")
+        c.restoreState()
+
+    # ── RIGHT: Range Estimates Table ─────────────────────────────
+    _draw_rounded_rect(c, right_x, w_y, right_w, card_h,
+                       r=BOX_RADIUS, fill_color=WHITE,
+                       stroke_color=MID_GREY, stroke_width=0.5)
+
+    # Heading
     c.saveState()
-    c.setFont("Helvetica", 7)
-    c.setFillColor(TEXT_GREY)
-    c.drawString(w_card_x + BOX_PAD + 52 + bar_inner_w, content_base + 20, time_label)
-    c.restoreState()
-
-    # Mileage remaining bar
-    c.saveState()
-    c.setFont("Helvetica", 8)
-    c.setFillColor(TEXT_GREY)
-    c.drawString(w_card_x + BOX_PAD, content_base + 2, "Miles:")
-    c.restoreState()
-
-    miles_fraction = min(1.0, max(0, mileage / warranty_miles)) if warranty_miles > 0 else 1.0
-    miles_remaining = max(0, warranty_miles - mileage)
-    miles_label = f"{miles_remaining:,} mi left" if miles_remaining > 0 else "Exceeded"
-
-    miles_bar_col = AZ_GREEN if miles_fraction < 1.0 else GRADE_COLOURS["Critical"]
-    _draw_progress_bar(c, w_card_x + BOX_PAD + 48, content_base, bar_inner_w, 10,
-                       miles_fraction, fill_color=miles_bar_col)
-    c.saveState()
-    c.setFont("Helvetica", 7)
-    c.setFillColor(TEXT_GREY)
-    c.drawString(w_card_x + BOX_PAD + 52 + bar_inner_w, content_base + 2, miles_label)
-    c.restoreState()
-
-    # --- Battery Capacity card ---
-    b_card_x = MARGIN + half_w + 20
-    b_card_y = w_card_y
-    _draw_rounded_rect(c, b_card_x, b_card_y, half_w, bottom_card_h,
-                       r=BOX_RADIUS, fill_color=WHITE, stroke_color=MID_GREY, stroke_width=0.5)
-
-    battery_kwh = data.get("battery_usable_kwh", "N/A")
-    battery_text = f"{battery_kwh} kWh" if battery_kwh != "N/A" else "N/A"
-
-    # Centre content vertically: label (~11pt) + gap (~8) + big number (~32pt) = ~51pt
-    bat_content_h = 51
-    bat_base = b_card_y + (bottom_card_h - bat_content_h) / 2
-
-    c.saveState()
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont("Helvetica-Bold", 10)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(b_card_x + BOX_PAD, bat_base + bat_content_h - 4, "Usable Battery Capacity")
+    c.drawString(right_x + BOX_PAD, y - 18, "Range Estimates (Miles)")
     c.restoreState()
 
+    # Table header
+    # Column positions (relative to right_x)
+    inner_w = right_w - 2 * BOX_PAD
+    col_scenario_x = right_x + BOX_PAD
+    col_new_x = right_x + BOX_PAD + inner_w * 0.45
+    col_current_x = right_x + BOX_PAD + inner_w * 0.65
+    col_diff_x = right_x + BOX_PAD + inner_w * 0.85
+
+    th_y = y - 34
     c.saveState()
-    c.setFont("Helvetica-Bold", 32)
-    c.setFillColor(DARK_CHARCOAL)
-    c.drawString(b_card_x + BOX_PAD, bat_base, battery_text)
+    c.setFont("Helvetica-Bold", 8)
+    c.setFillColor(TEXT_GREY)
+    c.drawString(col_scenario_x, th_y, "Scenario")
+    c.drawString(col_new_x, th_y, "When New")
+    c.drawString(col_current_x, th_y, f"At {soh}% SoH")
+    c.drawString(col_diff_x, th_y, "Difference")
     c.restoreState()
 
-    # ── Footer bar ────────────────────────────────────────────────
-    # footer_h already defined above (32)
+    # Divider line
     c.saveState()
-    c.setFillColor(DARK_CHARCOAL)
-    c.rect(0, 0, PAGE_W, footer_h, fill=1, stroke=0)
+    c.setStrokeColor(MID_GREY)
+    c.setLineWidth(0.5)
+    c.line(col_scenario_x, th_y - 6,
+           right_x + right_w - BOX_PAD, th_y - 6)
     c.restoreState()
 
-    # Green accent line above footer
-    c.saveState()
-    c.setFillColor(AZ_GREEN)
-    c.rect(0, footer_h, PAGE_W, 3, fill=1, stroke=0)
-    c.restoreState()
+    # Range data
+    range_best_new = ranges.get("best_new", 0)
+    range_typical_new = ranges.get("typical_new", 0)
+    range_worst_new = ranges.get("worst_new", 0)
+    range_best_cur = ranges.get("best_current", 0)
+    range_typical_cur = ranges.get("typical_current", 0)
+    range_worst_cur = ranges.get("worst_current", 0)
 
-    footer_text = f"Tested with Bosch KTS 590 / ESItronic 2.0   |   Certificate ref: {cert_ref}   |   azautos.co.uk"
-    c.saveState()
-    c.setFont("Helvetica", 9)
-    c.setFillColor(HexColor("#FFFFFFCC"))
-    c.drawCentredString(PAGE_W / 2, 10, footer_text)
-    c.restoreState()
+    scenarios = [
+        ("Best Case (Urban)", range_best_new, range_best_cur, AZ_GREEN_LIGHT),
+        ("Typical (Mixed Driving)", range_typical_new, range_typical_cur, LIGHT_GREY),
+        ("Worst Case (Winter Mway)", range_worst_new, range_worst_cur, AZ_GREEN_LIGHT),
+    ]
+
+    ry = th_y - 22
+    row_h = 22
+    for label, new_val, cur_val, bg in scenarios:
+        diff = cur_val - new_val
+
+        # Row background
+        c.saveState()
+        c.setFillColor(bg)
+        c.rect(right_x + 6, ry - 4, right_w - 12, row_h, fill=1, stroke=0)
+        c.restoreState()
+
+        # Row text
+        c.saveState()
+        c.setFont("Helvetica", 8)
+        c.setFillColor(DARK_CHARCOAL)
+        c.drawString(col_scenario_x, ry + 2, label)
+
+        c.setFont("Helvetica-Bold", 8.5)
+        c.drawString(col_new_x, ry + 2, f"{new_val} mi")
+
+        soh_col = AZ_GREEN if grade in ("Excellent", "Good") else HexColor("#E8602C")
+        c.setFillColor(soh_col)
+        c.drawString(col_current_x, ry + 2, f"{cur_val} mi")
+
+        c.setFont("Helvetica", 8)
+        c.setFillColor(TEXT_GREY)
+        c.drawString(col_diff_x, ry + 2, f"{diff} mi")
+        c.restoreState()
+
+        ry -= (row_h + 4)
 
     # ── Finish PDF ────────────────────────────────────────────────
     c.showPage()
@@ -542,16 +637,13 @@ def _pdf_to_png(pdf_bytes: bytes, output_path: str,
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = doc[0]
 
-        # Calculate zoom to achieve target resolution
-        # PDF page is PAGE_W x PAGE_H points; we want target_w x target_h pixels
         zoom_x = target_w / page.rect.width
         zoom_y = target_h / page.rect.height
-        zoom = max(zoom_x, zoom_y)  # use higher zoom for quality
+        zoom = max(zoom_x, zoom_y)
 
         mat = fitz.Matrix(zoom, zoom)
         pix = page.get_pixmap(matrix=mat, alpha=False)
 
-        # Convert to PIL and resize to exact target dimensions
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         if img.size != (target_w, target_h):
             img = img.resize((target_w, target_h), Image.LANCZOS)
@@ -560,7 +652,6 @@ def _pdf_to_png(pdf_bytes: bytes, output_path: str,
         doc.close()
         return True
     except ImportError:
-        # Fallback: save PDF and try sips (macOS)
         return _pdf_to_png_sips(pdf_bytes, output_path, target_w, target_h)
     except Exception as e:
         print(f"[AutoTrader Image] PyMuPDF conversion failed: {e}")
@@ -576,7 +667,6 @@ def _pdf_to_png_sips(pdf_bytes: bytes, output_path: str,
             tmp.write(pdf_bytes)
             tmp_pdf = tmp.name
 
-        # sips can convert PDF to PNG on macOS
         tmp_png = tmp_pdf.replace(".pdf", ".png")
         subprocess.run(
             ["sips", "-s", "format", "png",
@@ -585,7 +675,6 @@ def _pdf_to_png_sips(pdf_bytes: bytes, output_path: str,
             capture_output=True, timeout=30,
         )
         if os.path.exists(tmp_png):
-            # Move to output path
             import shutil
             shutil.move(tmp_png, output_path)
             os.unlink(tmp_pdf)
