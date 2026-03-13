@@ -246,6 +246,12 @@ def generate_autotrader_image(data: dict, output_path: str):
     pdf_buf = io.BytesIO()
     c = canvas.Canvas(pdf_buf, pagesize=(PAGE_W, PAGE_H))
 
+    # DEBUG: Log what keys we received
+    print(f"[AutoTrader DEBUG] Data keys received: {list(data.keys())}")
+    print(f"[AutoTrader DEBUG] narrative present: {'narrative' in data}, length: {len(data.get('narrative', ''))}")
+    print(f"[AutoTrader DEBUG] ac_connector: {data.get('ac_connector', 'MISSING')}")
+    print(f"[AutoTrader DEBUG] dc_connector: {data.get('dc_connector', 'MISSING')}")
+
     soh = data.get("soh", 0)
     grade = data.get("grade", "Unknown")
     grade_colour = GRADE_COLOURS.get(grade, AZ_GREEN)
@@ -642,6 +648,8 @@ def generate_autotrader_image(data: dict, output_path: str):
     # Charging compatibility line (right-aligned in heading row)
     ac_connector = data.get("ac_connector", "Not available")
     dc_connector = data.get("dc_connector", "Not available")
+    print(f"[AutoTrader DEBUG] Assessment section: y={y}, narr_card_h={narr_card_h}, narrative_h={narrative_h}")
+    print(f"[AutoTrader DEBUG] ac_connector='{ac_connector}', dc_connector='{dc_connector}'")
     if ac_connector != "Not available" or dc_connector != "Not available":
         charging_text = f"AC: {ac_connector} — {ac_charge} kW  |  DC: {dc_connector} — {dc_charge} kW"
         c.saveState()
@@ -652,6 +660,7 @@ def generate_autotrader_image(data: dict, output_path: str):
 
     # Narrative text — 11pt for readability at thumbnail size
     narrative = data.get("narrative", "")
+    print(f"[AutoTrader DEBUG] Narrative text length: {len(narrative)}, first 80 chars: '{narrative[:80]}'")
     if narrative:
         narr_font = "Helvetica"
         narr_size = 11

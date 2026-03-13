@@ -782,6 +782,14 @@ if vehicle:
             at_data = st.session_state.last_cert_data
             at_reg = st.session_state.get("last_cert_reg", "UNKNOWN").replace(" ", "")
 
+            # DEBUG: Show what keys/values are being passed to autotrader image
+            st.write("**DEBUG — last_cert_data keys:**", list(at_data.keys()))
+            st.write("**DEBUG — narrative present:**", "narrative" in at_data, f"(length: {len(at_data.get('narrative', ''))})")
+            st.write("**DEBUG — ac_connector:**", at_data.get("ac_connector", "MISSING"))
+            st.write("**DEBUG — dc_connector:**", at_data.get("dc_connector", "MISSING"))
+            if at_data.get("narrative"):
+                st.write("**DEBUG — narrative preview:**", at_data["narrative"][:120] + "...")
+
             with st.spinner("Generating Auto Trader image..."):
                 from autotrader_image import generate_autotrader_image
 
