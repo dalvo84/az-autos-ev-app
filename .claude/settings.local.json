@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python3 -m pip install -r \"/Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/requirements.txt\")",
+      "Bash(python3 -c \":*)",
+      "Bash(mkdir -p \"/Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/certificates\")",
+      "Bash(timeout 8 python3 -m streamlit run app.py --server.headless true)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\(''app.py''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")",
+      "Bash(python3 -c \"from typing import Optional; d: Optional[dict] = None; print\\(''Type hints OK''\\)\")",
+      "Bash(ls -la /Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/*.png)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\(''app.py''\\).read\\(\\)\\); ast.parse\\(open\\(''pdf_generator.py''\\).read\\(\\)\\); print\\(''Both files: syntax OK''\\)\")",
+      "Bash(python3 -c \"import py_compile; py_compile.compile\\(''app.py'', doraise=True\\); py_compile.compile\\(''pdf_generator.py'', doraise=True\\); print\\(''Syntax OK''\\)\")",
+      "Bash(ls \"/Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/\"*.webp \"/Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/\"*.png)",
+      "Bash(ls -la \"/Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/\"*electric* \"/Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/\"*car-outline*)",
+      "Bash(python3 -c \"import pdf_generator; print\\(''OK''\\)\")",
+      "Bash(kill 4335)",
+      "Bash(ls -la \"/Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/\"*.jpg)",
+      "Bash(ls -la \"/Users/davidalvarez/Desktop/Claude Code/az-autos-ev-app/\"*.webp)",
+      "Read(//private/tmp/**)",
+      "Bash(python3 -m streamlit version)",
+      "Bash(pip3 show:*)"
+    ]
+  }
+}
