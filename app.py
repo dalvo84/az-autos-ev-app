@@ -141,50 +141,54 @@ def lookup_vehicle(reg: str) -> Optional[dict]:
 
 # ── Match vehicle to EV spec ──────────────────────────────────────
 def match_ev_spec(make: str, model: str, specs: dict) -> list:
-    """Return list of matching spec keys, sorted by specificity (best match first)."""
-    make_lower = make.lower().strip()
-    model_lower = model.lower().strip()
-    # Also build a combined string for matching variant keywords
-    combined = f"{make_lower} {model_lower}"
+    """Return list of matching spec keys using fuzzy matching against JSON keys.
+    Tries exact match first, then partial/contains matching."""
+    combined = f"{make} {model}".lower().strip()
+    print(f"[match_ev_spec] RegCheck string: '{combined}'")
 
     scored = []
-    for key, spec in specs.items():
-        spec_make = spec["make"].lower()
-        spec_model = spec["model"].lower()
-
-        # Make must match
-        if not (spec_make in make_lower or make_lower in spec_make):
-            continue
-        # Base model must match
-        if not (spec_model in model_lower or model_lower in spec_model):
-            continue
-
-        # Score based on how many variant keywords match the full model string
-        score = 0
+    for key in specs:
         key_lower = key.lower()
-        # Check variant-specific keywords from the spec key
-        variant_words = key_lower.replace(spec_make, "").replace(spec_model, "").split()
-        for word in variant_words:
-            word = word.strip("()")
-            if not word:
-                continue
-            if word in combined:
-                score += 10  # Strong match for variant keyword
-            elif word in key_lower:
-                score += 0   # Keyword only in spec key, not in vehicle description
 
-        # Bonus: check if battery size hint is in the model string
-        variant_str = spec.get("variant", "").lower()
-        for token in variant_str.split():
-            token = token.strip("()")
-            if token in combined:
-                score += 5
+        # Exact match (case-insensitive)
+        if key_lower == combined:
+            print(f"[match_ev_spec] EXACT match: '{key}'")
+            return [key]
 
-        scored.append((key, score))
+        # Check if either string contains the other
+        if key_lower in combined or combined in key_lower:
+            # Score by length of overlap — longer key = more specific match
+            score = len(key_lower) + 100
+            scored.append((key, score))
+            continue
+
+        # Partial: check if all words of the key appear in the combined string, or vice versa
+        key_words = key_lower.split()
+        combined_words = combined.split()
+
+        # How many key words appear in the RegCheck string?
+        key_hits = sum(1 for w in key_words if w in combined)
+        # How many RegCheck words appear in the key?
+        combined_hits = sum(1 for w in combined_words if w in key_lower)
+
+        # Need at least 2 word matches (make + model base) to be a candidate
+        total_hits = key_hits + combined_hits
+        if key_hits >= 2 or combined_hits >= 2:
+            scored.append((key, total_hits * 10 + key_hits))
 
     # Sort by score descending — most specific match first
     scored.sort(key=lambda x: x[1], reverse=True)
-    return [k for k, s in scored]
+    result = [k for k, s in scored]
+    if result:
+        print(f"[match_ev_spec] Matches: {result[:5]}")
+    else:
+        print(f"[match_ev_spec] No matches found for '{combined}'")
+        # Log available keys that share at least the make
+        make_lower = make.lower().strip()
+        similar = [k for k in specs if make_lower in k.lower()]
+        if similar:
+            print(f"[match_ev_spec] Keys with same make: {similar[:10]}")
+    return result
 
 
 # ── SoH Grade ─────────────────────────────────────────────────────
@@ -315,10 +319,10 @@ def determine_warranty_status(first_registered: str, mileage: int, warranty_year
         return "Unable to determine"
 
 
-# ── AI Lookup for Missing Charging Specs ──────────────────────────
-def lookup_charging_spec_ai(year: str, make: str, model: str) -> Optional[dict]:
-    """Use Claude API to look up charging connector and port location for vehicles
-    not in the local spec database."""
+# ── AI Lookup for Full EV Specs ───────────────────────────────────
+def lookup_full_spec_ai(year: str, make: str, model: str) -> Optional[dict]:
+    """Use Claude API to look up full EV specification for vehicles
+    not in the local spec database. Returns all fields needed for certificate."""
     cache_key = f"{year}_{make}_{model}".lower().replace(" ", "_")
     if "ai_spec_cache" not in st.session_state:
         st.session_state.ai_spec_cache = {}
@@ -330,23 +334,45 @@ def lookup_charging_spec_ai(year: str, make: str, model: str) -> Optional[dict]:
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         message = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=200,
-            system="You are a vehicle specification database. Respond only with a valid JSON object. No preamble, no explanation, no markdown.",
+            max_tokens=500,
+            system="You are a vehicle specification database. Respond only with a valid JSON object. No preamble, no explanation, no markdown. All numeric values must be numbers, not strings.",
             messages=[{"role": "user", "content": (
-                f'Return the charging specification for a {year} {make} {model}. '
-                'Use this exact format: '
-                '{ "ac_connector": "Type 2", "dc_connector": "CCS", "charge_port_location": "Rear Left" }. '
+                f'Return the full EV battery and charging specification for a {year} {make} {model}. '
+                'Use this exact JSON format with these exact keys:\n'
+                '{\n'
+                '  "battery_gross_kwh": 75.0,\n'
+                '  "battery_usable_kwh": 72.0,\n'
+                '  "wltp_range_miles": 280,\n'
+                '  "warranty_years": 8,\n'
+                '  "warranty_miles": 100000,\n'
+                '  "warranty_soh_threshold": 70,\n'
+                '  "ac_charge_kw": 11,\n'
+                '  "dc_charge_kw": 150,\n'
+                '  "ac_connector": "Type 2",\n'
+                '  "dc_connector": "CCS",\n'
+                '  "charge_port_location": "Rear Left"\n'
+                '}\n'
                 'charge_port_location must be one of: Front Left, Front Centre, Front Right, '
-                'Rear Left, Rear Centre, Rear Right, Front Left and Rear Left, Rear Left and Rear Right.'
+                'Rear Left, Rear Centre, Rear Right, Front Left and Rear Left, Rear Left and Rear Right.\n'
+                'Use accurate real-world specs. All numeric fields must be numbers, not strings.'
             )}],
         )
         result = json.loads(message.content[0].text.strip())
-        # Validate expected keys
-        if "ac_connector" in result and "dc_connector" in result and "charge_port_location" in result:
+        # Validate required keys exist
+        required = ["battery_gross_kwh", "battery_usable_kwh", "wltp_range_miles",
+                     "warranty_years", "warranty_miles", "ac_charge_kw", "dc_charge_kw",
+                     "ac_connector", "dc_connector", "charge_port_location"]
+        if all(k in result for k in required):
+            # Ensure warranty_soh_threshold has a default
+            result.setdefault("warranty_soh_threshold", 70)
             st.session_state.ai_spec_cache[cache_key] = result
+            print(f"[AI Spec Lookup] Success for {year} {make} {model}: {result}")
             return result
-    except Exception:
-        pass
+        else:
+            missing = [k for k in required if k not in result]
+            print(f"[AI Spec Lookup] Missing keys: {missing}")
+    except Exception as e:
+        print(f"[AI Spec Lookup] Error for {year} {make} {model}: {e}")
     return None
 
 
@@ -525,6 +551,7 @@ if vehicle:
 
     selected_spec = None
     manual_spec = False
+    ai_spec_used = False
 
     if matches:
         if len(matches) == 1:
@@ -542,11 +569,34 @@ if vehicle:
             st.metric("WLTP Range", f"{selected_spec['wltp_range_miles']} miles")
             st.metric("Warranty", f"{selected_spec['warranty_years']} yrs / {selected_spec['warranty_miles']:,} mi")
         with sc3:
-            st.metric("AC Charge Rate", f"{selected_spec['charge_rate_ac_kw']} kW")
-            st.metric("DC Charge Rate", f"{selected_spec['charge_rate_dc_kw']} kW")
+            st.metric("AC Charge Rate", f"{selected_spec.get('ac_charge_kw', selected_spec.get('charge_rate_ac_kw', 'N/A'))} kW")
+            st.metric("DC Charge Rate", f"{selected_spec.get('dc_charge_kw', selected_spec.get('charge_rate_dc_kw', 'N/A'))} kW")
     else:
-        st.warning("Vehicle not found in EV spec database. Please enter battery details manually.")
-        manual_spec = True
+        # No database match — try AI lookup immediately
+        with st.spinner("Vehicle not in local database — looking up specs via AI..."):
+            ai_result = lookup_full_spec_ai(
+                vehicle.get("year", ""),
+                vehicle.get("make", ""),
+                vehicle.get("model", ""),
+            )
+        if ai_result:
+            selected_spec = ai_result
+            ai_spec_used = True
+            st.warning("⚠️ EV specification sourced via AI — please verify values before generating certificate")
+
+            sc1, sc2, sc3 = st.columns(3)
+            with sc1:
+                st.metric("Battery (Gross)", f"{ai_result['battery_gross_kwh']} kWh")
+                st.metric("Battery (Usable)", f"{ai_result['battery_usable_kwh']} kWh")
+            with sc2:
+                st.metric("WLTP Range", f"{ai_result['wltp_range_miles']} miles")
+                st.metric("Warranty", f"{ai_result['warranty_years']} yrs / {ai_result['warranty_miles']:,} mi")
+            with sc3:
+                st.metric("AC Charge Rate", f"{ai_result.get('ac_charge_kw', 'N/A')} kW")
+                st.metric("DC Charge Rate", f"{ai_result.get('dc_charge_kw', 'N/A')} kW")
+        else:
+            st.warning("Vehicle not found in EV spec database and AI lookup failed. Please enter battery details manually.")
+            manual_spec = True
 
     if manual_spec or st.checkbox("Override with manual battery specs"):
         manual_spec = True
@@ -606,26 +656,24 @@ if vehicle:
                 w_miles,
             )
 
-            # Resolve charging spec — from ev_specs.json or AI fallback
+            # Resolve charging spec — from selected_spec (DB or AI)
             ac_connector = selected_spec.get("ac_connector") if selected_spec else None
             dc_connector = selected_spec.get("dc_connector") if selected_spec else None
             charge_port_location = selected_spec.get("charge_port_location") if selected_spec else None
-            ai_lookup_used = False
+            ai_lookup_used = ai_spec_used
 
-            if not ac_connector or not dc_connector or not charge_port_location:
-                ai_result = lookup_charging_spec_ai(
+            # If DB spec is missing charging fields, do a targeted AI lookup
+            if selected_spec and not ai_spec_used and (not ac_connector or not dc_connector or not charge_port_location):
+                ai_charging = lookup_full_spec_ai(
                     vehicle.get("year", ""),
                     vehicle.get("make", ""),
                     vehicle.get("model", ""),
                 )
-                if ai_result:
-                    ac_connector = ac_connector or ai_result.get("ac_connector")
-                    dc_connector = dc_connector or ai_result.get("dc_connector")
-                    charge_port_location = charge_port_location or ai_result.get("charge_port_location")
+                if ai_charging:
+                    ac_connector = ac_connector or ai_charging.get("ac_connector")
+                    dc_connector = dc_connector or ai_charging.get("dc_connector")
+                    charge_port_location = charge_port_location or ai_charging.get("charge_port_location")
                     ai_lookup_used = True
-
-            if ai_lookup_used:
-                st.warning("Charging spec sourced via AI lookup — please verify")
 
             narrative = generate_narrative(
                 make=vehicle.get("make", "Unknown"),

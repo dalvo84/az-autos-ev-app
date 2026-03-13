@@ -466,8 +466,8 @@ def generate_certificate(data: dict, output_path: str) -> str:
         warranty_years = spec["warranty_years"]
         warranty_miles = spec["warranty_miles"]
         warranty_soh_thresh = spec["warranty_soh_threshold"]
-        charge_ac = spec["charge_rate_ac_kw"]
-        charge_dc = spec["charge_rate_dc_kw"]
+        charge_ac = spec.get("ac_charge_kw", spec.get("charge_rate_ac_kw", 11))
+        charge_dc = spec.get("dc_charge_kw", spec.get("charge_rate_dc_kw", 50))
     else:
         wltp_range = data.get("manual_wltp_range", 200)
         battery_gross = data.get("manual_battery_kwh", 50)
