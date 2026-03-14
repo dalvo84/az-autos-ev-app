@@ -432,25 +432,22 @@ def generate_autotrader_image(data: dict, output_path: str):
                        r=BOX_RADIUS, fill_color=LIGHT_GREY,
                        stroke_color=MID_GREY, stroke_width=0.3)
 
-    # Three-column layout inside the card
-    box_bottom = status_y
-    baseline = box_bottom + BOX_PAD + 8
+    # Three-column layout: gauge | info | bosch — evenly spaced, vertically centred
+    box_mid_y = status_y + status_h / 2  # vertical midpoint of the card
 
-    # LEFT: SoH Gauge — bottom-aligned, larger
-    gauge_cx = MARGIN + 125
-    gauge_cy = baseline + 44 + 14
+    # Divide CONTENT_W into 3 equal zones
+    zone_w = CONTENT_W / 3
+    zone1_cx = MARGIN + zone_w * 0.5          # centre of left zone (gauge)
+    zone2_x = MARGIN + zone_w + BOX_PAD       # left edge of centre zone (info text)
+    zone3_cx = MARGIN + zone_w * 2.5          # centre of right zone (bosch)
+
+    # LEFT: SoH Gauge — centred in zone 1
     gauge_r = 54
+    gauge_cx = zone1_cx
+    gauge_cy = box_mid_y + 10  # nudge up slightly so grade label sits above card bottom
     _draw_soh_gauge(c, gauge_cx, gauge_cy, gauge_r, soh, grade)
 
-    # CENTRE: Battery Status info — bottom-aligned, scaled up fonts
-    info_x = MARGIN + 270
-    c.saveState()
-    c.setFont("Helvetica-Bold", 14)
-    c.setFillColor(DARK_CHARCOAL)
-    c.drawString(info_x, baseline + 82, "Battery Status")
-    c.setFont("Helvetica", 11)
-    c.setFillColor(TEXT_GREY)
-
+    # CENTRE: Battery Status info — vertically centred in zone 2
     info_lines = []
     if battery_gross != "N/A":
         info_lines.append(f"Gross Capacity: {battery_gross} kWh")
@@ -465,22 +462,39 @@ def generate_autotrader_image(data: dict, output_path: str):
     elif dc_charge != "N/A":
         info_lines.append(f"DC Charge Rate: {dc_charge} kW")
 
-    info_y = baseline + 62
+    heading_h = 16  # heading font height
+    line_spacing = 18
+    total_info_h = heading_h + 6 + len(info_lines) * line_spacing  # heading + gap + lines
+    info_top_y = box_mid_y + total_info_h / 2
+
+    c.saveState()
+    c.setFont("Helvetica-Bold", 14)
+    c.setFillColor(DARK_CHARCOAL)
+    c.drawString(zone2_x, info_top_y - heading_h, "Battery Status")
+    c.setFont("Helvetica", 11)
+    c.setFillColor(TEXT_GREY)
+    info_y = info_top_y - heading_h - 8
     for line in info_lines:
-        c.drawString(info_x, info_y, line)
-        info_y -= 18
+        c.drawString(zone2_x, info_y, line)
+        info_y -= line_spacing
     c.restoreState()
 
-    # RIGHT: Bosch logo + label — bottom-aligned, larger
-    bosch_x = PAGE_W - MARGIN - 200
+    # RIGHT: Bosch logo + label — centred in zone 3
     bosch_path = data.get("bosch_logo", "")
     bosch_drawn = False
+    bosch_logo_w = 160
+    bosch_logo_h = 70
+    bosch_label_h = 14
+    bosch_total_h = bosch_logo_h + 4 + bosch_label_h
+    bosch_top_y = box_mid_y + bosch_total_h / 2
+    bosch_img_x = zone3_cx - bosch_logo_w / 2
+
     if bosch_path and os.path.exists(bosch_path):
         try:
             bosch_img = _prepare_bosch_logo(bosch_path, "#F5F5F5")
             if bosch_img:
-                c.drawImage(bosch_img, bosch_x + 10, baseline + 28,
-                            width=160, height=70,
+                c.drawImage(bosch_img, bosch_img_x, bosch_top_y - bosch_logo_h,
+                            width=bosch_logo_w, height=bosch_logo_h,
                             preserveAspectRatio=True)
                 bosch_drawn = True
         except Exception:
@@ -489,16 +503,16 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.saveState()
         c.setFont("Helvetica-Bold", 16)
         c.setFillColor(DARK_CHARCOAL)
-        c.drawString(bosch_x + 20, baseline + 50, "BOSCH KTS 590")
+        c.drawCentredString(zone3_cx, bosch_top_y - 24, "BOSCH KTS 590")
         c.setFont("Helvetica", 11)
         c.setFillColor(TEXT_GREY)
-        c.drawString(bosch_x + 20, baseline + 32, "ESItronic 2.0")
+        c.drawCentredString(zone3_cx, bosch_top_y - 42, "ESItronic 2.0")
         c.restoreState()
 
     c.saveState()
     c.setFont("Helvetica-Bold", 10)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawCentredString(bosch_x + 90, baseline + 8, "KTS 590 / ESItronic 2.0")
+    c.drawCentredString(zone3_cx, bosch_top_y - bosch_logo_h - 6 - bosch_label_h, "KTS 590 / ESItronic 2.0")
     c.restoreState()
 
     # ══════════════════════════════════════════════════════════════
@@ -708,28 +722,34 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.drawString(MARGIN + BOX_PAD, y - 18, "Assessment Summary")
     c.restoreState()
 
-    # Charging compatibility line (right-aligned in heading row) — scaled up
+    # Charging compatibility — light green pill badge, right-aligned in heading row
     ac_connector = data.get("ac_connector", "Not available")
     dc_connector = data.get("dc_connector", "Not available")
+    charging_badge_w = 0
     if ac_connector != "Not available" or dc_connector != "Not available":
         charging_text = f"AC: {ac_connector} — {ac_charge} kW  |  DC: {dc_connector} — {dc_charge} kW"
         c.saveState()
-        c.setFont("Helvetica", 9.5)
-        c.setFillColor(TEXT_GREY)
-        c.drawRightString(MARGIN + CONTENT_W - BOX_PAD, y - 16, charging_text)
+        c.setFont("Helvetica-Bold", 10)
+        charging_badge_w = c.stringWidth(charging_text, "Helvetica-Bold", 10) + 20
+        badge_pill_x = MARGIN + CONTENT_W - BOX_PAD - charging_badge_w
+        badge_pill_y = y - 22
+        _draw_rounded_rect(c, badge_pill_x, badge_pill_y, charging_badge_w, 18,
+                           r=4, fill_color=AZ_GREEN_LIGHT)
+        c.setFillColor(DARK_CHARCOAL)
+        c.drawString(badge_pill_x + 10, badge_pill_y + 4, charging_text)
         c.restoreState()
 
-    # Narrative text — 12pt for readability at thumbnail size
+    # Narrative text — 14pt for readability at thumbnail size
     narrative = data.get("narrative", "")
     if narrative:
         narr_font = "Helvetica"
-        narr_size = 12
+        narr_size = 14
         narr_max_w = CONTENT_W - 2 * BOX_PAD
         narr_lines = _wrap_text(c, narrative, narr_font, narr_size, narr_max_w)
 
         # Calculate how many lines fit in the available space
-        line_height = narr_size + 4  # 16pt line spacing for 12pt text
-        text_area_h = narr_card_h - 30  # below heading
+        line_height = narr_size + 4.5  # 18.5pt line spacing for 14pt text
+        text_area_h = narr_card_h - 34  # below heading + charging badge
         max_lines = int(text_area_h / line_height)
 
         truncated = False
@@ -740,7 +760,7 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.saveState()
         c.setFont(narr_font, narr_size)
         c.setFillColor(DARK_CHARCOAL)
-        ny = y - 34  # start below heading
+        ny = y - 38  # start below heading row
         for line in narr_lines:
             c.drawString(MARGIN + BOX_PAD, ny, line)
             ny -= line_height
