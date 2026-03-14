@@ -255,8 +255,36 @@ Instructions:
 - Sentence 3: Note the battery warranty status and what that means
 - Sentence 4: A brief factual closing observation about the battery's overall condition
 
+When describing the SoH reading, calibrate your language to the vehicle's age, mileage, and SoH together. Use this scale as a guide:
+
+SoH scale:
+- 95-100%: exceptional, minimal degradation, outstanding for any age
+- 90-94%: very good to excellent, well above average, impressive especially with higher mileage
+- 85-89%: good, normal wear consistent with age and use
+- 80-84%: fair, slightly above average degradation, still serviceable
+- 75-79%: below average, worth monitoring, approaching manufacturer warranty thresholds
+- Below 75%: concerning, significant degradation, may affect usability
+
+Mileage context:
+- Under 20,000 miles: low mileage — battery has had light use
+- 20,000-40,000 miles: moderate mileage — typical for age
+- 40,000-70,000 miles: higher mileage — if SoH is still above 90%, describe this positively as the battery holding up well under heavier use
+- 70,000-100,000 miles: high mileage — good SoH at this level is genuinely impressive and should be highlighted
+- Over 100,000 miles: very high mileage — any SoH above 80% is remarkable and worth emphasising
+
+Always consider age and mileage together, not separately. A high-mileage young car and a low-mileage old car tell very different stories about battery health even at the same SoH percentage. The narrative should reflect this.
+
+Examples of appropriate tone:
+- 94% SoH, 3 years old, 63,000 miles: "very good — the battery has retained excellent capacity despite above-average mileage, indicating healthy charging habits and robust battery performance"
+- 94% SoH, 1 year old, 8,000 miles: "excellent — as expected for a low-mileage vehicle with minimal battery cycling"
+- 82% SoH, 6 years old, 90,000 miles: "fair but reasonable given the high mileage and age — the battery has seen heavy use but remains serviceable"
+- 82% SoH, 2 years old, 15,000 miles: "below expectations for a low-mileage vehicle — degradation is higher than typical for this level of use"
+- 90% SoH, 5 years old, 80,000 miles: "genuinely excellent — retaining 90% capacity after five years and heavy use demonstrates strong battery durability"
+
+Never use the words "acceptable" or "normal parameters" for any SoH above 90%. Those words undersell the result and reduce buyer confidence. Make clear whether the SoH is impressive given the context, or simply expected.
+
 Tone: analytical and factual — like a mechanic's written assessment, not a sales pitch.
-NEVER use these words or phrases: "peace of mind", "rest assured", "great condition", "excellent choice", "impressive", "outstanding", "remarkable", or any promotional language.
+NEVER use these words or phrases: "peace of mind", "rest assured", "great condition", "excellent choice".
 Use only the data fields provided above — never invent or estimate any figures."""
 
         message = client.messages.create(
