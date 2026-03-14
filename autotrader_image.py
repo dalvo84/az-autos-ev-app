@@ -246,12 +246,6 @@ def generate_autotrader_image(data: dict, output_path: str):
     pdf_buf = io.BytesIO()
     c = canvas.Canvas(pdf_buf, pagesize=(PAGE_W, PAGE_H))
 
-    # DEBUG: Log what keys we received
-    print(f"[AutoTrader DEBUG] Data keys received: {list(data.keys())}")
-    print(f"[AutoTrader DEBUG] narrative present: {'narrative' in data}, length: {len(data.get('narrative', ''))}")
-    print(f"[AutoTrader DEBUG] ac_connector: {data.get('ac_connector', 'MISSING')}")
-    print(f"[AutoTrader DEBUG] dc_connector: {data.get('dc_connector', 'MISSING')}")
-
     soh = data.get("soh", 0)
     grade = data.get("grade", "Unknown")
     grade_colour = GRADE_COLOURS.get(grade, AZ_GREEN)
@@ -345,20 +339,25 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.restoreState()
 
     # ══════════════════════════════════════════════════════════════
-    # LAYOUT GEOMETRY
+    # LAYOUT GEOMETRY — evenly distributed sections
     # ══════════════════════════════════════════════════════════════
-    content_top = header_y - 10       # 10pt below header
-    content_bottom = footer_h + 10    # 10pt above footer
+    content_top = header_y
+    content_bottom = footer_h
     available_h = content_top - content_bottom
 
-    # Section heights
+    # Fixed section heights
     status_h = 140                    # SoH gauge + battery info card
-    gap = 10                          # gap between sections
     mid_row_h = 108                   # warranty + range row
-    # Assessment summary gets the remaining space
-    narrative_h = available_h - status_h - mid_row_h - 3 * gap
+    # Narrative gets remaining space after sections and 4 equal gaps
+    # Gaps: above status, between status & mid row, between mid row & narrative, below narrative
+    total_sections_h = status_h + mid_row_h
+    remaining = available_h - total_sections_h
+    # Narrative takes up a fair share; rest is gaps
+    narrative_h = max(remaining * 0.55, 80)
+    total_gap = remaining - narrative_h
+    gap = total_gap / 4  # 4 equal gaps
 
-    y = content_top
+    y = content_top - gap
 
     # ══════════════════════════════════════════════════════════════
     # BATTERY STATUS SECTION — Grey card with gauge, info, Bosch logo
@@ -648,8 +647,6 @@ def generate_autotrader_image(data: dict, output_path: str):
     # Charging compatibility line (right-aligned in heading row)
     ac_connector = data.get("ac_connector", "Not available")
     dc_connector = data.get("dc_connector", "Not available")
-    print(f"[AutoTrader DEBUG] Assessment section: y={y}, narr_card_h={narr_card_h}, narrative_h={narrative_h}")
-    print(f"[AutoTrader DEBUG] ac_connector='{ac_connector}', dc_connector='{dc_connector}'")
     if ac_connector != "Not available" or dc_connector != "Not available":
         charging_text = f"AC: {ac_connector} — {ac_charge} kW  |  DC: {dc_connector} — {dc_charge} kW"
         c.saveState()
@@ -658,17 +655,16 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.drawRightString(MARGIN + CONTENT_W - BOX_PAD, y - 14, charging_text)
         c.restoreState()
 
-    # Narrative text — 11pt for readability at thumbnail size
+    # Narrative text — 12pt for readability at thumbnail size
     narrative = data.get("narrative", "")
-    print(f"[AutoTrader DEBUG] Narrative text length: {len(narrative)}, first 80 chars: '{narrative[:80]}'")
     if narrative:
         narr_font = "Helvetica"
-        narr_size = 11
+        narr_size = 12
         narr_max_w = CONTENT_W - 2 * BOX_PAD
         narr_lines = _wrap_text(c, narrative, narr_font, narr_size, narr_max_w)
 
         # Calculate how many lines fit in the available space
-        line_height = narr_size + 3.5  # 14.5pt line spacing for 11pt text
+        line_height = narr_size + 4  # 16pt line spacing for 12pt text
         text_area_h = narr_card_h - 28  # below heading
         max_lines = int(text_area_h / line_height)
 
