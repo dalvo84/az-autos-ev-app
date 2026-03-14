@@ -441,10 +441,13 @@ def generate_autotrader_image(data: dict, output_path: str):
     zone2_x = MARGIN + zone_w + BOX_PAD       # left edge of centre zone (info text)
     zone3_cx = MARGIN + zone_w * 2.5          # centre of right zone (bosch)
 
-    # LEFT: SoH Gauge — centred in zone 1
+    # LEFT: SoH Gauge — vertically centred in box
+    # Gauge visual extent: top of arc = cy + radius, bottom of grade label = cy - 44
+    # Total visual height ≈ radius + 44. Centre that within the box.
     gauge_r = 54
+    gauge_visual_h = gauge_r + 44
     gauge_cx = zone1_cx
-    gauge_cy = box_mid_y + 10  # nudge up slightly so grade label sits above card bottom
+    gauge_cy = box_mid_y + (gauge_visual_h / 2 - 44)  # centre the visual block
     _draw_soh_gauge(c, gauge_cx, gauge_cy, gauge_r, soh, grade)
 
     # CENTRE: Battery Status info — vertically centred in zone 2
@@ -463,8 +466,9 @@ def generate_autotrader_image(data: dict, output_path: str):
         info_lines.append(f"DC Charge Rate: {dc_charge} kW")
 
     heading_h = 16  # heading font height
+    heading_gap = 14  # space between heading and first data line
     line_spacing = 18
-    total_info_h = heading_h + 6 + len(info_lines) * line_spacing  # heading + gap + lines
+    total_info_h = heading_h + heading_gap + len(info_lines) * line_spacing
     info_top_y = box_mid_y + total_info_h / 2
 
     c.saveState()
@@ -473,7 +477,7 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.drawString(zone2_x, info_top_y - heading_h, "Battery Status")
     c.setFont("Helvetica", 11)
     c.setFillColor(TEXT_GREY)
-    info_y = info_top_y - heading_h - 8
+    info_y = info_top_y - heading_h - heading_gap
     for line in info_lines:
         c.drawString(zone2_x, info_y, line)
         info_y -= line_spacing
@@ -706,16 +710,43 @@ def generate_autotrader_image(data: dict, output_path: str):
         ry -= (row_h + 3)
 
     # ══════════════════════════════════════════════════════════════
-    # ASSESSMENT SUMMARY — Full-width grey card with narrative
+    # ASSESSMENT SUMMARY — Full-width grey card, dynamic height
     # ══════════════════════════════════════════════════════════════
     y = w_y - gap
-    narr_card_h = max(narrative_h, 60)  # minimum 60pt
+
+    # Pre-calculate narrative text to determine dynamic box height
+    narrative = data.get("narrative", "")
+    narr_font = "Helvetica"
+    narr_size = 14
+    line_height = narr_size + 4.5  # 18.5pt line spacing for 14pt text
+    narr_max_w = CONTENT_W - 2 * BOX_PAD
+
+    heading_zone = 24   # heading row height
+    text_start = 38     # offset from card top to first text line
+    bottom_pad = 14     # padding below last line
+
+    if narrative:
+        narr_lines = _wrap_text(c, narrative, narr_font, narr_size, narr_max_w)
+        # Limit to what fits above the footer
+        max_available_h = y - content_bottom - gap - 10  # leave room for stamp
+        max_lines = int((max_available_h - text_start - bottom_pad) / line_height)
+        truncated = len(narr_lines) > max_lines
+        if truncated:
+            narr_lines = narr_lines[:max_lines]
+            # Extra line for truncation text
+            narr_card_h = text_start + len(narr_lines) * line_height + line_height + bottom_pad
+        else:
+            narr_card_h = text_start + len(narr_lines) * line_height + bottom_pad
+    else:
+        narr_lines = []
+        truncated = False
+        narr_card_h = 60  # minimum empty card
 
     _draw_rounded_rect(c, MARGIN, y - narr_card_h, CONTENT_W, narr_card_h,
                        r=BOX_RADIUS, fill_color=LIGHT_GREY,
                        stroke_color=MID_GREY, stroke_width=0.3)
 
-    # Heading — scaled up
+    # Heading
     c.saveState()
     c.setFont("Helvetica-Bold", 13)
     c.setFillColor(DARK_CHARCOAL)
@@ -725,7 +756,6 @@ def generate_autotrader_image(data: dict, output_path: str):
     # Charging compatibility — light green pill badge, right-aligned in heading row
     ac_connector = data.get("ac_connector", "Not available")
     dc_connector = data.get("dc_connector", "Not available")
-    charging_badge_w = 0
     if ac_connector != "Not available" or dc_connector != "Not available":
         charging_text = f"AC: {ac_connector} — {ac_charge} kW  |  DC: {dc_connector} — {dc_charge} kW"
         c.saveState()
@@ -739,28 +769,12 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.drawString(badge_pill_x + 10, badge_pill_y + 4, charging_text)
         c.restoreState()
 
-    # Narrative text — 14pt for readability at thumbnail size
-    narrative = data.get("narrative", "")
-    if narrative:
-        narr_font = "Helvetica"
-        narr_size = 14
-        narr_max_w = CONTENT_W - 2 * BOX_PAD
-        narr_lines = _wrap_text(c, narrative, narr_font, narr_size, narr_max_w)
-
-        # Calculate how many lines fit in the available space
-        line_height = narr_size + 4.5  # 18.5pt line spacing for 14pt text
-        text_area_h = narr_card_h - 34  # below heading + charging badge
-        max_lines = int(text_area_h / line_height)
-
-        truncated = False
-        if len(narr_lines) > max_lines:
-            narr_lines = narr_lines[:max_lines]
-            truncated = True
-
+    # Narrative text
+    if narr_lines:
         c.saveState()
         c.setFont(narr_font, narr_size)
         c.setFillColor(DARK_CHARCOAL)
-        ny = y - 38  # start below heading row
+        ny = y - text_start
         for line in narr_lines:
             c.drawString(MARGIN + BOX_PAD, ny, line)
             ny -= line_height
@@ -773,13 +787,21 @@ def generate_autotrader_image(data: dict, output_path: str):
             c.drawString(MARGIN + BOX_PAD, ny, "... See full certificate for details")
             c.restoreState()
 
+    narr_card_bottom = y - narr_card_h
+
     # ══════════════════════════════════════════════════════════════
-    # APPROVAL STAMP — only for SoH >= 75%
+    # APPROVAL STAMP — below assessment box, on white background
+    # Only for SoH >= 75%
     # ══════════════════════════════════════════════════════════════
     if soh >= 75:
-        stamp_radius = 58
-        stamp_cx = PAGE_W - MARGIN - stamp_radius - 10
-        stamp_cy = y - narr_card_h + stamp_radius + 6
+        stamp_radius = 52
+        # Centre stamp vertically between assessment box bottom and footer top
+        stamp_space = narr_card_bottom - content_bottom
+        stamp_cx = PAGE_W - MARGIN - stamp_radius - 20
+        stamp_cy = narr_card_bottom - stamp_space / 2
+        # Clamp so it doesn't overlap footer or assessment box
+        stamp_cy = max(content_bottom + stamp_radius + 4, stamp_cy)
+        stamp_cy = min(narr_card_bottom - stamp_radius - 4, stamp_cy)
         _draw_approval_stamp(c, stamp_cx, stamp_cy, stamp_radius, soh)
 
     # ── Finish PDF ────────────────────────────────────────────────
