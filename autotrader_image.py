@@ -8,6 +8,8 @@ Design matches the certificate PDF (page 1) visual language:
   - Grey SoH card with gauge, battery status info, Bosch logo
   - Warranty card with badge, progress bars
   - Range estimates table with 3 scenarios
+  - Assessment summary with AI narrative
+  - Approval stamp (SoH >= 75%)
   - Light grey footer with ref, disclaimer
 """
 
@@ -48,7 +50,7 @@ PAGE_H = 768
 MARGIN = 40
 CONTENT_W = PAGE_W - 2 * MARGIN
 BOX_RADIUS = 8
-BOX_PAD = 12
+BOX_PAD = 14
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -92,7 +94,7 @@ def _draw_soh_gauge(c, cx, cy, radius, soh, grade):
     # Background arc (full 180°)
     c.saveState()
     c.setStrokeColor(MID_GREY)
-    c.setLineWidth(14)
+    c.setLineWidth(18)
     c.setLineCap(1)
     for i in range(0, 181, 2):
         a1 = math.radians(180 - i)
@@ -105,7 +107,7 @@ def _draw_soh_gauge(c, cx, cy, radius, soh, grade):
     sweep = int(soh * 1.8)
     c.saveState()
     c.setStrokeColor(grade_colour)
-    c.setLineWidth(14)
+    c.setLineWidth(18)
     c.setLineCap(1)
     for i in range(0, min(sweep, 180), 2):
         a1 = math.radians(180 - i)
@@ -116,19 +118,82 @@ def _draw_soh_gauge(c, cx, cy, radius, soh, grade):
 
     # SoH text inside gauge
     c.saveState()
-    c.setFont("Helvetica-Bold", 28)
+    c.setFont("Helvetica-Bold", 36)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawCentredString(cx, cy - 2, f"{soh}%")
-    c.setFont("Helvetica", 9)
+    c.drawCentredString(cx, cy - 4, f"{soh}%")
+    c.setFont("Helvetica", 11)
     c.setFillColor(TEXT_GREY)
-    c.drawCentredString(cx, cy - 16, "State of Health")
+    c.drawCentredString(cx, cy - 20, "State of Health")
     c.restoreState()
 
     # Grade label below gauge
     c.saveState()
-    c.setFont("Helvetica-Bold", 13)
+    c.setFont("Helvetica-Bold", 16)
     c.setFillColor(grade_colour)
-    c.drawCentredString(cx, cy - 38, grade.upper())
+    c.drawCentredString(cx, cy - 44, grade.upper())
+    c.restoreState()
+
+
+def _draw_approval_stamp(c, cx, cy, radius, soh):
+    """Draw a rotated circular approval stamp at (cx, cy)."""
+    c.saveState()
+    c.translate(cx, cy)
+    c.rotate(-15)  # slight tilt like a physical stamp
+
+    # Outer ring
+    c.setStrokeColor(AZ_GREEN)
+    c.setLineWidth(3.5)
+    c.setFillColor(HexColor("#FFFFFF"))
+    c.circle(0, 0, radius, fill=1, stroke=1)
+
+    # Inner ring
+    c.setLineWidth(1.5)
+    c.circle(0, 0, radius - 6, fill=0, stroke=1)
+
+    # "AZ AUTOS" curved around the top
+    c.setFillColor(AZ_GREEN)
+    c.setFont("Helvetica-Bold", 11)
+    top_text = "AZ AUTOS"
+    # Draw each character along an arc at the top
+    arc_radius = radius - 16
+    total_angle = len(top_text) * 14  # degrees spread
+    start_angle = 90 + total_angle / 2
+    for i, ch in enumerate(top_text):
+        angle = math.radians(start_angle - i * 14)
+        tx = arc_radius * math.cos(angle)
+        ty = arc_radius * math.sin(angle)
+        c.saveState()
+        c.translate(tx, ty)
+        c.rotate(math.degrees(angle) - 90)
+        c.drawCentredString(0, 0, ch)
+        c.restoreState()
+
+    # "APPROVED" bold across the centre
+    c.setFont("Helvetica-Bold", 18)
+    c.setFillColor(AZ_GREEN)
+    c.drawCentredString(0, 2, "APPROVED")
+
+    # SoH percentage below
+    c.setFont("Helvetica-Bold", 13)
+    c.setFillColor(DARK_CHARCOAL)
+    c.drawCentredString(0, -16, f"{soh}% SoH")
+
+    # "BATTERY HEALTH" curved around the bottom
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(AZ_GREEN)
+    bottom_text = "BATTERY HEALTH"
+    total_angle_b = len(bottom_text) * 12
+    start_angle_b = 270 - total_angle_b / 2
+    for i, ch in enumerate(bottom_text):
+        angle = math.radians(start_angle_b + i * 12)
+        tx = arc_radius * math.cos(angle)
+        ty = arc_radius * math.sin(angle)
+        c.saveState()
+        c.translate(tx, ty)
+        c.rotate(math.degrees(angle) + 90)
+        c.drawCentredString(0, 0, ch)
+        c.restoreState()
+
     c.restoreState()
 
 
@@ -268,7 +333,7 @@ def generate_autotrader_image(data: dict, output_path: str):
     # ══════════════════════════════════════════════════════════════
     # HEADER — Green bar (matches certificate _draw_header)
     # ══════════════════════════════════════════════════════════════
-    header_h = 62
+    header_h = 72
     header_y = PAGE_H - header_h
 
     c.saveState()
@@ -276,7 +341,7 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.rect(0, header_y, PAGE_W, header_h, fill=1, stroke=0)
     c.restoreState()
 
-    # AZ Autos logo (left)
+    # AZ Autos logo (left) — larger
     logo_path = data.get("logo_white", "")
     logo_drawn = False
     if logo_path and os.path.exists(logo_path):
@@ -284,40 +349,40 @@ def generate_autotrader_image(data: dict, output_path: str):
         if logo_img:
             try:
                 c.drawImage(logo_img, MARGIN, header_y + 8,
-                            width=100, height=header_h - 16,
+                            width=130, height=header_h - 16,
                             preserveAspectRatio=True, mask='auto')
                 logo_drawn = True
             except Exception:
                 pass
     if not logo_drawn:
         c.saveState()
-        c.setFont("Helvetica-Bold", 18)
+        c.setFont("Helvetica-Bold", 22)
         c.setFillColor(WHITE)
-        c.drawString(MARGIN, header_y + 22, "AZ AUTOS")
+        c.drawString(MARGIN, header_y + 26, "AZ AUTOS")
         c.restoreState()
 
-    # Title (centre)
+    # Title (centre) — scaled up
     c.saveState()
-    c.setFont("Helvetica-Bold", 16)
+    c.setFont("Helvetica-Bold", 20)
     c.setFillColor(WHITE)
-    c.drawCentredString(PAGE_W / 2, header_y + 32, "EV Battery Health Certificate")
-    c.setFont("Helvetica", 8)
+    c.drawCentredString(PAGE_W / 2, header_y + 38, "EV Battery Health Certificate")
+    c.setFont("Helvetica", 10)
     c.setFillColor(HexColor("#FFFFFFCC"))
-    c.drawCentredString(PAGE_W / 2, header_y + 16, "Tested with Bosch KTS 590 / ESItronic 2.0")
+    c.drawCentredString(PAGE_W / 2, header_y + 20, "Tested with Bosch KTS 590 / ESItronic 2.0")
     c.restoreState()
 
-    # Cert ref and date (right)
+    # Cert ref and date (right) — scaled up
     c.saveState()
-    c.setFont("Helvetica", 8)
+    c.setFont("Helvetica", 10)
     c.setFillColor(WHITE)
-    c.drawRightString(PAGE_W - MARGIN, header_y + 36, f"Ref: {cert_ref}")
-    c.drawRightString(PAGE_W - MARGIN, header_y + 22, f"Issued: {issue_date}")
+    c.drawRightString(PAGE_W - MARGIN, header_y + 42, f"Ref: {cert_ref}")
+    c.drawRightString(PAGE_W - MARGIN, header_y + 26, f"Issued: {issue_date}")
     c.restoreState()
 
     # ══════════════════════════════════════════════════════════════
     # FOOTER — Light grey bar (matches certificate _draw_footer)
     # ══════════════════════════════════════════════════════════════
-    footer_h = 36
+    footer_h = 40
     c.saveState()
     c.setFillColor(LIGHT_GREY)
     c.rect(0, 0, PAGE_W, footer_h, fill=1, stroke=0)
@@ -327,15 +392,15 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.restoreState()
 
     c.saveState()
-    c.setFont("Helvetica", 7.5)
+    c.setFont("Helvetica", 9)
     c.setFillColor(TEXT_GREY)
-    c.drawString(MARGIN, 16, f"Ref: {cert_ref}  |  {issue_date}")
-    c.setFont("Helvetica", 6.5)
-    c.drawCentredString(PAGE_W / 2, 6,
+    c.drawString(MARGIN, 18, f"Ref: {cert_ref}  |  {issue_date}")
+    c.setFont("Helvetica", 8)
+    c.drawCentredString(PAGE_W / 2, 7,
                         "All data shown on this report is for informational purposes only")
-    c.setFont("Helvetica-Bold", 8)
+    c.setFont("Helvetica-Bold", 10)
     c.setFillColor(AZ_GREEN)
-    c.drawRightString(PAGE_W - MARGIN, 16, "azautos.co.uk")
+    c.drawRightString(PAGE_W - MARGIN, 18, "azautos.co.uk")
     c.restoreState()
 
     # ══════════════════════════════════════════════════════════════
@@ -346,10 +411,9 @@ def generate_autotrader_image(data: dict, output_path: str):
     available_h = content_top - content_bottom
 
     # Fixed section heights
-    status_h = 140                    # SoH gauge + battery info card
-    mid_row_h = 108                   # warranty + range row
+    status_h = 150                    # SoH gauge + battery info card
+    mid_row_h = 118                   # warranty + range row (taller for bigger fonts)
     # Narrative gets remaining space after sections and 4 equal gaps
-    # Gaps: above status, between status & mid row, between mid row & narrative, below narrative
     total_sections_h = status_h + mid_row_h
     remaining = available_h - total_sections_h
     # Narrative takes up a fair share; rest is gaps
@@ -372,19 +436,19 @@ def generate_autotrader_image(data: dict, output_path: str):
     box_bottom = status_y
     baseline = box_bottom + BOX_PAD + 8
 
-    # LEFT: SoH Gauge — bottom-aligned
-    gauge_cx = MARGIN + 115
-    gauge_cy = baseline + 38 + 12
-    gauge_r = 46
+    # LEFT: SoH Gauge — bottom-aligned, larger
+    gauge_cx = MARGIN + 125
+    gauge_cy = baseline + 44 + 14
+    gauge_r = 54
     _draw_soh_gauge(c, gauge_cx, gauge_cy, gauge_r, soh, grade)
 
-    # CENTRE: Battery Status info — bottom-aligned
-    info_x = MARGIN + 260
+    # CENTRE: Battery Status info — bottom-aligned, scaled up fonts
+    info_x = MARGIN + 270
     c.saveState()
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont("Helvetica-Bold", 14)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(info_x, baseline + 72, "Battery Status")
-    c.setFont("Helvetica", 8.5)
+    c.drawString(info_x, baseline + 82, "Battery Status")
+    c.setFont("Helvetica", 11)
     c.setFillColor(TEXT_GREY)
 
     info_lines = []
@@ -401,40 +465,40 @@ def generate_autotrader_image(data: dict, output_path: str):
     elif dc_charge != "N/A":
         info_lines.append(f"DC Charge Rate: {dc_charge} kW")
 
-    info_y = baseline + 54
+    info_y = baseline + 62
     for line in info_lines:
         c.drawString(info_x, info_y, line)
-        info_y -= 16
+        info_y -= 18
     c.restoreState()
 
-    # RIGHT: Bosch logo + label — bottom-aligned
-    bosch_x = PAGE_W - MARGIN - 180
+    # RIGHT: Bosch logo + label — bottom-aligned, larger
+    bosch_x = PAGE_W - MARGIN - 200
     bosch_path = data.get("bosch_logo", "")
     bosch_drawn = False
     if bosch_path and os.path.exists(bosch_path):
         try:
             bosch_img = _prepare_bosch_logo(bosch_path, "#F5F5F5")
             if bosch_img:
-                c.drawImage(bosch_img, bosch_x + 10, baseline + 24,
-                            width=140, height=60,
+                c.drawImage(bosch_img, bosch_x + 10, baseline + 28,
+                            width=160, height=70,
                             preserveAspectRatio=True)
                 bosch_drawn = True
         except Exception:
             pass
     if not bosch_drawn:
         c.saveState()
-        c.setFont("Helvetica-Bold", 13)
+        c.setFont("Helvetica-Bold", 16)
         c.setFillColor(DARK_CHARCOAL)
-        c.drawString(bosch_x + 20, baseline + 42, "BOSCH KTS 590")
-        c.setFont("Helvetica", 9)
+        c.drawString(bosch_x + 20, baseline + 50, "BOSCH KTS 590")
+        c.setFont("Helvetica", 11)
         c.setFillColor(TEXT_GREY)
-        c.drawString(bosch_x + 20, baseline + 26, "ESItronic 2.0")
+        c.drawString(bosch_x + 20, baseline + 32, "ESItronic 2.0")
         c.restoreState()
 
     c.saveState()
-    c.setFont("Helvetica-Bold", 8)
+    c.setFont("Helvetica-Bold", 10)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawCentredString(bosch_x + 80, baseline + 8, "KTS 590 / ESItronic 2.0")
+    c.drawCentredString(bosch_x + 90, baseline + 8, "KTS 590 / ESItronic 2.0")
     c.restoreState()
 
     # ══════════════════════════════════════════════════════════════
@@ -462,14 +526,14 @@ def generate_autotrader_image(data: dict, output_path: str):
     mileage = data.get("mileage", 0)
     first_registered = data.get("first_registered", "")
 
-    # Heading
+    # Heading — scaled up
     c.saveState()
-    c.setFont("Helvetica-Bold", 10)
+    c.setFont("Helvetica-Bold", 13)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(MARGIN + BOX_PAD, y - 16, "Battery Warranty")
+    c.drawString(MARGIN + BOX_PAD, y - 18, "Battery Warranty")
     c.restoreState()
 
-    # Status badge (matches certificate style)
+    # Status badge (matches certificate style) — scaled up
     if warranty_status == "In Warranty":
         badge_color = AZ_GREEN
     elif warranty_status == "Expired":
@@ -479,20 +543,20 @@ def generate_autotrader_image(data: dict, output_path: str):
 
     badge_text = warranty_status.upper()
     c.saveState()
-    tw = c.stringWidth(badge_text, "Helvetica-Bold", 7.5) + 14
+    tw = c.stringWidth(badge_text, "Helvetica-Bold", 9.5) + 16
     badge_x = MARGIN + left_w - BOX_PAD - tw
-    _draw_rounded_rect(c, badge_x, y - 20, tw, 15, r=4, fill_color=badge_color)
-    c.setFont("Helvetica-Bold", 7.5)
+    _draw_rounded_rect(c, badge_x, y - 22, tw, 18, r=4, fill_color=badge_color)
+    c.setFont("Helvetica-Bold", 9.5)
     c.setFillColor(WHITE)
-    c.drawString(badge_x + 7, y - 16, badge_text)
+    c.drawString(badge_x + 8, y - 17, badge_text)
     c.restoreState()
 
-    # Warranty terms
+    # Warranty terms — scaled up
     c.saveState()
-    c.setFont("Helvetica", 7.5)
+    c.setFont("Helvetica", 9.5)
     c.setFillColor(TEXT_GREY)
     terms_text = f"{warranty_years} yrs / {warranty_miles:,} mi  |  SoH threshold: {warranty_soh_thresh}%"
-    c.drawString(MARGIN + BOX_PAD, y - 33, terms_text)
+    c.drawString(MARGIN + BOX_PAD, y - 36, terms_text)
     c.restoreState()
 
     # Progress bars
@@ -516,13 +580,13 @@ def generate_autotrader_image(data: dict, output_path: str):
             time_text = "Expired"
             time_fraction = 1.0
 
-        # Time bar
+        # Time bar — scaled up labels
         c.saveState()
-        c.setFont("Helvetica", 7.5)
+        c.setFont("Helvetica", 9.5)
         c.setFillColor(DARK_CHARCOAL)
-        c.drawString(MARGIN + BOX_PAD, y - 48, f"Time: {time_text}")
+        c.drawString(MARGIN + BOX_PAD, y - 52, f"Time: {time_text}")
         c.restoreState()
-        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 60, bar_w, 7,
+        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 64, bar_w, 8,
                            min(1.0, time_fraction))
 
         # Mileage bar
@@ -531,18 +595,18 @@ def generate_autotrader_image(data: dict, output_path: str):
         miles_fraction = mileage / warranty_miles if warranty_miles else 1.0
 
         c.saveState()
-        c.setFont("Helvetica", 7.5)
+        c.setFont("Helvetica", 9.5)
         c.setFillColor(DARK_CHARCOAL)
-        c.drawString(MARGIN + BOX_PAD, y - 75, f"Mileage: {miles_text}")
+        c.drawString(MARGIN + BOX_PAD, y - 80, f"Mileage: {miles_text}")
         c.restoreState()
-        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 87, bar_w, 7,
+        _draw_progress_bar(c, MARGIN + BOX_PAD, y - 92, bar_w, 8,
                            min(1.0, miles_fraction))
 
-        # Legend
+        # Legend — scaled up
         c.saveState()
-        c.setFont("Helvetica", 6)
+        c.setFont("Helvetica", 7.5)
         c.setFillColor(TEXT_GREY)
-        c.drawString(MARGIN + BOX_PAD, w_y + 4, "Green = used portion")
+        c.drawString(MARGIN + BOX_PAD, w_y + 5, "Green = used portion")
         c.restoreState()
 
     # ── RIGHT: Range Estimates Table ─────────────────────────────
@@ -550,23 +614,23 @@ def generate_autotrader_image(data: dict, output_path: str):
                        r=BOX_RADIUS, fill_color=WHITE,
                        stroke_color=MID_GREY, stroke_width=0.5)
 
-    # Heading
+    # Heading — scaled up
     c.saveState()
-    c.setFont("Helvetica-Bold", 10)
+    c.setFont("Helvetica-Bold", 13)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(right_x + BOX_PAD, y - 16, "Range Estimates (Miles)")
+    c.drawString(right_x + BOX_PAD, y - 18, "Range Estimates (Miles)")
     c.restoreState()
 
-    # Table header — column positions
+    # Table header — column positions, scaled up fonts
     inner_w = right_w - 2 * BOX_PAD
     col_scenario_x = right_x + BOX_PAD
     col_new_x = right_x + BOX_PAD + inner_w * 0.45
     col_current_x = right_x + BOX_PAD + inner_w * 0.65
     col_diff_x = right_x + BOX_PAD + inner_w * 0.85
 
-    th_y = y - 32
+    th_y = y - 36
     c.saveState()
-    c.setFont("Helvetica-Bold", 8)
+    c.setFont("Helvetica-Bold", 10)
     c.setFillColor(TEXT_GREY)
     c.drawString(col_scenario_x, th_y, "Scenario")
     c.drawString(col_new_x, th_y, "When New")
@@ -578,8 +642,8 @@ def generate_autotrader_image(data: dict, output_path: str):
     c.saveState()
     c.setStrokeColor(MID_GREY)
     c.setLineWidth(0.5)
-    c.line(col_scenario_x, th_y - 5,
-           right_x + right_w - BOX_PAD, th_y - 5)
+    c.line(col_scenario_x, th_y - 6,
+           right_x + right_w - BOX_PAD, th_y - 6)
     c.restoreState()
 
     # Range data
@@ -596,8 +660,8 @@ def generate_autotrader_image(data: dict, output_path: str):
         ("Worst Case (Winter Mway)", range_worst_new, range_worst_cur, AZ_GREEN_LIGHT),
     ]
 
-    ry = th_y - 20
-    row_h = 20
+    ry = th_y - 22
+    row_h = 22
     for label, new_val, cur_val, bg in scenarios:
         diff = cur_val - new_val
 
@@ -607,20 +671,20 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.rect(right_x + 6, ry - 3, right_w - 12, row_h, fill=1, stroke=0)
         c.restoreState()
 
-        # Row text
+        # Row text — scaled up
         c.saveState()
-        c.setFont("Helvetica", 8)
+        c.setFont("Helvetica", 10)
         c.setFillColor(DARK_CHARCOAL)
         c.drawString(col_scenario_x, ry + 2, label)
 
-        c.setFont("Helvetica-Bold", 8.5)
+        c.setFont("Helvetica-Bold", 11)
         c.drawString(col_new_x, ry + 2, f"{new_val} mi")
 
         soh_col = AZ_GREEN if grade in ("Excellent", "Good") else HexColor("#E8602C")
         c.setFillColor(soh_col)
         c.drawString(col_current_x, ry + 2, f"{cur_val} mi")
 
-        c.setFont("Helvetica", 8)
+        c.setFont("Helvetica", 10)
         c.setFillColor(TEXT_GREY)
         c.drawString(col_diff_x, ry + 2, f"{diff} mi")
         c.restoreState()
@@ -637,22 +701,22 @@ def generate_autotrader_image(data: dict, output_path: str):
                        r=BOX_RADIUS, fill_color=LIGHT_GREY,
                        stroke_color=MID_GREY, stroke_width=0.3)
 
-    # Heading
+    # Heading — scaled up
     c.saveState()
-    c.setFont("Helvetica-Bold", 10)
+    c.setFont("Helvetica-Bold", 13)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(MARGIN + BOX_PAD, y - 16, "Assessment Summary")
+    c.drawString(MARGIN + BOX_PAD, y - 18, "Assessment Summary")
     c.restoreState()
 
-    # Charging compatibility line (right-aligned in heading row)
+    # Charging compatibility line (right-aligned in heading row) — scaled up
     ac_connector = data.get("ac_connector", "Not available")
     dc_connector = data.get("dc_connector", "Not available")
     if ac_connector != "Not available" or dc_connector != "Not available":
         charging_text = f"AC: {ac_connector} — {ac_charge} kW  |  DC: {dc_connector} — {dc_charge} kW"
         c.saveState()
-        c.setFont("Helvetica", 7.5)
+        c.setFont("Helvetica", 9.5)
         c.setFillColor(TEXT_GREY)
-        c.drawRightString(MARGIN + CONTENT_W - BOX_PAD, y - 14, charging_text)
+        c.drawRightString(MARGIN + CONTENT_W - BOX_PAD, y - 16, charging_text)
         c.restoreState()
 
     # Narrative text — 12pt for readability at thumbnail size
@@ -665,7 +729,7 @@ def generate_autotrader_image(data: dict, output_path: str):
 
         # Calculate how many lines fit in the available space
         line_height = narr_size + 4  # 16pt line spacing for 12pt text
-        text_area_h = narr_card_h - 28  # below heading
+        text_area_h = narr_card_h - 30  # below heading
         max_lines = int(text_area_h / line_height)
 
         truncated = False
@@ -676,7 +740,7 @@ def generate_autotrader_image(data: dict, output_path: str):
         c.saveState()
         c.setFont(narr_font, narr_size)
         c.setFillColor(DARK_CHARCOAL)
-        ny = y - 30  # start below heading
+        ny = y - 34  # start below heading
         for line in narr_lines:
             c.drawString(MARGIN + BOX_PAD, ny, line)
             ny -= line_height
@@ -684,10 +748,19 @@ def generate_autotrader_image(data: dict, output_path: str):
 
         if truncated:
             c.saveState()
-            c.setFont("Helvetica-Oblique", 9)
+            c.setFont("Helvetica-Oblique", 11)
             c.setFillColor(TEXT_GREY)
             c.drawString(MARGIN + BOX_PAD, ny, "... See full certificate for details")
             c.restoreState()
+
+    # ══════════════════════════════════════════════════════════════
+    # APPROVAL STAMP — only for SoH >= 75%
+    # ══════════════════════════════════════════════════════════════
+    if soh >= 75:
+        stamp_radius = 58
+        stamp_cx = PAGE_W - MARGIN - stamp_radius - 10
+        stamp_cy = y - narr_card_h + stamp_radius + 6
+        _draw_approval_stamp(c, stamp_cx, stamp_cy, stamp_radius, soh)
 
     # ── Finish PDF ────────────────────────────────────────────────
     c.showPage()
