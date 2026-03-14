@@ -435,22 +435,21 @@ def generate_autotrader_image(data: dict, output_path: str):
     # Three-column layout: gauge | info | bosch — evenly spaced, vertically centred
     box_mid_y = status_y + status_h / 2  # vertical midpoint of the card
 
-    # Divide CONTENT_W into 3 equal zones
+    # Divide CONTENT_W into 3 equal zones, each centred
     zone_w = CONTENT_W / 3
     zone1_cx = MARGIN + zone_w * 0.5          # centre of left zone (gauge)
-    zone2_x = MARGIN + zone_w + BOX_PAD       # left edge of centre zone (info text)
+    zone2_cx = MARGIN + zone_w * 1.5          # centre of middle zone (info)
     zone3_cx = MARGIN + zone_w * 2.5          # centre of right zone (bosch)
 
-    # LEFT: SoH Gauge — vertically centred in box
-    # Gauge visual extent: top of arc = cy + radius, bottom of grade label = cy - 44
-    # Total visual height ≈ radius + 44. Centre that within the box.
+    # ── LEFT: SoH Gauge — vertically centred in box ──
+    # Visual extent: top of arc at cy+radius, bottom of grade label at cy-48
+    # To centre: (cy+radius + cy-48)/2 = box_mid_y → cy = box_mid_y - (radius-48)/2
     gauge_r = 54
-    gauge_visual_h = gauge_r + 44
     gauge_cx = zone1_cx
-    gauge_cy = box_mid_y + (gauge_visual_h / 2 - 44)  # centre the visual block
+    gauge_cy = box_mid_y - (gauge_r - 48) / 2
     _draw_soh_gauge(c, gauge_cx, gauge_cy, gauge_r, soh, grade)
 
-    # CENTRE: Battery Status info — vertically centred in zone 2
+    # ── CENTRE: Battery Status info — vertically & horizontally centred ──
     info_lines = []
     if battery_gross != "N/A":
         info_lines.append(f"Gross Capacity: {battery_gross} kWh")
@@ -465,25 +464,34 @@ def generate_autotrader_image(data: dict, output_path: str):
     elif dc_charge != "N/A":
         info_lines.append(f"DC Charge Rate: {dc_charge} kW")
 
-    heading_h = 16  # heading font height
-    heading_gap = 14  # space between heading and first data line
+    heading_h = 16
+    heading_gap = 14
     line_spacing = 18
     total_info_h = heading_h + heading_gap + len(info_lines) * line_spacing
     info_top_y = box_mid_y + total_info_h / 2
 
+    # Find max text width to centre the block horizontally within its zone
     c.saveState()
+    heading_w = c.stringWidth("Battery Status", "Helvetica-Bold", 14)
+    max_line_w = heading_w
+    for line in info_lines:
+        lw = c.stringWidth(line, "Helvetica", 11)
+        if lw > max_line_w:
+            max_line_w = lw
+    info_left_x = zone2_cx - max_line_w / 2
+
     c.setFont("Helvetica-Bold", 14)
     c.setFillColor(DARK_CHARCOAL)
-    c.drawString(zone2_x, info_top_y - heading_h, "Battery Status")
+    c.drawString(info_left_x, info_top_y - heading_h, "Battery Status")
     c.setFont("Helvetica", 11)
     c.setFillColor(TEXT_GREY)
     info_y = info_top_y - heading_h - heading_gap
     for line in info_lines:
-        c.drawString(zone2_x, info_y, line)
+        c.drawString(info_left_x, info_y, line)
         info_y -= line_spacing
     c.restoreState()
 
-    # RIGHT: Bosch logo + label — centred in zone 3
+    # ── RIGHT: Bosch logo + label — centred in zone 3 ──
     bosch_path = data.get("bosch_logo", "")
     bosch_drawn = False
     bosch_logo_w = 160
