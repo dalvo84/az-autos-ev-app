@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ONE LIFE — 0 to 110</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<!-- ------------------------------------------------------------ START -->
+<div id="start" class="overlay">
+  <div class="panel start-panel">
+    <div class="kicker">A life, one year at a time</div>
+    <h1>ONE LIFE</h1>
+    <p class="sub">Born in Shillington. Three decisions a year, every year, from nought to a hundred and ten. Every decision is its own level.</p>
+    <div class="start-facts">
+      <span>111 years</span><span>333 decisions</span><span>333 levels</span><span>80+ achievements</span>
+    </div>
+    <label class="seedbox">
+      <span>Seed</span>
+      <input id="seed-input" type="text" placeholder="leave blank for random" autocomplete="off" />
+    </label>
+    <div class="start-buttons">
+      <button id="btn-new" class="primary">Start a new life</button>
+      <button id="btn-continue" class="ghost" hidden>Continue</button>
+    </div>
+    <p class="hint">Drag the scene to look around · scroll to zoom</p>
+  </div>
+</div>
+
+<!-- -------------------------------------------------------------- HUD -->
+<header id="hud" hidden>
+  <div class="hud-left">
+    <div class="age-block">
+      <div class="age-num" id="hud-age">0</div>
+      <div class="age-meta">
+        <div id="hud-year">2013</div>
+        <div id="hud-place">Shillington</div>
+      </div>
+    </div>
+    <div class="level-block">
+      <div class="lv" id="hud-level">LV 1</div>
+      <div class="xpbar"><i id="hud-xp"></i></div>
+      <div class="xptext" id="hud-xptext">0 / 80 XP</div>
+    </div>
+  </div>
+
+  <div class="hud-stats" id="hud-stats"></div>
+
+  <div class="hud-right">
+    <div class="purse">
+      <span id="hud-money">£0</span>
+      <span id="hud-fame" class="fame">0 fame</span>
+    </div>
+    <div class="hud-buttons">
+      <button data-panel="achievements" title="Achievements">🏆</button>
+      <button data-panel="people" title="People">👥</button>
+      <button data-panel="log" title="Life so far">📜</button>
+      <button id="btn-reset" title="Start again">↺</button>
+    </div>
+  </div>
+</header>
+
+<!-- --------------------------------------------------------- QUESTION -->
+<section id="question" class="card" hidden>
+  <div class="card-top">
+    <span class="level-chip" id="q-level">LEVEL 1</span>
+    <span class="q-count" id="q-count">Question 1 of 3</span>
+    <span class="scene-chip" id="q-scene"></span>
+  </div>
+  <p class="intro" id="q-intro" hidden></p>
+  <h2 class="prompt" id="q-prompt"></h2>
+  <div class="multi-note" id="q-multi" hidden>You can pick two here.</div>
+  <div class="options" id="q-options"></div>
+  <div class="custom-box" id="q-custom" hidden>
+    <input id="custom-input" type="text" maxlength="180" placeholder="So what do you do instead?" autocomplete="off" />
+    <button id="custom-go" class="primary small">Do it</button>
+    <button id="custom-cancel" class="ghost small">Back</button>
+  </div>
+  <div class="confirm-row" id="q-confirm" hidden>
+    <button id="btn-confirm" class="primary">Lock it in</button>
+  </div>
+</section>
+
+<!-- ---------------------------------------------------------- OUTCOME -->
+<section id="outcome" class="card" hidden>
+  <div class="card-top">
+    <span class="level-chip cleared" id="o-level">LEVEL 1 CLEARED</span>
+  </div>
+  <div id="o-lines"></div>
+  <div class="deltas" id="o-deltas"></div>
+  <div class="awards" id="o-awards"></div>
+  <div class="confirm-row">
+    <button id="btn-next" class="primary">Carry on</button>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------- YEAR BREAK -->
+<div id="yearbreak" class="overlay" hidden>
+  <div class="panel year-panel">
+    <div class="kicker" id="yb-kicker">Next year</div>
+    <h2 id="yb-age">Age 1</h2>
+    <div class="yb-place" id="yb-place"></div>
+    <p class="yb-headline" id="yb-headline"></p>
+    <div class="yb-arrivals" id="yb-arrivals"></div>
+    <div class="yb-summary" id="yb-summary"></div>
+    <button id="btn-year" class="primary">Begin the year</button>
+  </div>
+</div>
+
+<!-- ---------------------------------------------------------- THE END -->
+<div id="ending" class="overlay" hidden>
+  <div class="panel end-panel">
+    <div class="kicker">110 years</div>
+    <h1>THE FULL LIFE</h1>
+    <p class="obituary" id="end-obit"></p>
+    <div class="end-grid" id="end-grid"></div>
+    <div class="end-ach" id="end-ach"></div>
+    <button id="btn-restart" class="primary">Live it again</button>
+  </div>
+</div>
+
+<!-- ----------------------------------------------------------- PANELS -->
+<aside id="panel" class="side" hidden>
+  <div class="side-head">
+    <h3 id="side-title"></h3>
+    <button id="side-close">✕</button>
+  </div>
+  <div class="side-body" id="side-body"></div>
+</aside>
+
+<div id="toasts"></div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
