@@ -11,7 +11,11 @@
   --purple: #a78bfa;
   --red: #ef4444;
   --radius: 16px;
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Archivo for the headline weight, Plex Sans for reading, Plex Mono for the
+     HUD readouts — the stats should look like instrumentation. */
+  --font-display: 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -96,6 +100,7 @@ button:active { transform: translateY(1px); }
 }
 
 .kicker {
+  font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.22em;
   font-size: 0.7rem;
@@ -103,12 +108,22 @@ button:active { transform: translateY(1px); }
   margin-bottom: 10px;
 }
 .panel h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-wrap: balance;
   margin: 0 0 12px;
   font-size: clamp(2.2rem, 7vw, 3.4rem);
   letter-spacing: -0.03em;
   line-height: 0.95;
 }
-.panel h2 { margin: 0 0 10px; font-size: 1.9rem; letter-spacing: -0.02em; }
+.panel h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-wrap: balance;
+  margin: 0 0 10px;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
 .sub { color: var(--dim); line-height: 1.6; margin: 0 0 20px; }
 
 .start-facts {
@@ -118,7 +133,8 @@ button:active { transform: translateY(1px); }
   margin-bottom: 22px;
 }
 .start-facts span {
-  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   padding: 5px 11px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
@@ -129,7 +145,8 @@ button:active { transform: translateY(1px); }
 .seedbox { display: block; margin-bottom: 18px; }
 .seedbox span {
   display: block;
-  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--dim);
@@ -168,17 +185,19 @@ input[type="text"]:focus { border-color: var(--gold); }
 .hud-left { display: flex; gap: 16px; align-items: center; }
 .age-block { display: flex; gap: 10px; align-items: center; }
 .age-num {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
   font-size: 2.5rem;
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.04em;
   color: var(--gold);
 }
-.age-meta { font-size: 0.74rem; color: var(--dim); line-height: 1.5; }
+.age-meta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--dim); line-height: 1.6; }
 #hud-place { color: var(--ink); font-weight: 600; }
 
 .level-block { min-width: 130px; }
-.lv { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; color: var(--purple); }
+.lv { font-family: var(--font-mono); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; color: var(--purple); }
 .xpbar {
   height: 6px;
   border-radius: 999px;
@@ -193,7 +212,7 @@ input[type="text"]:focus { border-color: var(--gold); }
   background: linear-gradient(90deg, var(--purple), var(--blue));
   transition: width 500ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
-.xptext { font-size: 0.66rem; color: var(--dim); }
+.xptext { font-family: var(--font-mono); font-size: 0.64rem; color: var(--dim); font-variant-numeric: tabular-nums; }
 
 .hud-stats {
   display: flex;
@@ -203,6 +222,8 @@ input[type="text"]:focus { border-color: var(--gold); }
   max-width: 46vw;
 }
 .stat {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -220,7 +241,7 @@ input[type="text"]:focus { border-color: var(--gold); }
 .stat .track i { display: block; height: 100%; transition: width 450ms ease; }
 
 .hud-right { text-align: right; }
-.purse { font-size: 0.9rem; font-weight: 700; }
+.purse { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .purse .fame { display: block; font-size: 0.68rem; color: var(--dim); font-weight: 500; }
 .hud-buttons { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
 .hud-buttons button {
@@ -263,7 +284,8 @@ input[type="text"]:focus { border-color: var(--gold); }
   flex-wrap: wrap;
 }
 .level-chip {
-  font-size: 0.66rem;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   padding: 4px 9px;
@@ -277,7 +299,12 @@ input[type="text"]:focus { border-color: var(--gold); }
   color: var(--green);
   border-color: rgba(74, 222, 128, 0.34);
 }
-.q-count, .scene-chip { font-size: 0.68rem; color: var(--dim); letter-spacing: 0.08em; }
+.q-count, .scene-chip {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--dim);
+  letter-spacing: 0.08em;
+}
 .scene-chip { margin-left: auto; text-transform: uppercase; }
 
 .intro {
@@ -289,13 +316,17 @@ input[type="text"]:focus { border-color: var(--gold); }
   padding-left: 12px;
 }
 .prompt {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-wrap: balance;
   margin: 0 0 14px;
   font-size: clamp(1.05rem, 2.4vw, 1.4rem);
   line-height: 1.35;
   letter-spacing: -0.015em;
 }
 .multi-note {
-  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   color: var(--gold);
   margin-bottom: 10px;
   letter-spacing: 0.04em;
@@ -351,7 +382,9 @@ input[type="text"]:focus { border-color: var(--gold); }
 #o-lines p.custom-line { color: var(--purple); font-style: italic; }
 .deltas { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
 .delta {
-  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
   font-weight: 700;
   padding: 4px 9px;
   border-radius: 999px;
@@ -386,7 +419,7 @@ input[type="text"]:focus { border-color: var(--gold); }
 
 /* --------------------------------------------------------- year break */
 .year-panel { text-align: left; }
-.yb-place { color: var(--gold); font-size: 0.84rem; margin-bottom: 14px; letter-spacing: 0.04em; }
+.yb-place { font-family: var(--font-mono); color: var(--gold); font-size: 0.78rem; margin-bottom: 14px; letter-spacing: 0.04em; }
 .yb-headline { color: var(--ink); line-height: 1.6; margin: 0 0 16px; font-size: 1.02rem; }
 .yb-arrivals { display: grid; gap: 8px; margin-bottom: 16px; }
 .arrival {
@@ -438,7 +471,7 @@ input[type="text"]:focus { border-color: var(--gold); }
 .ach-row b { font-size: 0.9rem; display: block; }
 .ach-row small { color: var(--dim); font-size: 0.76rem; line-height: 1.45; display: block; }
 .ach-row em { color: var(--gold); font-style: normal; font-size: 0.72rem; display: block; margin-top: 3px; }
-.ach-group { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin: 18px 0 6px; }
+.ach-group { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin: 18px 0 6px; }
 
 .person-row {
   display: flex;
@@ -450,11 +483,11 @@ input[type="text"]:focus { border-color: var(--gold); }
 .dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
 .person-row b { font-size: 0.9rem; }
 .person-row small { color: var(--dim); font-size: 0.75rem; display: block; line-height: 1.4; }
-.bond { margin-left: auto; text-align: right; font-size: 0.72rem; color: var(--dim); }
+.bond { margin-left: auto; text-align: right; font-family: var(--font-mono); font-size: 0.7rem; color: var(--dim); font-variant-numeric: tabular-nums; }
 .bond i { display: block; width: 60px; height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin-top: 4px; }
 .bond i b { display: block; height: 100%; background: var(--green); }
 
-.log-year { font-size: 0.7rem; letter-spacing: 0.2em; color: var(--gold); margin: 16px 0 6px; }
+.log-year { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.2em; color: var(--gold); margin: 16px 0 6px; }
 .log-line { font-size: 0.84rem; color: var(--dim); line-height: 1.55; margin-bottom: 8px; padding-left: 11px; border-left: 1px solid rgba(255, 255, 255, 0.12); }
 .log-line.headline { color: var(--ink); border-left-color: var(--gold); }
 
@@ -467,8 +500,14 @@ input[type="text"]:focus { border-color: var(--gold); }
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--edge);
 }
-.end-cell b { display: block; font-size: 1.3rem; letter-spacing: -0.02em; }
-.end-cell small { color: var(--dim); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.end-cell b {
+  display: block;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.end-cell small { font-family: var(--font-mono); color: var(--dim); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; }
 .end-ach { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
 .end-ach span {
   font-size: 0.72rem;
@@ -515,4 +554,17 @@ input[type="text"]:focus { border-color: var(--gold); }
   .age-num { font-size: 1.9rem; }
   .card { bottom: 10px; max-height: 58vh; padding: 16px; }
   .panel { padding: 24px 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }

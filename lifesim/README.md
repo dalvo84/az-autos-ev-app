@@ -5,7 +5,18 @@ from nought to a hundred and ten. **Every single decision is its own 3D level.**
 
 ## Running it
 
-ES modules need a real server — opening `index.html` off the disk will not work.
+Three ways, easiest first.
+
+**1. One file, double-click it.** `dist/one-life.html` is the whole game —
+markup, styles, three.js and all — in a single self-contained file. Open it
+straight off the disk, email it, put it on a USB stick. No server, no install.
+
+**2. Published as a link.** The same build published as an Artifact, so it
+opens on any device including a phone. Rebuild and republish with
+`node build.mjs --artifact`.
+
+**3. From source, with a server.** ES modules need a real origin, so opening
+`index.html` off the disk will *not* work:
 
 ```bash
 cd lifesim
@@ -13,8 +24,17 @@ python3 -m http.server 8777
 # then open http://localhost:8777
 ```
 
-No build step, no `npm install`, no internet. Three.js is vendored in
-`vendor/three.module.js`.
+No install and no internet needed — three.js is vendored in
+`vendor/three.module.js`. Fonts come from Google Fonts and fall back cleanly
+to system faces when offline.
+
+### Rebuilding the single file
+
+```bash
+npm i esbuild
+node build.mjs              # dist/one-life.html      — standalone
+node build.mjs --artifact   # dist/one-life.artifact.html — body-only
+```
 
 ## How it plays
 
@@ -81,6 +101,8 @@ Fixed storylines that always happen or always can:
 ```
 lifesim/
 ├── index.html            shell + HUD + cards
+├── build.mjs             bundles everything into dist/one-life.html
+├── dist/one-life.html    the whole game in one double-clickable file
 ├── css/style.css
 ├── vendor/three.module.js
 └── src/
