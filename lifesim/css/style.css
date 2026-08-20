@@ -270,7 +270,38 @@ input[type="text"]:focus { border-color: var(--gold); }
   backdrop-filter: blur(14px);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
   animation: rise 340ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  transition: transform 300ms cubic-bezier(0.3, 0, 0.2, 1), opacity 220ms ease;
 }
+
+/* Peek: slide the panel away so you can actually look at the level. */
+body.peek .card {
+  transform: translate(-50%, calc(100% + 40px));
+  opacity: 0;
+  pointer-events: none;
+}
+body.peek #btn-peek {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+.peek-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 26;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  background: rgba(9, 11, 17, 0.8);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  padding: 7px 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease;
+}
+body.peek .peek-hint { opacity: 1; }
 @keyframes rise {
   from { opacity: 0; transform: translate(-50%, 26px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
@@ -549,11 +580,64 @@ input[type="text"]:focus { border-color: var(--gold); }
 
 /* -------------------------------------------------------------- small */
 @media (max-width: 760px) {
-  #hud { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
-  .hud-stats { max-width: 100%; order: 3; width: 100%; }
-  .age-num { font-size: 1.9rem; }
-  .card { bottom: 10px; max-height: 58vh; padding: 16px; }
+  /* One tight row of vitals, then a single swipeable strip of stats, so the
+     HUD costs about 70px instead of a third of the screen. A grid keeps the
+     buttons on the first row instead of letting them wrap onto their own. */
+  #hud {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "age level right"
+      "stats stats stats";
+    align-items: center;
+    gap: 5px 8px;
+    padding: 7px 9px 5px;
+    background: linear-gradient(180deg,
+      rgba(6, 8, 13, 0.95) 0%,
+      rgba(6, 8, 13, 0.92) 72%,
+      rgba(6, 8, 13, 0) 100%);
+  }
+
+  .hud-left { display: contents; }
+  .age-block { grid-area: age; gap: 7px; }
+  .age-num { font-size: 1.55rem; }
+  .age-meta { font-size: 0.58rem; line-height: 1.4; }
+  .level-block { grid-area: level; min-width: 0; }
+  .lv { font-size: 0.62rem; letter-spacing: 0.06em; }
+  .xpbar { margin: 4px 0 2px; height: 5px; }
+  .xptext { font-size: 0.55rem; }
+
+  .hud-right { grid-area: right; display: flex; align-items: center; gap: 7px; }
+  .purse { font-size: 0.7rem; line-height: 1.25; }
+  .purse .fame { font-size: 0.54rem; }
+  .hud-buttons { margin-top: 0; gap: 3px; }
+  .hud-buttons button { padding: 5px 6px; font-size: 0.76rem; border-radius: 7px; }
+
+  .hud-stats {
+    grid-area: stats;
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 9px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .hud-stats::-webkit-scrollbar { display: none; }
+  .stat { flex: 0 0 auto; font-size: 0.6rem; gap: 4px; }
+  .stat b { font-size: 0.66rem; min-width: 16px; }
+  .stat .track { width: 22px; }
+
+  .card { bottom: 8px; max-height: 50vh; padding: 14px 15px 12px; }
+  .card-top { margin-bottom: 9px; }
+  .intro { font-size: 0.84rem; padding-left: 10px; }
+  .prompt { font-size: 1.04rem; margin-bottom: 11px; }
+  .opt { padding: 10px 12px; font-size: 0.9rem; gap: 10px; }
+  .options { gap: 7px; }
+  .confirm-row { margin-top: 11px; }
   .panel { padding: 24px 20px; }
+  .peek-hint { bottom: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

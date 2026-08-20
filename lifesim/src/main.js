@@ -90,6 +90,7 @@ function askQuestion() {
   renderHud(state, ctx);
   show('#outcome', false);
   show('#question', true);
+  togglePeek(false);
 }
 
 function toggleOption(q, id) {
@@ -112,6 +113,7 @@ function submit(choice) {
   if (outcome.levelUps > 0) toast(`Level ${state.level}`, true);
   show('#question', false);
   show('#outcome', true);
+  togglePeek(false);
 }
 
 function carryOn() {
@@ -185,7 +187,14 @@ $('#btn-reset').addEventListener('click', () => {
   show('#start', true);
   $('#btn-continue').hidden = true;
 });
+$('#btn-peek').addEventListener('click', () => togglePeek());
 $('#side-close').addEventListener('click', () => show('#panel', false));
+
+function togglePeek(force) {
+  const on = force === undefined ? !document.body.classList.contains('peek') : force;
+  document.body.classList.toggle('peek', on);
+  stage.setPeek(on);
+}
 $$('#hud [data-panel]').forEach((b) => {
   b.addEventListener('click', () => openPanel(b.dataset.panel));
 });
@@ -211,6 +220,9 @@ document.addEventListener('keydown', (e) => {
     $('#btn-year').click();
   } else if (e.key === 'Escape') {
     show('#panel', false);
+    togglePeek(false);
+  } else if (e.key.toLowerCase() === 'v') {
+    togglePeek();
   }
 });
 
