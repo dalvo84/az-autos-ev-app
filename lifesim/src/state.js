@@ -1,6 +1,8 @@
 // Game state: stats, XP, levels, flags, log, save/load.
 
 import { MAX_AGE } from './content/timeline.js';
+import { wealthTier, wealthRank, DEFAULT_WEALTH } from './content/wealth.js';
+import { getProfile } from './setup.js';
 
 export const STATS = [
   { key: 'ATH', name: 'Athleticism', colour: '#4ade80', start: 8,  talent: 1.8 },
@@ -36,6 +38,16 @@ export function levelFromXp(xp) {
 }
 
 export function newGame(seed) {
+  const profile = getProfile();
+  const tier = wealthTier(profile.wealth || DEFAULT_WEALTH);
+
+  // What your family had shifts where you start, how far money goes, and how
+  // fast you learn. Comfort is easier and teaches you less.
+  const stats = Object.fromEntries(STATS.map((s) => [s.key, s.start]));
+  for (const [k, v] of Object.entries(tier.stats || {})) {
+    if (k in stats) stats[k] = clampStat(k, stats[k] + v);
+  }
+
   return {
     version: 1,
     seed: seed || `life-${Date.now()}`,
@@ -44,9 +56,15 @@ export function newGame(seed) {
     decisions: 0,       // total decisions taken == current 3D level number
     xp: 0,
     level: 1,
-    money: 0,
+    money: tier.start,
+    startMoney: tier.start,
     fame: 0,
-    stats: Object.fromEntries(STATS.map((s) => [s.key, s.start])),
+    wealth: tier.id,
+    wealthRank: wealthRank(tier.id),
+    wealthMoney: tier.money,
+    wealthXp: tier.xp,
+    profile: JSON.parse(JSON.stringify(profile)),
+    stats,
     talent: Object.fromEntries(STATS.map((s) => [s.key, s.talent])),
     flags: {},          // storyline switches
     counters: {},       // numeric tallies (goals, tracks, businesses...)

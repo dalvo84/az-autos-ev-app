@@ -1,7 +1,7 @@
 // Everyone who matters. `met` is the age you first know them; `from` on family
 // is the age they arrive in your life (birth of siblings/cousins).
-
-export const BIRTH_YEAR = 2013;
+// `bornOffset` is their age difference from you, so the whole cast shifts with
+// whatever birth year you pick.
 
 export const FAMILY = [
   {
@@ -17,31 +17,31 @@ export const FAMILY = [
     note: 'The one who put the speakers on when you were nought.',
   },
   {
-    id: 'elowen', name: 'Elowen', rel: 'Sister', from: 2, born: BIRTH_YEAR + 2,
+    id: 'elowen', name: 'Elowen', rel: 'Sister', from: 2, bornOffset: 2,
     colour: 0xe2b04a, height: 1.55,
     traits: ['sharp', 'loud'],
     note: 'Arrived when you were 2 and never gave the spotlight back.',
   },
   {
-    id: 'ollie_a', name: 'Ollie', rel: 'Cousin', from: 0, born: 2011,
+    id: 'ollie_a', name: 'Ollie', rel: 'Cousin', from: 0, bornOffset: -2,
     colour: 0x5fb37a, height: 1.78,
     traits: ['older', 'daring'],
     note: 'Two years up on you. Every bad idea you ever had, he had first.',
   },
   {
-    id: 'blake', name: 'Blake', rel: 'Cousin', from: 5, born: BIRTH_YEAR + 5,
+    id: 'blake', name: 'Blake', rel: 'Cousin', from: 5, bornOffset: 5,
     colour: 0xc76b8a, height: 1.6,
     traits: ['bold'],
     note: 'Born when you were 5. Fearless from about ten minutes old.',
   },
   {
-    id: 'willa', name: 'Willa', rel: 'Cousin', from: 8, born: BIRTH_YEAR + 8,
+    id: 'willa', name: 'Willa', rel: 'Cousin', from: 8, bornOffset: 8,
     colour: 0xb98ccc, height: 1.58,
     traits: ['quiet', 'clever'],
     note: 'Born when you were 8. Watches everything, says little, misses nothing.',
   },
   {
-    id: 'preston', name: 'Preston', rel: 'Cousin', from: 10, born: BIRTH_YEAR + 10,
+    id: 'preston', name: 'Preston', rel: 'Cousin', from: 10, bornOffset: 10,
     colour: 0x6aa9d6, height: 1.74,
     traits: ['copycat'],
     note: 'Born when you were 10. Wants to be you when he grows up.',

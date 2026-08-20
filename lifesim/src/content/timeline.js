@@ -1,7 +1,7 @@
 // The fixed scaffolding of the life: where you live, where you learn, what you
 // play for, and what the world looks like around each age.
 
-import { BIRTH_YEAR } from './people.js';
+import { getProfile, placeName } from '../setup.js';
 
 export const MAX_AGE = 110;
 export const QUESTIONS_PER_YEAR = 3;
@@ -23,7 +23,7 @@ export const PLACES = [
     blurb: 'Back to village life, but taller and louder than last time.',
   },
   {
-    id: 'letchworth', name: 'Letchworth', from: 13, to: MAX_AGE,
+    id: 'letchworth', name: 'Letchworth', from: 13, to: MAX_AGE + 1,
     kind: 'garden_city', sky: 0xa6c8e8, ground: 0x6d9f59,
     blurb: 'The first garden city. Wide greens, tree-lined roads, room to build something.',
   },
@@ -55,10 +55,17 @@ export const STAGES = [
   { id: 'legend',   name: 'Legend Years',   from: 80, to: MAX_AGE, theme: 'garden' },
 ];
 
-export function yearOf(age) { return BIRTH_YEAR + age; }
+export function birthYear() { return getProfile().birthYear; }
+
+export function yearOf(age) { return birthYear() + age; }
 
 export function placeAt(age) {
-  return PLACES.find((p) => age >= p.from && age <= p.to) || PLACES[PLACES.length - 1];
+  // `to` is exclusive, so the year you move belongs to the new place.
+  const i = PLACES.findIndex((p) => age >= p.from && age < p.to);
+  const found = PLACES[i < 0 ? PLACES.length - 1 : i];
+  const index = i < 0 ? PLACES.length - 1 : i;
+  // Name comes from your setup; everything else about the place is fixed.
+  return { ...found, name: placeName(index) };
 }
 
 export function schoolAt(age) {

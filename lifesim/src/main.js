@@ -3,7 +3,13 @@
 import { Stage3D } from './stage3d.js';
 import { Engine } from './engine.js';
 import { newGame, load, save, wipe } from './state.js';
-import { peopleAt, BIRTH_YEAR } from './content/people.js';
+import { peopleAt } from './content/people.js';
+import {
+  DEFAULT_PROFILE, PEOPLE_FIELDS, PLACE_FIELDS, getProfile, setProfile,
+  loadProfile, saveProfile, placeLibrary, rememberPlaces, clampYear,
+} from './setup.js';
+import { WEALTH_TIERS, wealthTier } from './content/wealth.js';
+import { money as fmtMoney } from './ui.js';
 import {
   $, $$, show, renderHud, renderQuestion, renderOutcome, renderYearBreak,
   renderAchievements, renderPeople, renderLog, renderEnding, markSelected,
@@ -33,9 +39,9 @@ function sceneContext() {
 // Children in the scene should look like children.
 function scaleHeight(person, age) {
   const adult = person.height || 1.72;
-  if (person.born === undefined && person.met === undefined) return adult;
-  const theirAge = person.born !== undefined
-    ? Math.max(0, age - (person.born - BIRTH_YEAR))
+  if (person.bornOffset === undefined && person.met === undefined) return adult;
+  const theirAge = person.bornOffset !== undefined
+    ? Math.max(0, age - person.bornOffset)
     : age;
   if (theirAge >= 18) return adult;
   return Math.max(0.55, adult * (0.42 + (theirAge / 18) * 0.58));
@@ -52,6 +58,7 @@ function startNew(seed) {
 }
 
 function resume(saved) {
+  if (saved.profile) setProfile(saved.profile);
   state = saved;
   engine = new Engine(state);
   show('#start', false);
@@ -152,7 +159,105 @@ function openPanel(kind) {
 }
 
 // ------------------------------------------------------------------ wire
-$('#btn-new').addEventListener('click', () => startNew($('#seed-input').value.trim()));
+// ----------------------------------------------------------------- setup
+let draft = null;
+
+function openSetup() {
+  draft = JSON.parse(JSON.stringify(getProfile()));
+  $('#su-name').value = draft.name;
+  $('#su-year').value = draft.birthYear;
+
+  $('#place-library').innerHTML = placeLibrary()
+    .map((n) => `<option value="${escapeAttr(n)}"></option>`).join('');
+
+  $('#su-places').innerHTML = PLACE_FIELDS.map((f) => `
+    <label class="field">
+      <span>${f.label} <em>${f.ages}</em></span>
+      <input type="text" list="place-library" maxlength="40" autocomplete="off"
+             data-place="${f.index}" value="${escapeAttr(draft.places[f.index] || '')}" />
+    </label>`).join('');
+
+  for (const group of ['parents', 'family', 'friends']) {
+    $(`#su-${group}`).innerHTML = PEOPLE_FIELDS.filter((f) => f.group === group).map((f) => `
+      <label class="field">
+        <span>${f.label}</span>
+        <input type="text" maxlength="24" autocomplete="off"
+               data-person="${f.key}" value="${escapeAttr(draft.people[f.key] || '')}" />
+      </label>`).join('');
+  }
+
+  renderWealth();
+  show('#start', false);
+  show('#setup', true);
+  $('#setup').scrollTop = 0;
+}
+
+function renderWealth() {
+  $('#su-wealth').innerHTML = WEALTH_TIERS.map((w) => `
+    <button type="button" class="wealth-opt ${w.id === draft.wealth ? 'sel' : ''}" data-wealth="${w.id}">
+      ${w.name}<i>${w.id === draft.wealth ? 'chosen' : `x${w.money} money`}</i>
+    </button>`).join('');
+
+  const t = wealthTier(draft.wealth);
+  const figures = [
+    `money x${t.money}`,
+    `XP x${t.xp}`,
+    t.start ? `${fmtMoney(t.start)} in your name` : 'nothing in your name',
+    ...Object.entries(t.stats).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`),
+  ];
+  $('#su-wealth-detail').innerHTML =
+    `<b>${t.name}</b>${t.blurb}<div class="figures">${figures.map((f) => `<span>${f}</span>`).join('')}</div>`;
+}
+
+function readSetup() {
+  const people = { ...draft.people };
+  $$('#setup [data-person]').forEach((el) => {
+    const v = el.value.trim();
+    people[el.dataset.person] = v || DEFAULT_PROFILE.people[el.dataset.person];
+  });
+  const places = DEFAULT_PROFILE.places.slice();
+  $$('#setup [data-place]').forEach((el) => {
+    const v = el.value.trim();
+    places[Number(el.dataset.place)] = v || DEFAULT_PROFILE.places[Number(el.dataset.place)];
+  });
+  return {
+    name: $('#su-name').value.trim() || DEFAULT_PROFILE.name,
+    birthYear: clampYear($('#su-year').value),
+    wealth: draft.wealth,
+    places,
+    people,
+  };
+}
+
+function escapeAttr(v) {
+  return String(v).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+$('#su-wealth').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-wealth]');
+  if (!btn) return;
+  draft.wealth = btn.dataset.wealth;
+  renderWealth();
+});
+$('#su-defaults').addEventListener('click', () => {
+  setProfile(JSON.parse(JSON.stringify(DEFAULT_PROFILE)));
+  openSetup();
+});
+$('#su-back').addEventListener('click', () => {
+  show('#setup', false);
+  show('#start', true);
+});
+$('#su-begin').addEventListener('click', () => {
+  const next = readSetup();
+  setProfile(next);
+  saveProfile(next);
+  rememberPlaces(next.places);
+  show('#setup', false);
+  startNew($('#seed-input').value.trim());
+});
+
+$('#btn-new').addEventListener('click', openSetup);
 $('#btn-continue').addEventListener('click', () => {
   const saved = load();
   if (saved) resume(saved);
@@ -173,8 +278,8 @@ $('#btn-restart').addEventListener('click', () => {
   wipe();
   show('#ending', false);
   show('#hud', false);
-  show('#start', true);
   $('#btn-continue').hidden = true;
+  openSetup();
 });
 $('#btn-reset').addEventListener('click', () => {
   if (!confirm('Wipe this life and start again from nought?')) return;
@@ -226,7 +331,9 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// A saved life is offered rather than forced.
+// Your last setup is remembered; the saved life is offered, not forced.
+setProfile(loadProfile() || DEFAULT_PROFILE);
+
 const existing = load();
 if (existing) {
   const btn = $('#btn-continue');

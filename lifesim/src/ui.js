@@ -3,6 +3,8 @@
 import { STATS, levelProgress } from './state.js';
 import { ACHIEVEMENTS, BY_ID } from './content/achievements.js';
 import { ALL_PEOPLE } from './content/people.js';
+import { personalise as P, getProfile } from './setup.js';
+import { wealthTier } from './content/wealth.js';
 
 export const $ = (sel) => document.querySelector(sel);
 export const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -56,8 +58,8 @@ export function renderQuestion(q, ctx, handlers) {
   $('#q-scene').textContent = q.scene.replace(/_/g, ' ');
 
   const intro = $('#q-intro');
-  if (q.intro) { intro.textContent = q.intro; intro.hidden = false; } else { intro.hidden = true; }
-  $('#q-prompt').textContent = q.prompt;
+  if (q.intro) { intro.textContent = P(q.intro); intro.hidden = false; } else { intro.hidden = true; }
+  $('#q-prompt').textContent = P(q.prompt);
   show('#q-multi', !!q.multi);
 
   const box = $('#q-options');
@@ -66,7 +68,7 @@ export function renderQuestion(q, ctx, handlers) {
     const b = document.createElement('button');
     b.className = 'opt';
     b.dataset.id = opt.id;
-    b.innerHTML = `<span class="key">${KEYS[i]}</span><span>${escapeHtml(opt.label)}</span>`;
+    b.innerHTML = `<span class="key">${KEYS[i]}</span><span>${escapeHtml(P(opt.label))}</span>`;
     b.addEventListener('click', () => handlers.toggle(opt.id, b));
     box.appendChild(b);
   });
@@ -98,13 +100,13 @@ export function renderOutcome(outcome, state) {
   lines.innerHTML = '';
   for (const line of outcome.lines) {
     const p = document.createElement('p');
-    p.textContent = line;
+    p.textContent = P(line);
     lines.appendChild(p);
   }
   if (outcome.custom) {
     const p = document.createElement('p');
     p.className = 'custom-line';
-    p.textContent = outcome.custom.result;
+    p.textContent = P(outcome.custom.result);
     lines.appendChild(p);
   }
 
@@ -131,7 +133,7 @@ export function renderOutcome(outcome, state) {
     el.className = `award ${a.secret ? 'secret' : ''}`;
     el.innerHTML = `<span class="ico">${a.secret ? '🔒' : '🏆'}</span>
       <span><b>${a.secret ? 'Secret: ' : ''}${escapeHtml(a.name)}</b>
-      <small>${escapeHtml(a.desc)}</small>
+      <small>${escapeHtml(P(a.desc))}</small>
       <em>Perk — ${escapeHtml(a.perk.note)}</em></span>`;
     awards.appendChild(el);
   }
@@ -140,7 +142,8 @@ export function renderOutcome(outcome, state) {
 // ------------------------------------------------------------ YEAR BREAK
 export function renderYearBreak(state, ctx, arrivals) {
   $('#yb-kicker').textContent = ctx.stage.name;
-  $('#yb-age').textContent = `Age ${ctx.age}`;
+  const who = getProfile().name;
+  $('#yb-age').textContent = who && who !== 'You' ? `${who}, age ${ctx.age}` : `Age ${ctx.age}`;
   const bits = [ctx.place.name, ctx.year];
   if (ctx.school) bits.push(ctx.school.short);
   const clubs = ctx.clubs.map((c) => c.name);
@@ -148,7 +151,7 @@ export function renderYearBreak(state, ctx, arrivals) {
   $('#yb-place').textContent = bits.join('  ·  ');
 
   const head = $('#yb-headline');
-  head.textContent = ctx.headline || ctx.place.blurb;
+  head.textContent = P(ctx.headline || ctx.place.blurb);
 
   const arr = $('#yb-arrivals');
   arr.innerHTML = '';
@@ -156,13 +159,14 @@ export function renderYearBreak(state, ctx, arrivals) {
     const el = document.createElement('div');
     el.className = 'arrival';
     const p = a.person;
-    el.innerHTML = `<b>${escapeHtml(p.name)}</b> — ${a.kind === 'family' ? escapeHtml(p.rel || 'family') : 'new friend'}
-      <small>${escapeHtml(p.note || '')}${p.hook ? ' ' + escapeHtml(p.hook) : ''}</small>`;
+    el.innerHTML = `<b>${escapeHtml(P(p.name))}</b> — ${a.kind === 'family' ? escapeHtml(p.rel || 'family') : 'new friend'}
+      <small>${escapeHtml(P(p.note || ''))}${p.hook ? ' ' + escapeHtml(P(p.hook)) : ''}</small>`;
     arr.appendChild(el);
   }
 
   $('#yb-summary').textContent =
-    `Level ${state.level} · ${state.decisions} decisions taken · ${state.achievements.length} achievements · ${money(state.money)}`;
+    `Level ${state.level} · ${state.decisions} decisions taken · ${state.achievements.length} achievements · `
+    + `${money(state.money)} · ${wealthTier(state.wealth).short.toLowerCase()} family`;
 }
 
 // ---------------------------------------------------------------- PANELS
@@ -177,7 +181,7 @@ export function renderAchievements(state) {
         <small>Not found yet.</small></span></div>`;
     }
     return `<div class="ach-row ${has ? 'got' : ''}"><span class="ico">${a.secret ? '🔒' : '🏆'}</span>
-      <span><b>${escapeHtml(a.name)}</b><small>${escapeHtml(a.desc)}</small>
+      <span><b>${escapeHtml(a.name)}</b><small>${escapeHtml(P(a.desc))}</small>
       <em>${escapeHtml(a.perk.note)}</em></span></div>`;
   }).join('');
 
@@ -195,7 +199,7 @@ export function renderPeople(state) {
     const bond = state.relationships[p.id] ?? 60;
     return `<div class="person-row">
       <span class="dot" style="background:#${p.colour.toString(16).padStart(6, '0')}"></span>
-      <span><b>${escapeHtml(p.name)}</b><small>${escapeHtml(p.rel || (p.personality || []).join(', '))}${p.note ? ' — ' + escapeHtml(p.note) : ''}</small></span>
+      <span><b>${escapeHtml(P(p.name))}</b><small>${escapeHtml(p.rel || (p.personality || []).join(', '))}${p.note ? ' — ' + escapeHtml(P(p.note)) : ''}</small></span>
       <span class="bond">${bond}<i><b style="width:${bond}%"></b></i></span>
     </div>`;
   }).join('');
@@ -210,14 +214,14 @@ export function renderLog(state) {
       out += `<div class="log-year">Age ${entry.age}</div>`;
       lastAge = entry.age;
     }
-    out += `<div class="log-line ${entry.kind === 'headline' ? 'headline' : ''}">${escapeHtml(entry.text)}</div>`;
+    out += `<div class="log-line ${entry.kind === 'headline' ? 'headline' : ''}">${escapeHtml(P(entry.text))}</div>`;
   }
   return out;
 }
 
 // ---------------------------------------------------------------- ENDING
 export function renderEnding(state) {
-  $('#end-obit').textContent = state.obituary || '';
+  $('#end-obit').textContent = P(state.obituary || '');
   const cells = [
     ['Level', state.level],
     ['Decisions', state.decisions],

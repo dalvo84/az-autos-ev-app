@@ -9,6 +9,7 @@ import { EARLY } from './content/story_early.js';
 import { TEEN } from './content/story_teen.js';
 import { poolFor, CHALLENGES } from './content/pools.js';
 import { checkAchievements, awardSecret, perkBundle } from './content/achievements.js';
+import { wealthTier } from './content/wealth.js';
 import { friendsMetAt, familyArrivingAt, FRIENDS } from './content/people.js';
 import {
   applyStat, addXp, bump, logEvent, nudgeRelationship, save, statMeta,
@@ -65,6 +66,7 @@ export class Engine {
 
     const head = headlineFor(s.age);
     if (head) logEvent(s, head, 'headline');
+    if (s.age === 0) logEvent(s, wealthTier(s.wealth).headline, 'headline');
 
     // Ageing: the body starts asking questions after fifty-five. Habits you
     // built earlier genuinely slow it down.
@@ -148,7 +150,11 @@ export class Engine {
         if (delta) outcome.statChanges[k] = (outcome.statChanges[k] || 0) + delta;
       }
       if (payload.money) {
-        const m = payload.money > 0 ? Math.round(payload.money * perks.money) : payload.money;
+        // Family money makes every pound you touch go further.
+        const wealth = s.wealthMoney || 1;
+        const m = payload.money > 0
+          ? Math.round(payload.money * perks.money * wealth)
+          : Math.round(payload.money * Math.max(1, wealth * 0.6));
         s.money = Math.max(-50000, Math.round(s.money + m));
         outcome.money += m;
       }
@@ -188,7 +194,7 @@ export class Engine {
 
     // Low health drags on everything you do.
     const healthFactor = s.stats.HLT < 30 ? 0.75 : s.stats.HLT < 55 ? 0.9 : 1;
-    const gainedXp = Math.round(outcome.xp * perks.xp * healthFactor);
+    const gainedXp = Math.round(outcome.xp * perks.xp * healthFactor * (s.wealthXp || 1));
     outcome.xp = gainedXp;
     outcome.levelUps = addXp(s, gainedXp);
 
@@ -260,6 +266,8 @@ function buildObituary(s) {
     .sort((a, b) => b[1] - a[1])[0];
   const bits = [];
   bits.push(`110 years. ${s.decisions} decisions. Level ${s.level}.`);
+  const tier = wealthTier(s.wealth);
+  bits.push(`Started ${tier.short.toLowerCase()}.`);
   if (s.money >= 1000000) bits.push(`Left £${Math.round(s.money).toLocaleString()} behind.`);
   if ((s.counters.goals || 0) > 40) bits.push(`${s.counters.goals} goals, most of them on pitches nobody filmed.`);
   if ((s.counters.tracks || 0) > 10) bits.push(`${s.counters.tracks} tracks, and the first one was recorded under a duvet.`);

@@ -52,6 +52,46 @@ node build.mjs --artifact   # dist/one-life.artifact.html — body-only
 Keyboard: `A` `B` `C` `D` to choose, `Enter` to lock it in and to carry on.
 Drag the scene to look round it, scroll to zoom.
 
+## Setting it up
+
+Before a life starts you choose:
+
+- **Your name** and **birth year** — the whole cast shifts with the year, since
+  everyone is stored as an age difference from you rather than a fixed date.
+- **Where you live**, all four moves. Type anywhere; new places are saved and
+  offered back as suggestions next time.
+- **Parents, sister, cousins and the seven friends** — names only. The people
+  keep their personalities, their arrival ages and their storylines.
+- **Family wealth**, eight tiers from very poor to centibillionaires.
+
+All of it is remembered for next time. A saved life carries its own copy, so
+renaming things for a new run never rewrites a life already in progress.
+
+The written content uses the default names throughout. Rather than tokenise
+several thousand lines of prose, everything that reaches the screen goes
+through `personalise()` in `src/setup.js`, which swaps defaults for your names
+in one regex pass, longest name first — so renaming "Ollie" can never chew into
+an already-renamed "Ollie B". Place names carry into anything built on them, so
+renaming Shillington also gives you Norwich Lower School and the Norwich Sharks.
+
+### Family wealth
+
+| Tier | Money | XP | In your name |
+| --- | --- | --- | --- |
+| Very poor | ×0.45 | ×1.35 | — |
+| Poor | ×0.65 | ×1.22 | — |
+| Lower middle class | ×0.85 | ×1.12 | — |
+| Middle class | ×1 | ×1 | — |
+| Upper middle class | ×1.3 | ×0.94 | — |
+| Rich | ×2.2 | ×0.86 | £1,000 |
+| Extremely rich | ×5 | ×0.78 | £25,000 |
+| Centibillionaires | ×40 | ×0.68 | £1,000,000 |
+
+Each tier also shifts your starting stats — hardship costs health and happiness
+and buys naughtiness; money buys smarts, charisma, business and health. Comfort
+is the easier game and it teaches you less, so a very poor life finishes around
+twenty levels higher and a great deal poorer.
+
 ## The character
 
 Starts naughty, very happy, ambivert, and with the talent multipliers stacked:
@@ -110,13 +150,15 @@ lifesim/
     ├── engine.js         question selection, effects, achievements, obituary
     ├── state.js          stats, XP, levels, save/load
     ├── ui.js             all DOM rendering
+    ├── setup.js          your name, year, places, cast, wealth, renaming
     ├── custom.js         reads your typed answers and scores them
     ├── stage3d.js        renderer, camera, level swap
     ├── world.js          21 environment builders
     ├── actors.js         low-poly people, the toy, props
     ├── rng.js            seeded RNG — same seed, same life
     └── content/
-        ├── people.js        family and the seven friends
+        ├── wealth.js        the eight family-wealth tiers
+    ├── people.js        family and the seven friends
         ├── timeline.js      places, schools, clubs, stages
         ├── story_early.js   scripted ages 0-12
         ├── story_teen.js    scripted ages 13-21

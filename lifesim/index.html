@@ -22,15 +22,72 @@
     <div class="start-facts">
       <span>111 years</span><span>333 decisions</span><span>333 levels</span><span>80+ achievements</span>
     </div>
-    <label class="seedbox">
-      <span>Seed</span>
-      <input id="seed-input" type="text" placeholder="leave blank for random" autocomplete="off" />
-    </label>
     <div class="start-buttons">
       <button id="btn-new" class="primary">Start a new life</button>
       <button id="btn-continue" class="ghost" hidden>Continue</button>
     </div>
     <p class="hint">Drag the scene to look around · scroll to zoom</p>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------------ SETUP -->
+<div id="setup" class="overlay" hidden>
+  <div class="panel setup-panel">
+    <div class="kicker">Before you are born</div>
+    <h2>Whose life is it?</h2>
+    <p class="sub">Everything here is remembered for next time. Type over anything.</p>
+
+    <div class="setup-grid two">
+      <label class="field">
+        <span>Your name</span>
+        <input id="su-name" type="text" maxlength="24" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>Birth year</span>
+        <input id="su-year" type="number" min="1900" max="2400" step="1" inputmode="numeric" />
+      </label>
+    </div>
+
+    <section class="setup-section">
+      <h3>Family wealth</h3>
+      <p class="setup-note">What your family had. It moves your starting stats, how far every pound goes, and how fast you learn — comfort is easier and teaches you less.</p>
+      <div class="wealth-grid" id="su-wealth"></div>
+      <div class="wealth-detail" id="su-wealth-detail"></div>
+    </section>
+
+    <section class="setup-section">
+      <h3>Where you live</h3>
+      <p class="setup-note">Type anywhere you like. New places are saved and offered next time.</p>
+      <div class="setup-grid two" id="su-places"></div>
+      <datalist id="place-library"></datalist>
+    </section>
+
+    <section class="setup-section">
+      <h3>Parents</h3>
+      <div class="setup-grid two" id="su-parents"></div>
+    </section>
+
+    <section class="setup-section">
+      <h3>Sister and cousins</h3>
+      <div class="setup-grid two" id="su-family"></div>
+    </section>
+
+    <section class="setup-section">
+      <h3>The seven</h3>
+      <p class="setup-note">Same people, same personalities, your names.</p>
+      <div class="setup-grid two" id="su-friends"></div>
+    </section>
+
+    <label class="field seed-field">
+      <span>Seed</span>
+      <input id="seed-input" type="text" placeholder="leave blank for random" autocomplete="off" />
+    </label>
+
+    <div class="start-buttons setup-actions">
+      <button id="su-begin" class="primary">Begin the life</button>
+      <button id="su-defaults" class="ghost">Reset to defaults</button>
+      <button id="su-back" class="ghost">Back</button>
+    </div>
   </div>
 </div>
 

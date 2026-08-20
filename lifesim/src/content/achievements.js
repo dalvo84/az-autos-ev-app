@@ -132,6 +132,13 @@ export const ACHIEVEMENTS = [
     { xp: 1.1, stat: { HLT: 1.1 }, note: '+10% XP, Health +10%' },
     (s) => s.age >= 50 && s.stats.HAP >= 90),
 
+  A('self_made', 'Self-Made', 'Start poor or worse and bank £1,000,000.',
+    { money: 1.2, xp: 1.12, note: 'Earnings +20%, XP +12%' },
+    (s) => (s.wealthRank ?? 3) <= 1 && s.money >= 1000000),
+  A('out_earned', 'Out-Earned Them', 'Start rich or better and make ten times what you were handed.',
+    { money: 1.15, stat: { BIZ: 1.12 }, note: 'Earnings +15%, Business +12%' },
+    (s) => (s.wealthRank ?? 3) >= 5 && s.startMoney > 0 && s.money >= s.startMoney * 10),
+
   // ------------------------------------------------------------ SECRET
   A('mario_goodbye', 'See You Later', 'Say goodbye to a soft toy and mean it.',
     { stat: { CRE: 1.12, HAP: 1.08 }, note: 'Creativity +12%, Happiness +8%' }, null, true),
