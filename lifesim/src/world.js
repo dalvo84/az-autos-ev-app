@@ -59,15 +59,36 @@ function scatterTrees(g, rng, n, radius, inner = 8) {
   }
 }
 
+// Footprints people must not stand inside: [centreX, centreZ, halfW, halfD].
+function blocked(x, z, boxes) {
+  return boxes.some(([bx, bz, hw, hd]) => Math.abs(x - bx) < hw && Math.abs(z - bz) < hd);
+}
+
 function crowd(g, rng, people, opts = {}) {
-  const { radius = 4, y = 0, spread = Math.PI * 2, offset = 0 } = opts;
+  const { radius = 4, y = 0, spread = Math.PI * 2, offset = 0, avoid = [], bounds = null } = opts;
   people.forEach((p, i) => {
-    const a = offset + (i / Math.max(1, people.length)) * spread + (rng() - 0.5) * 0.3;
-    const r = radius * (0.75 + rng() * 0.5);
+    const baseA = offset + (i / Math.max(1, people.length)) * spread + (rng() - 0.5) * 0.3;
+    const baseR = radius * (0.75 + rng() * 0.5);
+
+    // Walk round and out from the intended spot until clear of the furniture
+    // and still inside the room. Without this people end up inside the sofa
+    // with only their heads showing.
+    let x = Math.cos(baseA) * baseR;
+    let z = Math.sin(baseA) * baseR;
+    for (let k = 1; k <= 18; k++) {
+      const inRoom = !bounds || (Math.abs(x) < bounds[0] && Math.abs(z) < bounds[1]);
+      if (inRoom && !blocked(x, z, avoid)) break;
+      const a = baseA + k * 0.4;
+      const r = baseR * (1 + (k % 4) * 0.16);
+      x = Math.cos(a) * r;
+      z = Math.sin(a) * r;
+    }
+
     const person = makePerson({ colour: p.colour, height: p.height || 1.7 });
-    person.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+    person.position.set(x, y, z);
     person.userData.baseY = y;
-    person.rotation.y = -a + Math.PI / 2;
+    // Face roughly into the middle of the scene.
+    person.rotation.y = Math.atan2(-x, -z);
     g.add(person);
   });
 }
@@ -126,7 +147,11 @@ const BUILDERS = {
     const sp = makeSpeaker(1);
     sp.position.set(2.3, 0, -4.2);
     g.add(sp);
-    crowd(g, rng, ctx.people.slice(0, 4), { radius: 2.6, spread: Math.PI * 0.8, offset: Math.PI * 1.1 });
+    crowd(g, rng, ctx.people.slice(0, 4), {
+      radius: 3.1, spread: Math.PI * 0.9, offset: Math.PI * 0.15,
+      avoid: [[0, -2.4, 1.75, 1.05], [0, -2.85, 1.75, 0.6], [0, -0.9, 1.15, 0.75], [2.3, -4.2, 0.6, 0.6]],
+      bounds: [4.3, 4.3],
+    });
     return { camera: [6.4, 4.2, 7.2], target: [0, 0.9, -1.2], interior: true };
   },
 
@@ -239,7 +264,10 @@ const BUILDERS = {
     }
     slide.position.set(-3.4, 0, -1.5);
     g.add(slide);
-    crowd(g, rng, ctx.people.slice(0, 5), { radius: 4.5, spread: Math.PI * 1.2, offset: Math.PI * 0.9 });
+    crowd(g, rng, ctx.people.slice(0, 5), {
+      radius: 4.5, spread: Math.PI * 1.2, offset: Math.PI * 0.9,
+      avoid: [[-3.4, -1.5, 1.1, 1.9], [0, -11, 4, 3.4]],
+    });
     return { camera: [6, 3.6, 7.5], target: [-0.5, 1, -1] };
   },
 
@@ -343,7 +371,11 @@ const BUILDERS = {
       block.castShadow = true;
       g.add(block);
     }
-    crowd(g, rng, ctx.people.slice(0, 3), { radius: 5.6, spread: Math.PI * 0.6, offset: Math.PI * 1.3 });
+    crowd(g, rng, ctx.people.slice(0, 3), {
+      radius: 6.8, spread: Math.PI * 0.6, offset: Math.PI * 1.3,
+      avoid: [[0, -1, 6.4, 4.4], [-6.6, -1, 0.7, 3.6]],
+      bounds: [9.2, 7.2],
+    });
     return { camera: [11, 6.2, 12], target: [0, 0.7, -1], interior: true };
   },
 
@@ -410,7 +442,11 @@ const BUILDERS = {
     const sp = makeSpeaker(0.8);
     sp.position.set(3.4, 0.68, -2);
     g.add(sp);
-    crowd(g, rng, ctx.people.slice(0, 2), { radius: 2.8, spread: Math.PI * 0.5, offset: Math.PI * 1.2 });
+    crowd(g, rng, ctx.people.slice(0, 2), {
+      radius: 3.1, spread: Math.PI * 0.5, offset: Math.PI * 1.2,
+      avoid: [[-0.6, -1.2, 0.5, 0.5], [2.3, -2.6, 1.2, 0.8]],
+      bounds: [4.2, 4.2],
+    });
     return { camera: [5.6, 3.6, 6.4], target: [0.2, 1.1, -1.2], dark: true, sky: 0x1a1822, fog: 0x1a1822, interior: true };
   },
 
@@ -489,7 +525,11 @@ const BUILDERS = {
       bar.position.set(-1.6 + i * 0.8, 1.3 + (0.4 + rng() * 1.4) / 2 - 0.6, -5.38);
       g.add(bar);
     }
-    crowd(g, rng, ctx.people.slice(0, 5), { radius: 4, spread: Math.PI * 1.1, offset: Math.PI * 0.9 });
+    crowd(g, rng, ctx.people.slice(0, 5), {
+      radius: 4.4, spread: Math.PI * 1.1, offset: Math.PI * 0.55,
+      avoid: [0, 1, 2, 3, 4].map((i) => [-4.5 + i * 2.3, -3 + (i % 2) * 2.2, 1.1, 0.7]),
+      bounds: [6, 5],
+    });
     return { camera: [8.5, 5.4, 9.5], target: [0, 1.2, -1.6], interior: true };
   },
 
@@ -515,7 +555,11 @@ const BUILDERS = {
     d.position.set(3, 0, -1.2);
     d.rotation.y = -0.7;
     g.add(d);
-    crowd(g, rng, ctx.people.slice(0, 3), { radius: 3.4, spread: Math.PI * 0.8, offset: Math.PI });
+    crowd(g, rng, ctx.people.slice(0, 3), {
+      radius: 3.4, spread: Math.PI * 0.8, offset: Math.PI * 1.25,
+      avoid: [[0, -3, 2.5, 0.9], [3, -1.2, 1.2, 0.8]],
+      bounds: [5.6, 4.6],
+    });
     return { camera: [7.8, 5, 8.8], target: [0, 1.2, -1.6], interior: true };
   },
 
@@ -533,7 +577,10 @@ const BUILDERS = {
     patio.position.set(0, 0.02, -2.5);
     g.add(patio);
     scatterTrees(g, rng, 7, 30, 12);
-    crowd(g, rng, ctx.people, { radius: 4.6, spread: Math.PI * 1.5, offset: Math.PI * 0.7 });
+    crowd(g, rng, ctx.people, {
+      radius: 4.6, spread: Math.PI * 1.5, offset: Math.PI * 0.7,
+      avoid: [[0, -10, 6, 4.6]],
+    });
     return { camera: [7, 4.2, 8.5], target: [0, 1.6, -4] };
   },
 
