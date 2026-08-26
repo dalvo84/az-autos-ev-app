@@ -99,6 +99,11 @@ export class Stage3D {
     if (level.dark) {
       this.hemi.intensity = 0.35;
       this.sun.intensity = 0.35;
+    } else if (level.ambient) {
+      // Wealth changes the light as much as the furniture: a damp flat with one
+      // bulb is dimmer than a hall with two chandeliers in it.
+      this.hemi.intensity = level.ambient.hemi ?? 1.1;
+      this.sun.intensity = level.ambient.sun ?? 1.5;
     } else {
       this.hemi.intensity = 1.1;
       this.sun.intensity = 1.5;

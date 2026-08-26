@@ -6,7 +6,12 @@ import * as THREE from '../vendor/three.module.js';
 import {
   makePerson, makeBigToy, makeBall, makeTree, makeBuilding, makeGoal,
   makeSpeaker, makeMonitor, makeMic, makeBed,
+  makeSofa, makeArmchair, makeMattress, makeTv, makeLowTable, makeCrate, makeRug,
+  makeBulb, makeShadeLamp, makeChandelier, makeFloorLamp, makePiano, makeFireplace,
+  makeArt, makePicture, makePlant, makeIndoorTree, makeBookshelf, makeStairs,
+  makeSculpture, makeClutter, makeBucket, makeDampPatches,
 } from './actors.js';
+import { homeStyle, DEFAULT_STYLE } from './content/homes.js';
 
 const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
 
@@ -97,86 +102,312 @@ function crowd(g, rng, people, opts = {}) {
 
 const BUILDERS = {
   nursery(g, rng, ctx) {
-    g.add(floorRoom(rng, { floor: 0xc7b299, wall: 0xf2e6ef, w: 8, d: 8 }));
-    const cot = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.9), M(0xf7f3ea));
-    cot.position.set(-1.2, 0.35, -1.6);
-    cot.castShadow = true;
-    g.add(cot);
-    for (let i = 0; i < 8; i++) {
-      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), M(0xe4dccb));
-      bar.position.set(-1.85 + i * 0.19, 0.95, -1.18);
-      g.add(bar);
+    const st = homeStyle(ctx.homeTier || DEFAULT_STYLE);
+    const w = Math.min(st.room.w * 0.78, 10);
+    const d = Math.min(st.room.d * 0.8, 9);
+    const h = st.room.h;
+    const rough = st.extras.includes('damp');
+    g.add(floorRoom(rng, { floor: st.floor, wall: rough ? st.wall : 0xf2e6ef, w, d, h }));
+
+    if (rough) {
+      // A drawer out of a chest, on the floor, with a blanket in it.
+      const box = new THREE.Mesh(new THREE.BoxGeometry(1, 0.34, 0.62), M(0x8a7350));
+      box.position.set(-w * 0.2, 0.17, -d * 0.2);
+      box.castShadow = true;
+      g.add(box);
+      const blanket = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.1, 0.5), M(0x6b5f7a));
+      blanket.position.set(-w * 0.2, 0.35, -d * 0.2);
+      g.add(blanket);
+      const patches = makeDampPatches(rng, { w, h, n: 6 });
+      patches.position.set(0, 0, -d / 2 + 0.03);
+      g.add(patches);
+      const junk = makeClutter(rng, 5);
+      junk.position.set(w * 0.18, 0, d * 0.12);
+      g.add(junk);
+      const bulb = makeBulb();
+      bulb.position.set(0, h, 0);
+      g.add(bulb);
+    } else {
+      const cot = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.9), M(0xf7f3ea));
+      cot.position.set(-w * 0.15, 0.35, -d * 0.2);
+      cot.castShadow = true;
+      g.add(cot);
+      for (let i = 0; i < 8; i++) {
+        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), M(0xe4dccb));
+        bar.position.set(-w * 0.15 - 0.65 + i * 0.19, 0.95, -d * 0.2 + 0.42);
+        g.add(bar);
+      }
+      if (st.extras.includes('chandelier')) {
+        const ch = makeChandelier();
+        ch.position.set(0, h, 0);
+        g.add(ch);
+      }
     }
+
+    // Dad's speakers are in every version of this room.
     const sp = makeSpeaker(1.1);
-    sp.position.set(2.2, 0, -2.4);
+    sp.position.set(w * 0.3, 0, -d * 0.3);
     g.add(sp);
     const sp2 = makeSpeaker(1.1);
-    sp2.position.set(-3.1, 0, -1.2);
+    sp2.position.set(-w * 0.4, 0, d * 0.05);
     g.add(sp2);
+
     for (let i = 0; i < 12; i++) {
       const note = new THREE.Mesh(new THREE.TetrahedronGeometry(0.1),
         new THREE.MeshBasicMaterial({ color: 0xa78bfa }));
-      note.position.set((rng() - 0.5) * 6, 1 + rng() * 2, (rng() - 0.5) * 5);
-      note.userData.kind = 'note';
+      note.position.set((rng() - 0.5) * (w - 2), 1 + rng() * (h - 1.2), (rng() - 0.5) * (d - 2));
       g.add(note);
     }
-    return { camera: [5.2, 3.6, 6.4], target: [-0.4, 0.9, -0.8], interior: true };
+
+    const back = Math.max(5.2, w * 0.7);
+    return {
+      camera: [back, Math.max(3.6, h * 1.2), back * 1.2],
+      target: [-0.3, Math.min(0.9, h * 0.28), -d * 0.1],
+      interior: true,
+      ambient: st.ambient,
+    };
   },
 
   home(g, rng, ctx) {
-    g.add(floorRoom(rng, { floor: 0xa87c52, wall: 0xece5d9, w: 10, d: 10 }));
-    const sofa = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.7, 1), M(0x5c6b7a));
-    sofa.position.set(0, 0.35, -2.4);
-    sofa.castShadow = true;
-    g.add(sofa);
-    const backRest = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.6, 0.28), M(0x4e5c6a));
-    backRest.position.set(0, 0.85, -2.85);
-    g.add(backRest);
-    const table = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.8), M(0x7a5a38));
-    table.position.set(0, 0.45, -0.9);
-    table.castShadow = true;
-    g.add(table);
-    for (const [x, z] of [[-0.65, -0.55], [0.65, -0.55], [-0.65, -1.25], [0.65, -1.25]]) {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.4, 0.08), M(0x6a4d30));
-      leg.position.set(x, 0.2, z);
-      g.add(leg);
+    const st = homeStyle(ctx.homeTier || DEFAULT_STYLE);
+    const { w, d, h } = st.room;
+    g.add(floorRoom(rng, { floor: st.floor, wall: st.wall, w, d, h }));
+
+    const avoid = [];
+    const backZ = -d / 2;
+    const put = (obj, x, z, ry = 0, box = null) => {
+      obj.position.set(x, obj.position.y || 0, z);
+      obj.rotation.y = ry;
+      g.add(obj);
+      if (box) avoid.push([x, z, box[0], box[1]]);
+      return obj;
+    };
+
+    // ------------------------------------------------------------ seating
+    const seat = st.seat;
+    if (seat.kind === 'mattress') {
+      put(makeMattress(seat.colour), -w * 0.2, backZ + 1.1, 0.15, [1.2, 0.9]);
+    } else {
+      const sofa = makeSofa({
+        w: seat.w, colour: seat.colour, worn: seat.worn, sectional: seat.kind === 'sectional',
+      });
+      put(sofa, 0, backZ + 1.2, 0, [seat.w / 2 + 0.35, 1.1]);
+      if (seat.armchair) {
+        put(makeArmchair(seat.colour), -seat.w / 2 - 1.2, backZ + 2.6, 0.9, [0.75, 0.75]);
+        put(makeArmchair(seat.colour), seat.w / 2 + 1.2, backZ + 2.6, -0.9, [0.75, 0.75]);
+      }
+      if (seat.second) {
+        put(makeSofa({ w: seat.w * 0.7, colour: seat.colour }), -w * 0.26, 2.2, Math.PI,
+          [seat.w * 0.4, 1.1]);
+      }
     }
-    const tv = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 0.08), M(0x1b1b22));
-    tv.position.set(0, 1.2, -4.85);
-    g.add(tv);
-    const sp = makeSpeaker(1);
-    sp.position.set(2.3, 0, -4.2);
-    g.add(sp);
-    crowd(g, rng, ctx.people.slice(0, 4), {
-      radius: 3.1, spread: Math.PI * 0.9, offset: Math.PI * 0.15,
-      avoid: [[0, -2.4, 1.75, 1.05], [0, -2.85, 1.75, 0.6], [0, -0.9, 1.15, 0.75], [2.3, -4.2, 0.6, 0.6]],
-      bounds: [4.3, 4.3],
+
+    // ---------------------------------------------------------------- tv
+    if (st.tv) {
+      const tv = makeTv({ w: st.tv.w, wall: st.tv.w > 2.4 });
+      if (st.tv.w > 2.4) tv.position.y = 1.9;
+      put(tv, 0, backZ + 0.25, 0, [st.tv.w / 2, 0.5]);
+    }
+
+    // ------------------------------------------------------------- table
+    if (st.table) {
+      if (st.table.kind === 'crate') {
+        put(makeCrate(st.table.colour), -w * 0.2, backZ + 2.4, 0.3, [0.45, 0.4]);
+      } else {
+        put(makeLowTable({ w: st.table.w, colour: st.table.colour }), 0, backZ + 3, 0,
+          [st.table.w / 2 + 0.2, st.table.w * 0.35]);
+      }
+    }
+
+    // ------------------------------------------------------------ extras
+    let artCount = 0;
+    let plantCount = 0;
+    let chandelierCount = 0;
+    for (const extra of st.extras) {
+      switch (extra) {
+        case 'damp': {
+          const patches = makeDampPatches(rng, { w, h });
+          patches.position.set(0, 0, backZ + 0.03);
+          g.add(patches);
+          const side = makeDampPatches(rng, { w: d, h, n: 4 });
+          side.position.set(-w / 2 + 0.03, 0, 0);
+          side.rotation.y = Math.PI / 2;
+          g.add(side);
+          break;
+        }
+        case 'clutter': {
+          const junk = makeClutter(rng, 6);
+          junk.position.set((rng() - 0.5) * w * 0.4, 0, 1 + rng() * 1.5);
+          g.add(junk);
+          break;
+        }
+        case 'bucket':
+          put(makeBucket(), w * 0.28, backZ + 1.6, 0, [0.25, 0.25]);
+          break;
+        case 'bulb': {
+          const bulb = makeBulb();
+          bulb.position.set(0, h, 0);
+          g.add(bulb);
+          break;
+        }
+        case 'shade':
+          put(makeShadeLamp(), -w / 2 + 0.8, backZ + 1.4, 0, [0.4, 0.4]);
+          break;
+        case 'floorlamp':
+          put(makeFloorLamp(), w / 2 - 1, backZ + 1.6, 0, [0.35, 0.35]);
+          break;
+        case 'chandelier': {
+          const ch = makeChandelier();
+          ch.position.set(chandelierCount === 0 ? -w * 0.12 : w * 0.22, h, chandelierCount === 0 ? -d * 0.1 : 2.2);
+          g.add(ch);
+          chandelierCount++;
+          break;
+        }
+        case 'rug': {
+          const rug = makeRug(rng, {
+            w: Math.min(w - 2, 4.5), d: Math.min(d - 3, 3), colour: 0x7a4a3c,
+          });
+          rug.position.set(0, 0.015, backZ + 3);
+          g.add(rug);
+          break;
+        }
+        case 'speaker':
+          put(makeSpeaker(1), w / 2 - 0.9, backZ + 0.7, 0, [0.4, 0.4]);
+          break;
+        case 'picture': {
+          const pic = makePicture(rng);
+          pic.position.set(-w * 0.3 + artCount * 0.9, h * 0.62, backZ + 0.06);
+          g.add(pic);
+          artCount++;
+          break;
+        }
+        case 'art': {
+          const art = makeArt(rng, { w: 1.3, h: 1 });
+          art.position.set(-w * 0.32 + artCount * 1.9, h * 0.6, backZ + 0.06);
+          g.add(art);
+          artCount++;
+          break;
+        }
+        case 'plant':
+          put(makePlant(1), plantCount === 0 ? -w / 2 + 0.7 : w / 2 - 0.7, backZ + 0.9 + plantCount * 1.4,
+            0, [0.35, 0.35]);
+          plantCount++;
+          break;
+        case 'tree':
+          put(makeIndoorTree(), -w / 2 + 1.4, 2.2, 0, [0.9, 0.9]);
+          break;
+        case 'bookshelf':
+          put(makeBookshelf(), -w / 2 + 0.9, backZ + 2.6, Math.PI / 2, [0.5, 0.8]);
+          break;
+        case 'fireplace': {
+          const fp = makeFireplace();
+          put(fp, -w * 0.32, backZ + 0.2, 0, [1.3, 0.4]);
+          break;
+        }
+        case 'piano':
+          put(makePiano(), w * 0.3, 1.9, -0.5, [1.5, 2]);
+          break;
+        case 'stairs':
+          put(makeStairs(), -w / 2 + 1.5, d / 2 - 3.6, Math.PI / 2, [1.9, 1.1]);
+          break;
+        case 'sculpture':
+          put(makeSculpture(rng), -w * 0.34, 2.6, 0, [0.45, 0.45]);
+          break;
+        case 'glass': {
+          const glass = new THREE.Mesh(new THREE.PlaneGeometry(w - 2, h - 0.6),
+            new THREE.MeshLambertMaterial({ color: 0x9fd0e8, transparent: true, opacity: 0.32 }));
+          glass.position.set(0, h / 2, d / 2 - 0.04);
+          glass.rotation.y = Math.PI;
+          g.add(glass);
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    crowd(g, rng, ctx.people.slice(0, 5), {
+      radius: Math.min(w, d) * 0.32,
+      spread: Math.PI * 0.9,
+      offset: Math.PI * 0.15,
+      avoid,
+      bounds: [w / 2 - 0.7, d / 2 - 0.7],
     });
-    return { camera: [6.4, 4.2, 7.2], target: [0, 0.9, -1.2], interior: true };
+
+    const back = Math.max(6.4, w * 0.62);
+    return {
+      camera: [back, Math.max(4.2, h * 1.25), back * 1.12],
+      target: [0, Math.min(1.4, h * 0.3), -d * 0.12],
+      interior: true,
+      ambient: st.ambient,
+    };
   },
 
   bedroom(g, rng, ctx) {
-    g.add(floorRoom(rng, { floor: 0x9c7a55, wall: 0xdfe7f0, w: 7, d: 7 }));
-    const bed = makeBed();
-    bed.position.set(-1.5, 0, -1.2);
-    bed.rotation.y = Math.PI / 2;
-    g.add(bed);
-    const desk = makeMonitor();
-    desk.position.set(1.9, 0, -2.6);
-    desk.rotation.y = -0.35;
-    g.add(desk);
-    if (ctx.flags.mario_friend || ctx.flags.mario_teammate || ctx.flags.mario_audience) {
-      if (!ctx.flags.mario_loft || ctx.flags.mario_returns || ctx.flags.mario_forever || ctx.flags.mario_moves_in) {
+    const st = homeStyle(ctx.homeTier || DEFAULT_STYLE);
+    const w = Math.min(st.room.w * 0.7, 11);
+    const d = Math.min(st.room.d * 0.72, 9);
+    const h = st.room.h;
+    g.add(floorRoom(rng, { floor: st.floor, wall: st.wall, w, d, h }));
+
+    const poor = st.extras.includes('damp') || st.seat.kind === 'mattress';
+    if (poor) {
+      const mattress = makeMattress(0x8a8175);
+      mattress.position.set(-w / 4, 0, -d / 4);
+      mattress.rotation.y = Math.PI / 2;
+      g.add(mattress);
+      const patches = makeDampPatches(rng, { w, h, n: 5 });
+      patches.position.set(0, 0, -d / 2 + 0.03);
+      g.add(patches);
+      const junk = makeClutter(rng, 5);
+      junk.position.set(w * 0.15, 0, d * 0.1);
+      g.add(junk);
+      const bulb = makeBulb();
+      bulb.position.set(0, h, 0);
+      g.add(bulb);
+    } else {
+      const bed = makeBed();
+      bed.position.set(-w / 4, 0, -d / 5);
+      bed.rotation.y = Math.PI / 2;
+      g.add(bed);
+      const desk = makeMonitor();
+      desk.position.set(w / 2 - 1.4, 0, -d / 2 + 1.4);
+      desk.rotation.y = -0.35;
+      g.add(desk);
+    }
+
+    if (st.extras.includes('art')) {
+      const art = makeArt(rng, { w: 1, h: 0.8 });
+      art.position.set(w * 0.15, h * 0.6, -d / 2 + 0.06);
+      g.add(art);
+    } else if (!poor) {
+      const poster = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.4), M(0x2b2b3a));
+      poster.position.set(w * 0.1, h * 0.6, -d / 2 + 0.05);
+      g.add(poster);
+    }
+    if (st.extras.includes('chandelier')) {
+      const ch = makeChandelier();
+      ch.position.set(0, h, 0);
+      g.add(ch);
+    }
+
+    const f = ctx.flags || {};
+    if (f.mario_friend || f.mario_teammate || f.mario_audience) {
+      if (!f.mario_loft || f.mario_returns || f.mario_forever || f.mario_moves_in) {
         const toy = makeBigToy(1);
-        toy.position.set(2.3, 0, 0.6);
+        toy.position.set(w / 2 - 1.2, 0, d / 2 - 1.6);
         toy.rotation.y = -0.9;
         g.add(toy);
       }
     }
-    const poster = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.4), M(0x2b2b3a));
-    poster.position.set(0.4, 1.9, -3.45);
-    g.add(poster);
-    return { camera: [5, 3.4, 5.8], target: [0.2, 0.9, -0.8], interior: true };
+
+    const back = Math.max(5, w * 0.72);
+    return {
+      camera: [back, Math.max(3.4, h * 1.1), back * 1.15],
+      target: [0, Math.min(1, h * 0.28), -d * 0.1],
+      interior: true,
+      ambient: st.ambient,
+    };
   },
 
   loft(g, rng, ctx) {
@@ -242,11 +473,16 @@ const BUILDERS = {
   },
 
   garden(g, rng, ctx) {
+    const st = homeStyle(ctx.homeTier || DEFAULT_STYLE);
+    const out = st.outside;
     g.add(groundPlane(0x6fa858));
     scatterTrees(g, rng, 9, 22, 6);
-    const house = makeBuilding(rng, { w: 7, d: 6, h: 4.2, wall: 0xd9cdb8, roof: 0x8c4a3b });
-    house.position.set(0, 0, -11);
+    const house = makeBuilding(rng, {
+      w: out.w, d: out.d, h: out.h, wall: out.wall, roof: out.roof, pitched: out.pitched,
+    });
+    house.position.set(0, 0, -11 - out.d * 0.25);
     g.add(house);
+    dressOutside(g, rng, out, -11 - out.d * 0.25);
     const ball = makeBall();
     ball.position.set(1.4, 0.12, 1.2);
     ball.userData.baseY = 0.12;
@@ -564,24 +800,41 @@ const BUILDERS = {
   },
 
   home_modern(g, rng, ctx) {
-    g.add(groundPlane(0x6d9f59, 120));
-    const house = makeBuilding(rng, { w: 11, d: 8, h: 6, wall: 0xf0ece4, roof: 0x4a4d52, pitched: false });
-    house.position.set(0, 0, -10);
-    g.add(house);
-    const glass = new THREE.Mesh(new THREE.PlaneGeometry(7, 3.4),
-      new THREE.MeshLambertMaterial({ color: 0x9fd0e8, transparent: true, opacity: 0.55 }));
-    glass.position.set(0, 2, -5.95);
-    g.add(glass);
-    const patio = new THREE.Mesh(new THREE.PlaneGeometry(12, 6), M(0xb9b3a6));
-    patio.rotation.x = -Math.PI / 2;
-    patio.position.set(0, 0.02, -2.5);
-    g.add(patio);
-    scatterTrees(g, rng, 7, 30, 12);
-    crowd(g, rng, ctx.people, {
-      radius: 4.6, spread: Math.PI * 1.5, offset: Math.PI * 0.7,
-      avoid: [[0, -10, 6, 4.6]],
+    const st = homeStyle(ctx.homeTier || DEFAULT_STYLE);
+    const out = st.outside;
+    g.add(groundPlane(0x6d9f59, 140));
+    const houseZ = -8 - out.d * 0.5;
+    const house = makeBuilding(rng, {
+      w: out.w, d: out.d, h: out.h, wall: out.wall, roof: out.roof, pitched: out.pitched,
     });
-    return { camera: [7, 4.2, 8.5], target: [0, 1.6, -4] };
+    house.position.set(0, 0, houseZ);
+    g.add(house);
+
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(out.w * 0.62, Math.min(3.6, out.h * 0.5)),
+      new THREE.MeshLambertMaterial({ color: 0x9fd0e8, transparent: true, opacity: 0.55 }));
+    glass.position.set(0, Math.min(2.2, out.h * 0.32), houseZ + out.d / 2 + 0.05);
+    g.add(glass);
+
+    const patio = new THREE.Mesh(new THREE.PlaneGeometry(out.w * 1.1, 6), M(0xb9b3a6));
+    patio.rotation.x = -Math.PI / 2;
+    patio.position.set(0, 0.02, houseZ + out.d / 2 + 3);
+    g.add(patio);
+
+    dressOutside(g, rng, out, houseZ);
+    scatterTrees(g, rng, 7, 34, 16);
+    crowd(g, rng, ctx.people, {
+      radius: Math.max(4.6, out.w * 0.4), spread: Math.PI * 1.5, offset: Math.PI * 0.7,
+      avoid: [[0, houseZ, out.w / 2 + 0.6, out.d / 2 + 0.6]],
+    });
+    // Work out the distance the building's own height needs at this field of
+    // view, rather than guessing — a sixteen-metre tower and a bungalow want
+    // very different camera positions.
+    const fitHeight = (out.h * 0.78) / Math.tan((46 * Math.PI / 180) / 2);
+    const back = Math.max(9, out.w * 0.55, fitHeight / 1.56);
+    return {
+      camera: [back, Math.max(4.5, out.h * 0.45 + 3), back * 1.2],
+      target: [0, Math.min(3.5, out.h * 0.28), houseZ * 0.45],
+    };
   },
 
   stadium(g, rng, ctx) {
@@ -622,6 +875,69 @@ const BUILDERS = {
     return { camera: [13, 7, 18], target: [0, 2, -6], sky: 0x7f9dc0 };
   },
 };
+
+// The stuff around the house that gives its standing away.
+function dressOutside(g, rng, out, houseZ) {
+  if (out.fence === 'broken' || out.fence === 'low') {
+    const broken = out.fence === 'broken';
+    for (let i = -6; i <= 6; i++) {
+      if (broken && rng() < 0.35) continue;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, broken ? 0.7 : 1, 0.1), M(0x7a6a52));
+      post.position.set(i * 0.7, (broken ? 0.7 : 1) / 2, houseZ + out.d / 2 + 4.5);
+      post.rotation.z = broken ? (rng() - 0.5) * 0.4 : 0;
+      g.add(post);
+    }
+  }
+  if (out.kind === 'tower') {
+    // Bins and a skip where a garden would be.
+    for (let i = 0; i < 4; i++) {
+      const bin = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1, 0.6), M(i % 2 ? 0x3f4a3a : 0x4a4a52));
+      bin.position.set(-4 + i * 1.1, 0.5, houseZ + out.d / 2 + 2.4);
+      bin.castShadow = true;
+      g.add(bin);
+    }
+  }
+  if (out.drive) {
+    const drive = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(9, out.w * 0.55), 9), M(0x555a5f));
+    drive.rotation.x = -Math.PI / 2;
+    drive.position.set(out.w * 0.36, 0.02, houseZ + out.d / 2 + 5);
+    g.add(drive);
+    for (let i = 0; i < (out.kind === 'estate' ? 3 : 1); i++) {
+      const car = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.55, 3.8),
+        M([0x1b1b22, 0xb4b8bd, 0x7a2028][i % 3]));
+      car.position.set(out.w * 0.36 - 1.9 + i * 1.9, 0.4, houseZ + out.d / 2 + 4 + i * 0.5);
+      car.castShadow = true;
+      g.add(car);
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.45, 1.8), M(0x2a3038));
+      cabin.position.set(car.position.x, 0.85, car.position.z - 0.2);
+      g.add(cabin);
+    }
+  }
+  if (out.pool) {
+    const water = new THREE.Mesh(new THREE.BoxGeometry(7, 0.3, 4),
+      new THREE.MeshLambertMaterial({ color: 0x2f9ed4, transparent: true, opacity: 0.85 }));
+    water.position.set(-out.w * 0.42 - 2, 0.15, houseZ + out.d / 2 + 3.5);
+    g.add(water);
+    const surround = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 5.4), M(0xd8d2c4));
+    surround.rotation.x = -Math.PI / 2;
+    surround.position.set(-out.w * 0.42 - 2, 0.01, houseZ + out.d / 2 + 3.5);
+    g.add(surround);
+  }
+  if (out.gate) {
+    // Right out at the end of the drive, or it sits in front of the camera and
+    // hides the house it is guarding.
+    const gz = houseZ + out.d / 2 + 30;
+    for (const x of [-3.4, 3.4]) {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.4, 0.8), M(0xe8e2d4));
+      pillar.position.set(x, 1.7, gz);
+      pillar.castShadow = true;
+      g.add(pillar);
+    }
+    const bars = new THREE.Mesh(new THREE.BoxGeometry(6, 2.6, 0.1), M(0x2a2a30));
+    bars.position.set(0, 1.3, gz);
+    g.add(bars);
+  }
+}
 
 function schoolScene(g, rng, ctx, scale, accent) {
   g.add(groundPlane(0x7ba85f, 140));
@@ -673,6 +989,7 @@ export function buildLevel(sceneId, ctx, rng) {
     fog: info.fog !== undefined ? info.fog : (info.sky !== undefined ? info.sky : (ctx.place ? ctx.place.sky : 0x9ecbf0)),
     dark: !!info.dark,
     interior: !!info.interior,
+    ambient: info.ambient || null,
   };
 }
 

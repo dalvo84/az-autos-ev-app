@@ -9,6 +9,7 @@ import {
   loadProfile, saveProfile, placeLibrary, rememberPlaces, clampYear,
 } from './setup.js';
 import { WEALTH_TIERS, wealthTier } from './content/wealth.js';
+import { livingTier } from './content/homes.js';
 import { money as fmtMoney } from './ui.js';
 import {
   $, $$, show, renderHud, renderQuestion, renderOutcome, renderYearBreak,
@@ -29,6 +30,7 @@ function sceneContext() {
   const { family, friends } = peopleAt(state.age);
   c.qIndex = state.qIndex;
   c.flags = state.flags;
+  c.homeTier = livingTier(state);
   c.people = [...family, ...friends].map((p) => ({
     colour: p.colour,
     height: scaleHeight(p, state.age),

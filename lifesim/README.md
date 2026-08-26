@@ -87,6 +87,20 @@ renaming Shillington also gives you Norwich Lower School and the Norwich Sharks.
 | Extremely rich | ×5 | ×0.78 | £25,000 |
 | Centibillionaires | ×40 | ×0.68 | £1,000,000 |
 
+**The house is built from the tier too.** Every domestic scene — the nursery,
+your bedroom, the living room, and the house from outside — is assembled from a
+fit-out spec in `src/content/homes.js` rather than being fixed. Very poor is a
+cramped damp flat with a mattress on the floor, a crate for a table, a bare bulb
+and no television, in a tower block with bins outside. Middle class is the
+familiar family living room. Centibillionaire is a twenty-six metre hall with
+two chandeliers, a grand piano, a wall-sized screen, a sculpture, an indoor tree
+and a staircase, behind a gate at the end of a drive with three cars on it. The
+lighting changes with it: one bulb is dimmer than two chandeliers.
+
+From eighteen the house follows **your own money** rather than your parents', so
+earning your way up visibly changes where you wake up — and losing it changes it
+back.
+
 Each tier also shifts your starting stats — hardship costs health and happiness
 and buys naughtiness; money buys smarts, charisma, business and health. Comfort
 is the easier game and it teaches you less, so a very poor life finishes around
@@ -158,6 +172,7 @@ lifesim/
     ├── rng.js            seeded RNG — same seed, same life
     └── content/
         ├── wealth.js        the eight family-wealth tiers
+    ├── homes.js         what the house looks like at each tier
     ├── people.js        family and the seven friends
         ├── timeline.js      places, schools, clubs, stages
         ├── story_early.js   scripted ages 0-12
