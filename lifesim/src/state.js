@@ -64,6 +64,17 @@ export function newGame(seed) {
     wealthMoney: tier.money,
     wealthXp: tier.xp,
     profile: JSON.parse(JSON.stringify(profile)),
+    career: {
+      club: null,        // football: the club you signed for
+      seasons: 0,
+      retireAge: null,
+      artist: null,      // music: the name you release under
+      songs: [],
+      lastSongAge: null,
+      business: null,    // business: { name, product }
+    },
+    history: [],         // what you picked, so later questions can refer back
+    income: [],          // { age, amount, note }
     stats,
     talent: Object.fromEntries(STATS.map((s) => [s.key, s.talent])),
     flags: {},          // storyline switches

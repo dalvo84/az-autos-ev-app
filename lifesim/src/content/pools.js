@@ -3,6 +3,7 @@
 // from turning into the same three questions on a loop.
 
 import { personById, FRIENDS } from './people.js';
+import { DIVISION_DIFFICULTY } from './clubs.js';
 
 const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
 
@@ -28,6 +29,149 @@ function scaleMoney(state, base) {
 }
 
 const q = (id, scene, prompt, options, extra = {}) => ({ id, scene, prompt, options, ...extra });
+
+// The last thing you actually chose, so a question can pick the thread back up.
+export function lastChoice(state, backTo = 3) {
+  const h = state.history || [];
+  for (let i = h.length - 1; i >= Math.max(0, h.length - backTo); i--) {
+    if (h[i] && h[i].label) return h[i];
+  }
+  return null;
+}
+
+function callback(state, fallback) {
+  const last = lastChoice(state);
+  if (!last) return fallback;
+  const text = String(last.label).replace(/\.$/, '');
+  const when = state.age - last.age;
+  const lead = when <= 0 ? 'Earlier this year' : when === 1 ? 'Last year' : `${when} years ago`;
+  return `${lead} you went with "${text.charAt(0).toLowerCase()}${text.slice(1)}".`;
+}
+
+
+// ---------------------------------------------------------------------------
+// CHILD — 2 to 9. Small stakes, small money, the whole world about four
+// streets wide.
+// ---------------------------------------------------------------------------
+const CHILD = [
+  (s, r) => {
+    const f = aFriend(s, r);
+    return q('p_child_playtime', 'garden', `${f.name} is round and there is a whole afternoon with nothing in it.`, [
+      { id: 'build', label: 'Build something enormous out of whatever is in the shed',
+        fx: { CRE: 8, SMR: 4, HAP: 5 }, xp: 70, count: { builds: 1 }, rel: { [f.id]: 8 },
+        result: 'A den with three rooms and a rule about who is allowed in. It stands for eleven days.' },
+      { id: 'game', label: 'Invent a game with far too many rules and make everyone play it',
+        fx: { CRE: 7, CHA: 8, NAU: 3 }, xp: 70, rel: { [f.id]: 10 },
+        result: 'The rules change whenever you are losing. Everyone plays anyway, which tells you something.' },
+      { id: 'out', label: 'Go as far from the house as you are allowed. Then a bit further.',
+        fx: { ATH: 7, NAU: 7, HAP: 5 }, xp: 70, count: { trouble: 1 }, rel: { [f.id]: 8 },
+        result: 'You are back eleven minutes after you were supposed to be, filthy, and completely happy.' },
+    ], { maxAge: 10 });
+  },
+  (s, r) => q('p_child_money', 'village', 'You want something that costs more than you have, which is nothing.', [
+      { id: 'jobs', label: 'Do jobs round the house until it adds up',
+        fx: { BIZ: 6, SMR: 4 }, xp: 70, money: 4,
+        result: 'Bins, dishwasher, hoovering, car. Four quid and a very specific sense of what an hour is worth.' },
+      { id: 'sell', label: 'Sell something of yours you have gone off',
+        fx: { BIZ: 9, CRE: 3 }, xp: 75, money: 7, count: { deals: 1 },
+        result: 'You sell three things you had stopped caring about for more than they cost. It is the first time you notice that is possible.' },
+      { id: 'wait', label: 'Ask, be told no, and save up anyway',
+        fx: { SMR: 7, HAP: 3 }, xp: 70, money: 3,
+        result: 'Eleven weeks of pocket money in a tin. When you finally buy it you look after it for years.' },
+    ], { maxAge: 10 }),
+  (s, r) => q('p_child_school', 'school_lower', 'Something at school goes wrong and it is at least partly your fault.', [
+      { id: 'own', label: 'Own up before anyone works it out',
+        fx: { SMR: 7, CHA: 6, NAU: -2 }, xp: 75,
+        result: 'You get told off and you get believed for the rest of the year, which turns out to be worth a lot.' },
+      { id: 'blame', label: 'Say nothing and let it blow over',
+        fx: { NAU: 8, SMR: 3, HAP: -3 }, xp: 70, count: { trouble: 1 },
+        result: 'It blows over. It also sits in your stomach for about a fortnight.' },
+      { id: 'fix', label: 'Quietly fix it before anybody notices',
+        fx: { CRE: 7, SMR: 6, NAU: 4 }, xp: 80,
+        result: 'Nobody ever finds out there was a problem. You are eight and you have discovered damage control.' },
+    ], { maxAge: 10 }),
+  (s, r) => {
+    const f = aFriend(s, r, 'naughty');
+    return q('p_child_dare', 'town', `${f.name} says you would not.`, [
+      { id: 'do', label: 'Do it immediately, before thinking about it',
+        fx: { NAU: 9, ATH: 6, HAP: 4 }, xp: 75, count: { trouble: 1 }, rel: { [f.id]: 10 },
+        result: 'You do it. It hurts slightly. It is worth it entirely.' },
+      { id: 'better', label: 'Do something better and make him do that instead',
+        fx: { CHA: 9, NAU: 6, CRE: 4 }, xp: 80, rel: { [f.id]: 8 },
+        result: `You raise it, then hand it back to ${f.name}, who has to go first. Genuinely masterful for someone this age.` },
+      { id: 'no', label: 'Say no and take the stick for it',
+        fx: { SMR: 8, HAP: -2 }, xp: 70,
+        result: 'You get called boring for about ten minutes. You are also the only one who does not need a plaster.' },
+    ], { maxAge: 10 });
+  },
+  (s, r) => q('p_child_talent', 'home', 'A wet weekend, and three things you could get properly good at.', [
+      { id: 'ball', label: 'The ball. Against the wall, a thousand times.',
+        fx: { ATH: 9, HLT: 4 }, xp: 75,
+        result: 'Left foot, right foot, left foot. Nobody makes you do it, which is why it works.' },
+      { id: 'screen', label: 'The computer, and whatever it will let you make',
+        fx: { COD: 9, CRE: 5 }, xp: 75, count: { scratch_projects: 1 },
+        result: 'You break it, fix it, and end up with something that actually runs.' },
+      { id: 'words', label: 'Words. Over the top of whatever is playing.',
+        fx: { MUS: 9, CRE: 6 }, xp: 75, count: { bars: 2 },
+        result: 'A page of bars in biro, half of which do not scan and half of which really do.' },
+    ], { maxAge: 11 }),
+];
+
+// ---------------------------------------------------------------------------
+// TEEN — 10 to 17. Bigger money, worse ideas, everything suddenly public.
+// ---------------------------------------------------------------------------
+const TEEN_POOL = [
+  (s, r) => {
+    const f = aFriend(s, r, 'popular');
+    return q('p_teen_status', 'school_high', `Something you did got round the whole year by lunchtime.`, [
+      { id: 'lean', label: 'Lean into it. Attention is a resource.',
+        fx: { CHA: 10, NAU: 6, HAP: 4 }, xp: 130, fame: 3, rel: { [f.id]: 8 },
+        result: 'You are the story for about a fortnight and you do not hate it as much as you pretend to.' },
+      { id: 'ignore', label: 'Ignore it completely and let it die',
+        fx: { SMR: 9, HAP: 4 }, xp: 130,
+        result: 'You give it nothing and it starves inside a week. Not many fourteen-year-olds can do that.' },
+      { id: 'use', label: 'Use it to get something you actually want',
+        fx: { BIZ: 9, CHA: 8, SMR: 5 }, xp: 140,
+        result: 'You turn two weeks of everybody knowing your name into something concrete. Nobody else even thinks to try.' },
+    ], { minAge: 11, maxAge: 18 });
+  },
+  (s, r) => q('p_teen_money', 'town',
+    `${pick(r, ['A gap in the market at school', 'Somebody offering cash work at the weekend', 'A thing you can buy cheap and sell dear'])}.`, [
+      { id: 'graft', label: 'Take the work. Hours for money, honestly.',
+        fx: { BIZ: 7, ATH: 5, SMR: 4 }, xp: 135, money: 260,
+        result: 'Saturdays gone, £260 in, and a very clear understanding of what your time is currently worth.' },
+      { id: 'trade', label: 'Buy and sell instead of working the hours',
+        fx: { BIZ: 12, SMR: 6, NAU: 4 }, xp: 145, money: 480, count: { deals: 3 },
+        result: 'Same money, a third of the hours. You never really look at an hourly rate the same way again.' },
+      { id: 'make', label: 'Make something and sell that',
+        fx: { CRE: 11, BIZ: 9 }, xp: 150, money: 390, count: { ventures: 1, builds: 1 },
+        result: 'Harder than either, and the only one of the three that could still be paying you in ten years.' },
+    ], { minAge: 11, maxAge: 18 }),
+  (s, r) => {
+    const f = aFriend(s, r, 'naughty');
+    return q('p_teen_trouble', 'town', `${f.name} has an idea that could genuinely get you all in trouble.`, [
+      { id: 'in', label: 'In, and worry about it later', fx: { NAU: 11, HAP: 7, CHA: 5 }, xp: 135,
+        count: { trouble: 2 }, rel: { [f.id]: 12 },
+        result: 'A very good night and one moment of genuine fear that you all still talk about.' },
+      { id: 'safer', label: 'In, but make it the version that cannot go badly wrong',
+        fx: { SMR: 10, NAU: 7, CHA: 7 }, xp: 145, rel: { [f.id]: 9 }, flag: 'the_brains',
+        result: 'Same buzz, no police. They think it was luck. It was you.' },
+      { id: 'out', label: 'Out, and take the stick', fx: { SMR: 8, HAP: -3 }, xp: 130, rel: { [f.id]: -4 },
+        result: 'You are the boring one for a week. Two of them get caught. Nobody mentions that part.' },
+    ], { minAge: 12, maxAge: 18 });
+  },
+  (s, r) => q('p_teen_future', 'school_high', 'Somebody official asks what you want to do, and means it.', [
+      { id: 'honest', label: 'Tell them the actual answer and watch their face',
+        fx: { CHA: 8, CRE: 7, HAP: 5 }, xp: 145,
+        result: 'You say the real thing out loud for the first time. They write something down. You feel about a foot taller.' },
+      { id: 'safe', label: 'Give the safe answer and keep the real one',
+        fx: { SMR: 9, BIZ: 5 }, xp: 140,
+        result: 'They tick a box and leave you alone, which was the point. The real plan carries on in private.' },
+      { id: 'plan', label: 'Turn up with an actual plan, written down',
+        fx: { BIZ: 11, SMR: 10 }, xp: 155, flag: 'the_system',
+        result: 'You hand a sixteen-year-old\'s business plan to a careers adviser. She keeps a copy.' },
+    ], { minAge: 13, maxAge: 18 }),
+];
 
 // ---------------------------------------------------------------------------
 // LAUNCH — 18 to 24
@@ -463,7 +607,7 @@ export const CHALLENGES = [
       { id: 'fail', label: 'Have a proper go and miss by a fraction',
         fx: { ATH: 5, HAP: 4, SMR: 5 }, xp: 150, rel: { [f.id]: 6 },
         result: 'So close it is almost worse than losing. You are back the next day and you get it.' },
-    ], { challenge: true });
+    ], { challenge: true, maxAge: 70 });
   },
   (s, r) => q('c_quick', 'city', `CHALLENGE — you have ${pick(r, ['one hour', 'one afternoon', 'twenty-four hours'])} and £${scaleMoney(s, 20)}. Turn it into more.`, [
       { id: 'flip', label: 'Buy something underpriced and sell it on',
@@ -475,7 +619,7 @@ export const CHALLENGES = [
       { id: 'make', label: 'Make something out of it and sell that',
         fx: { CRE: 12, BIZ: 8 }, xp: 180, money: scaleMoney(s, 60), count: { challenges: 1, builds: 1 },
         result: 'You add the one thing nobody else is adding, which is the work. Triple your money.' },
-    ], { challenge: true }),
+    ], { challenge: true, maxAge: 88 }),
   (s, r) => q('c_pressure', 'stage', 'CHALLENGE — someone hands you a mic with no warning and a room goes quiet.', [
       { id: 'own', label: 'Own it completely', fx: { CHA: 12, MUS: 9, HAP: 6 }, xp: 175, fame: 5, count: { challenges: 1 },
         result: 'Ninety seconds, no notes, and the room is yours by the end of the first line.' },
@@ -484,7 +628,7 @@ export const CHALLENGES = [
       { id: 'short', label: 'Say one good sentence and hand it straight back',
         fx: { SMR: 9, CHA: 8 }, xp: 165, count: { challenges: 1 },
         result: 'Brief, sharp, and everyone remembers it precisely because you did not milk it.' },
-    ], { challenge: true }),
+    ], { challenge: true, maxAge: 95 }),
   (s, r) => q('c_moral', 'office', 'CHALLENGE — you have spotted a loophole. It is legal. It is not right.', [
       { id: 'no', label: 'Close it and tell them it is there',
         fx: { SMR: 10, CHA: 10, BIZ: 4 }, xp: 185, count: { challenges: 1 }, secret: 'straight_bat',
@@ -495,11 +639,138 @@ export const CHALLENGES = [
       { id: 'sell', label: 'Point it out and get paid for pointing it out',
         fx: { BIZ: 13, SMR: 11 }, xp: 190, money: scaleMoney(s, 120), count: { challenges: 1 },
         result: 'You turn your own integrity into a consultancy fee. Everybody wins, which is the best kind of clever.' },
-    ], { challenge: true }),
+    ], { challenge: true, minAge: 14, maxAge: 90 }),
 ];
 
+
+// ---------------------------------------------------------------------------
+// CAREER — only reachable once you have a club, an artist name or a business
+// ---------------------------------------------------------------------------
+const FOOTBALL = [
+  (s, r) => {
+    const club = s.career.club;
+    const level = DIVISION_DIFFICULTY[club.division] || 60;
+    const struggling = s.stats.ATH < level;
+    return q('job_season', 'pitch',
+      `${club.name}, ${struggling ? 'and you are not in the side' : 'and the season is yours to take'}.`, [
+        { id: 'graft', label: 'Train like the last man on the list, every single day',
+          fx: { ATH: 11, HLT: 5, HAP: -3 }, xp: 250, count: { knights_years: 1 },
+          result: `First in, last out at ${club.name}. The manager notices before the crowd does.` },
+        { id: 'play', label: 'Play your own game and let the goals argue for you',
+          fx: { ATH: 9, CHA: 6 }, xp: 250, count: { goals: 9 },
+          result: `Nine goals for ${club.name}. Nobody asks whether you deserve the shirt after that.` },
+        { id: 'lead', label: 'Organise the dressing room, not just the front line',
+          fx: { CHA: 11, SMR: 8, ATH: 5 }, xp: 260, flag: 'dressing_room',
+          result: `You end up the one the younger lads at ${club.name} come to. The armband follows eventually.` },
+      ], {
+        intro: callback(s, 'Pre-season, and everything resets.'),
+        minAge: 18, maxAge: 40, requires: (st) => st.career.club && !st.career.retireAge,
+      });
+  },
+  (s, r) => {
+    const club = s.career.club;
+    return q('job_transfer', 'stadium', `A club above ${club.name} has been watching you.`, [
+      { id: 'go', label: 'Take the move up and be the smallest fish again',
+        fx: { ATH: 10, SMR: 7, HAP: -2 }, xp: 270, flag: 'moved_up',
+        result: 'A bigger badge, a harder dressing room, and a level that exposes everything you have been getting away with.' },
+      { id: 'stay', label: `Stay at ${club.name} and be the one they build round`,
+        fx: { CHA: 10, ATH: 7, HAP: 8 }, xp: 265, flag: 'club_legend',
+        result: `You sign again at ${club.name}. Being genuinely important somewhere beats being spare somewhere better.` },
+      { id: 'money', label: 'Take whichever offer pays the most and be honest about why',
+        fx: { BIZ: 9, ATH: 5, HAP: -4 }, xp: 260, money: scaleMoney(s, 900),
+        result: 'You follow the money and you do not pretend otherwise. It buys a house. It costs something else.' },
+    ], { minAge: 19, maxAge: 36, requires: (st) => st.career.club && !st.career.retireAge });
+  },
+  (s, r) => q('job_injury', 'pitch', 'Something goes in your knee and the physio will not look at you.', [
+      { id: 'rehab', label: 'Do the rehab properly, every rep, however boring',
+        fx: { HLT: 14, ATH: 5, HAP: -5 }, xp: 260, flag: 'proper_rehab',
+        result: 'Seven months of a gym at eight in the morning with nobody watching. You come back at the same level, which almost nobody does.' },
+      { id: 'rush', label: 'Rush it. The season is happening without you.',
+        fx: { ATH: 8, HLT: -14 }, xp: 250, count: { goals: 4 },
+        result: 'Back six weeks early and off again by March. You will feel this one in your fifties.' },
+      { id: 'learn', label: 'Spend the months out learning the game from the stands',
+        fx: { SMR: 13, CHA: 7, HLT: 6 }, xp: 265, flag: 'game_intelligence',
+        result: 'You watch ninety games from up high and come back seeing passes you could not see before.' },
+    ], { minAge: 18, maxAge: 38, requires: (st) => st.career.club && !st.career.retireAge }),
+];
+
+const MUSIC = [
+  (s, r) => {
+    const artist = s.career.artist || 'you';
+    return q('job_label', 'studio', `A label wants ${artist} on a three-record deal.`, [
+      { id: 'sign', label: 'Sign it. Budget, studio, people who do this for a living.',
+        fx: { MUS: 11, CRE: 6 }, xp: 265, money: scaleMoney(s, 400), fame: 12,
+        result: `${artist} signs. The records get better immediately and the ownership gets worse.` },
+      { id: 'indie', label: 'Stay independent and keep every master',
+        fx: { BIZ: 12, MUS: 8 }, xp: 275, flag: 'independent', secret: 'own_the_masters',
+        result: `${artist} stays independent. Slower, harder, and in fifteen years worth a great deal more.` },
+      { id: 'negotiate', label: 'Redline it until it is a deal worth signing',
+        fx: { BIZ: 11, SMR: 10, MUS: 6 }, xp: 285, money: scaleMoney(s, 250), fame: 8,
+        result: 'You send it back marked up. Their lawyer asks who is advising you. Nobody is advising you.' },
+    ], { intro: callback(s, 'The phone goes on a Tuesday afternoon.'), minAge: 16, maxAge: 55 });
+  },
+  (s, r) => {
+    const best = (s.career.songs || []).filter((x) => x.outcome === 'viral' || x.outcome === 'hit').pop();
+    return q('job_tour', 'stage',
+      best ? `"${best.name}" is big enough to tour behind.` : 'Enough people know the songs to fill rooms now.', [
+        { id: 'big', label: 'Book the biggest rooms you can and risk the empty seats',
+          fx: { MUS: 9, CHA: 11, HLT: -6 }, xp: 270, money: scaleMoney(s, 320), fame: 14, count: { gigs: 14 },
+          result: 'Some nights are two thirds full and horrible. The good ones are the best of your life.' },
+        { id: 'small', label: 'Small rooms, sold out, every night',
+          fx: { MUS: 11, HAP: 12, CHA: 7 }, xp: 265, money: scaleMoney(s, 180), fame: 8, count: { gigs: 20 },
+          result: 'Twenty nights, twenty full rooms, no empty balcony to look at. You never regret doing it this way.' },
+        { id: 'none', label: 'Skip it and make the next record instead',
+          fx: { CRE: 12, MUS: 8, SMR: 5 }, xp: 265, count: { tracks: 3 },
+          result: 'You stay in and write. Nobody claps for that, and the record is the reason anyone claps later.' },
+      ], { minAge: 17, maxAge: 72 });
+  },
+];
+
+const BUSINESS = [
+  (s, r) => {
+    const b = s.career.business;
+    return q('job_scale', 'office', `${b.name} could double this year if you push it.`, [
+      { id: 'push', label: 'Push. Hire, spend, grow.',
+        fx: { BIZ: 12, HLT: -6, CHA: 6 }, xp: 270, money: scaleMoney(s, 260), count: { ventures: 1 },
+        result: `${b.name} doubles. So does everything that can go wrong with it.` },
+      { id: 'hold', label: 'Stay small and keep all of it',
+        fx: { BIZ: 9, HAP: 12, SMR: 8 }, xp: 265, flag: 'stayed_small',
+        result: `${b.name} stays yours, entirely. Less headline, more money, and you still know everyone's name.` },
+      { id: 'product', label: `Make ${b.product} properly good before making more of it`,
+        fx: { CRE: 12, BIZ: 8, SMR: 7 }, xp: 275,
+        result: `Six months on ${b.product} itself. The growth that follows costs nothing to hold on to.` },
+    ], { intro: callback(s, 'The numbers come in and there is a decision in them.'), minAge: 17, maxAge: 82 });
+  },
+  (s, r) => {
+    const b = s.career.business;
+    return q('job_offer', 'office', `Someone offers ${'£' + scaleMoney(s, 2600).toLocaleString('en-GB')} for ${b.name}.`, [
+      { id: 'sell', label: 'Sell it and take the money',
+        fx: { BIZ: 9, HAP: 9, SMR: 7 }, xp: 285, money: scaleMoney(s, 2600),
+        count: { exits: 1 }, flag: 'exited', secret: 'the_exit',
+        result: `You sign ${b.name} away on a Tuesday. It feels quiet, and enormous, and slightly sad.` },
+      { id: 'no', label: 'No. It is worth far more and you know it.',
+        fx: { BIZ: 12, SMR: 10 }, xp: 285, flag: 'held_out',
+        result: 'You turn down life-changing money because your own numbers say wait. That takes a nerve.' },
+      { id: 'part', label: 'Sell a slice and stay in charge',
+        fx: { BIZ: 14, SMR: 11 }, xp: 290, money: scaleMoney(s, 1000), flag: 'part_sale',
+        result: 'Money off the table, control still yours, and the thing keeping you awake is gone.' },
+    ], { minAge: 20, maxAge: 85 });
+  },
+];
+
+export const CAREER_POOLS = { football: FOOTBALL, music: MUSIC, business: BUSINESS };
+
+export function careerPool(pathId) {
+  return CAREER_POOLS[pathId] || [];
+}
+
 export const POOLS = {
-  infant: LAUNCH, lower: LAUNCH, middle: LAUNCH, teen: LAUNCH,
+  // Children get children's questions. Before this they fell back to the
+  // eighteen-plus pool and a seven-year-old could be asked about equity.
+  infant: CHILD,
+  lower: CHILD,
+  middle: TEEN_POOL,
+  teen: TEEN_POOL,
   launch: LAUNCH,
   build: BUILD,
   peak: PEAK,

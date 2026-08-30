@@ -87,6 +87,8 @@ function askQuestion() {
   selection = [];
   stage.setLevel(q.scene, ctx, `${state.seed}:${state.age}:${state.qIndex}`);
   renderQuestion(q, ctx, {
+    pick: (id) => submit({ pick: id }),
+    text: (values) => submit({ text: values }),
     toggle: (id) => toggleOption(q, id),
     own: () => {
       selection = [];

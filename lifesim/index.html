@@ -136,6 +136,18 @@
   <h2 class="prompt" id="q-prompt"></h2>
   <div class="multi-note" id="q-multi" hidden>You can pick two here.</div>
   <div class="options" id="q-options"></div>
+  <!-- Searchable list, e.g. every club in the English league -->
+  <div class="pick-box" id="q-pick" hidden>
+    <input id="pick-filter" type="text" placeholder="Type to narrow it down" autocomplete="off" />
+    <div class="pick-list" id="pick-list"></div>
+  </div>
+
+  <!-- Typed fields: artist name, track title, business and product -->
+  <div class="text-box" id="q-text" hidden>
+    <div class="text-fields" id="text-fields"></div>
+    <button id="text-go" class="primary">Lock it in</button>
+  </div>
+
   <div class="custom-box" id="q-custom" hidden>
     <input id="custom-input" type="text" maxlength="180" placeholder="So what do you do instead?" autocomplete="off" />
     <button id="custom-go" class="primary small">Do it</button>

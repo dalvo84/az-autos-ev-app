@@ -60,7 +60,14 @@ export function renderQuestion(q, ctx, handlers) {
   const intro = $('#q-intro');
   if (q.intro) { intro.textContent = P(q.intro); intro.hidden = false; } else { intro.hidden = true; }
   $('#q-prompt').textContent = P(q.prompt);
-  show('#q-multi', !!q.multi);
+  show('#q-multi', !!(q.multi && !q.kind));
+
+  // Pick-from-a-list and type-it-in prompts replace the four buttons entirely.
+  show('#q-options', !q.kind);
+  show('#q-pick', q.kind === 'pick');
+  show('#q-text', q.kind === 'text');
+  if (q.kind === 'pick') { renderPick(q, handlers); return; }
+  if (q.kind === 'text') { renderTextFields(q, handlers); return; }
 
   const box = $('#q-options');
   box.innerHTML = '';
@@ -82,6 +89,71 @@ export function renderQuestion(q, ctx, handlers) {
   show('#q-custom', false);
   show('#q-confirm', false);
   $('#custom-input').value = '';
+}
+
+// ------------------------------------------------------------- pick prompt
+function renderPick(q, handlers) {
+  const filter = $('#pick-filter');
+  filter.value = '';
+  filter.placeholder = q.filterHint || 'Type to narrow it down';
+
+  const draw = (term) => {
+    const needle = term.trim().toLowerCase();
+    const list = $('#pick-list');
+    let html = '';
+    let shown = 0;
+    for (const group of q.groups) {
+      const items = group.items.filter((it) => !needle || it.name.toLowerCase().includes(needle));
+      if (!items.length) continue;
+      html += `<div class="pick-group">${escapeHtml(group.name)}</div>`;
+      for (const it of items) {
+        shown++;
+        html += `<button class="pick-item" data-pick="${escapeHtml(it.id)}">`
+          + `<span>${escapeHtml(it.name)}</span>`
+          + (it.meta ? `<i>${escapeHtml(it.meta)}</i>` : '') + '</button>';
+      }
+    }
+    list.innerHTML = html || '<div class="pick-empty">Nothing matches that.</div>';
+    return shown;
+  };
+
+  draw('');
+  filter.oninput = () => draw(filter.value);
+  $('#pick-list').onclick = (e) => {
+    const btn = e.target.closest('[data-pick]');
+    if (!btn) return;
+    $$('#pick-list .pick-item').forEach((b) => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    handlers.pick(btn.dataset.pick);
+  };
+  setTimeout(() => filter.focus(), 60);
+}
+
+// ------------------------------------------------------------- text prompt
+function renderTextFields(q, handlers) {
+  $('#text-fields').innerHTML = q.fields.map((f) => `
+    <label class="field">
+      <span>${escapeHtml(f.label)}</span>
+      <input type="text" data-field="${escapeHtml(f.key)}"
+             maxlength="${f.maxLength || 40}"
+             placeholder="${escapeHtml(f.placeholder || '')}" autocomplete="off" />
+    </label>`).join('');
+
+  const inputs = $$('#text-fields [data-field]');
+  const submit = () => {
+    const values = {};
+    for (const input of inputs) {
+      const v = input.value.trim();
+      if (!v) { input.focus(); return; }
+      values[input.dataset.field] = v;
+    }
+    handlers.text(values);
+  };
+  $('#text-go').onclick = submit;
+  inputs.forEach((input) => {
+    input.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+  });
+  setTimeout(() => inputs[0] && inputs[0].focus(), 60);
 }
 
 export function setConfirmVisible(on) { show('#q-confirm', on); }
@@ -157,6 +229,13 @@ export function renderYearBreak(state, ctx, arrivals) {
   arr.innerHTML = '';
   for (const a of arrivals) {
     const el = document.createElement('div');
+    if (a.kind === 'income') {
+      el.className = `arrival ${a.amount < 0 ? 'loss' : 'pay'}`;
+      el.innerHTML = `<b>${a.amount < 0 ? '' : '+'}${money(a.amount)}</b> this year
+        <small>${escapeHtml(P(a.note))}</small>`;
+      arr.appendChild(el);
+      continue;
+    }
     el.className = 'arrival';
     const p = a.person;
     el.innerHTML = `<b>${escapeHtml(P(p.name))}</b> — ${a.kind === 'family' ? escapeHtml(p.rel || 'family') : 'new friend'}

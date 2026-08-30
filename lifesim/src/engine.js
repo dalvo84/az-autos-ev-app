@@ -7,9 +7,12 @@ import {
 } from './content/timeline.js';
 import { EARLY } from './content/story_early.js';
 import { TEEN } from './content/story_teen.js';
-import { poolFor, CHALLENGES } from './content/pools.js';
+import { poolFor, careerPool, CHALLENGES } from './content/pools.js';
 import { checkAchievements, awardSecret, perkBundle } from './content/achievements.js';
 import { wealthTier } from './content/wealth.js';
+import {
+  activePaths, setupQuestion, songQuestion, yearlyIncome, checkRetirement,
+} from './content/career.js';
 import { friendsMetAt, familyArrivingAt, FRIENDS } from './content/people.js';
 import {
   applyStat, addXp, bump, logEvent, nudgeRelationship, save, statMeta,
@@ -68,6 +71,20 @@ export class Engine {
     if (head) logEvent(s, head, 'headline');
     if (s.age === 0) logEvent(s, wealthTier(s.wealth).headline, 'headline');
 
+    // A year of work pays out before you make this year's decisions.
+    const yearRng = makeRng(`${s.seed}:${s.age}:income`);
+    const retired = checkRetirement(s, yearRng);
+    if (retired) logEvent(s, retired, 'headline');
+    const earned = yearlyIncome(s, yearRng);
+    if (earned && earned.amount) {
+      s.money = Math.round(s.money + earned.amount);
+      s.income.push({ age: s.age, amount: earned.amount, note: earned.note });
+      if (s.income.length > 140) s.income.shift();
+      const sign = earned.amount < 0 ? '' : '+';
+      logEvent(s, `${earned.note} ${sign}${formatMoney(earned.amount)} this year.`, 'income');
+      arrivals.push({ kind: 'income', amount: earned.amount, note: earned.note });
+    }
+
     // Ageing: the body starts asking questions after fifty-five. Habits you
     // built earlier genuinely slow it down.
     if (s.age >= 55) {
@@ -96,6 +113,26 @@ export class Engine {
 
     let question = null;
 
+    // Naming your club, your artist name or your business jumps the queue —
+    // nothing else makes sense until the game knows who you are.
+    const setup = setupQuestion(s, rng);
+    if (setup) {
+      this.current = setup;
+      return this.current;
+    }
+
+    // Then the work itself. A release is an event, not a weekly chore: one a
+    // year at most, and mostly in the years you are actually recording.
+    const c = s.career;
+    if (activePaths(s).includes('music') && c.artist
+        && s.age >= 15 && s.age <= 62
+        && s.age > (c.lastSongAge ?? -1)
+        && rng() < 0.45) {
+      c.lastSongAge = s.age;
+      this.current = songQuestion(s, this.rngFor('song'));
+      return this.current;
+    }
+
     // A random challenge sometimes gatecrashes the year.
     const challengeChance = s.qIndex === 1 ? 0.22 : 0.1;
     if (s.age >= 4 && rng() < challengeChance) {
@@ -103,7 +140,14 @@ export class Engine {
     } else if (scripted.length) {
       question = scripted[0];
     } else {
-      question = this.fromPool(poolFor(stageAt(s.age).id), rng, 'pool');
+      // Once you have a career, its own questions sit alongside the life ones.
+      const own = s.age >= 16
+        ? activePaths(s).flatMap((path) => careerPool(path))
+        : [];
+      const pool = own.length && rng() < 0.5
+        ? own
+        : [...poolFor(stageAt(s.age).id), ...own];
+      question = this.fromPool(pool, rng, 'pool');
     }
 
     this.current = normalise(question, s, this.rngFor('shuffle'));
@@ -116,11 +160,22 @@ export class Engine {
     const s = this.state;
     const recent = s.seenQuestions.slice(-14);
     let chosen = null;
+    let anyAgeOk = null;
     const order = rng.shuffle(pool);
     for (const gen of order) {
       const candidate = gen(s, this.rngFor(tag));
+      const okAge = (candidate.minAge === undefined || s.age >= candidate.minAge)
+        && (candidate.maxAge === undefined || s.age <= candidate.maxAge);
+      if (!okAge) continue;
+      if (candidate.requires && !safeTest(candidate.requires, s)) continue;
+      if (!anyAgeOk) anyAgeOk = candidate;
       if (!recent.includes(baseId(candidate.id))) { chosen = candidate; break; }
-      if (!chosen) chosen = candidate;
+    }
+    chosen = chosen || anyAgeOk;
+    if (!chosen) {
+      // Nothing in this pool suits the age — fall back to the life pool.
+      const life = poolFor(stageAt(s.age).id);
+      chosen = rng.pick(life)(s, this.rngFor(tag));
     }
     chosen.id = `${chosen.id}@${s.age}.${s.qIndex}`;
     return chosen;
@@ -170,7 +225,15 @@ export class Engine {
       }
     };
 
-    if (choice.custom) {
+    if (choice.pick && q.onPick) {
+      const payload = q.onPick(s, choice.pick, this.rngFor('pick'));
+      if (payload) applyOne(payload);
+      outcome.picked = choice.pick;
+    } else if (choice.text && (q.onSubmit || q.onPick)) {
+      const payload = q.onSubmit(s, choice.text, this.rngFor('text'));
+      if (payload) applyOne(payload);
+      outcome.typed = choice.text;
+    } else if (choice.custom) {
       const scored = scoreCustom(choice.custom, s);
       if (scored) {
         applyOne(scored);
@@ -199,6 +262,15 @@ export class Engine {
     outcome.levelUps = addXp(s, gainedXp);
 
     s.decisions += 1;
+    if (!choice.custom && choice.optionIds && choice.optionIds.length) {
+      const chosen = q.options.filter((o) => choice.optionIds.includes(o.id));
+      for (const opt of chosen) {
+        s.history.push({ age: s.age, q: baseId(q.id), id: opt.id, label: opt.label });
+      }
+    } else if (choice.custom) {
+      s.history.push({ age: s.age, q: baseId(q.id), id: 'own', label: choice.custom });
+    }
+    if (s.history.length > 200) s.history.splice(0, s.history.length - 200);
     s.seenQuestions.push(baseId(q.id));
     if (s.seenQuestions.length > 600) s.seenQuestions.splice(0, 200);
 
@@ -241,6 +313,12 @@ function safeTest(fn, state) {
 
 function baseId(id) { return String(id).split('@')[0]; }
 
+function formatMoney(n) {
+  const v = Math.round(n);
+  if (Math.abs(v) >= 1000000) return `£${(v / 1000000).toFixed(1)}m`;
+  return `£${v.toLocaleString('en-GB')}`;
+}
+
 function scaleOption(opt, share) {
   if (share === 1) return opt;
   const out = { ...opt };
@@ -254,6 +332,7 @@ function scaleOption(opt, share) {
 // Guarantees every question has exactly three written options plus the custom
 // slot, and that the options are not always in the same order.
 function normalise(q, state, rng) {
+  if (!q.options) return { ...q, scene: q.scene || stageAt(state.age).theme };
   const copy = { ...q, options: rng.shuffle(q.options).slice(0, 3) };
   copy.scene = copy.scene || stageAt(state.age).theme;
   copy.multi = !!copy.multi;
@@ -268,6 +347,13 @@ function buildObituary(s) {
   bits.push(`110 years. ${s.decisions} decisions. Level ${s.level}.`);
   const tier = wealthTier(s.wealth);
   bits.push(`Started ${tier.short.toLowerCase()}.`);
+  const c = s.career || {};
+  if (c.club) bits.push(`Played for ${c.club.name}${c.retireAge ? `, retired at ${c.retireAge}` : ''}.`);
+  if (c.artist) {
+    const viral = c.songs.filter((x) => x.outcome === 'viral').length;
+    bits.push(`Released ${c.songs.length} tracks as ${c.artist}${viral ? `, ${viral} of them enormous` : ''}.`);
+  }
+  if (c.business) bits.push(`Built ${c.business.name}, selling ${c.business.product}.`);
   if (s.money >= 1000000) bits.push(`Left £${Math.round(s.money).toLocaleString()} behind.`);
   if ((s.counters.goals || 0) > 40) bits.push(`${s.counters.goals} goals, most of them on pitches nobody filmed.`);
   if ((s.counters.tracks || 0) > 10) bits.push(`${s.counters.tracks} tracks, and the first one was recorded under a duvet.`);

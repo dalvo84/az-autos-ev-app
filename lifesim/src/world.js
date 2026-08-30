@@ -487,18 +487,43 @@ const BUILDERS = {
     ball.position.set(1.4, 0.12, 1.2);
     ball.userData.baseY = 0.12;
     g.add(ball);
+    // A slide the right way up: ladder and platform at the back, the chute
+    // sloping down to meet the grass at the front.
     const slide = new THREE.Group();
-    const ramp = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.08, 3), M(0xd94f4f));
-    ramp.position.set(0, 0.9, 0);
-    ramp.rotation.x = -0.45;
-    ramp.castShadow = true;
-    slide.add(ramp);
-    for (const x of [-0.35, 0.35]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.7, 6), M(0x3f7fb5));
-      leg.position.set(x, 0.85, -1.3);
+    const topY = 1.5;
+    const platform = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.7), M(0xe0c44a));
+    platform.position.set(0, topY, -1.25);
+    platform.castShadow = true;
+    slide.add(platform);
+    for (const x of [-0.38, 0.38]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, topY, 6), M(0x3f7fb5));
+      leg.position.set(x, topY / 2, -1.25);
       slide.add(leg);
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, topY * 0.8, 6), M(0x3f7fb5));
+      rail.position.set(x, topY + 0.4, -1.6);
+      slide.add(rail);
     }
-    slide.position.set(-3.4, 0, -1.5);
+    for (let i = 0; i < 4; i++) {
+      const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.76, 6), M(0xe0c44a));
+      rung.rotation.z = Math.PI / 2;
+      rung.position.set(0, 0.32 + i * 0.36, -1.62);
+      slide.add(rung);
+    }
+    // Chute from the platform lip down to the ground.
+    const run = 2.4;
+    const chute = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.07, Math.hypot(run, topY)), M(0xd94f4f));
+    chute.position.set(0, topY / 2, -0.9 + run / 2);
+    chute.rotation.x = Math.atan2(topY, run);
+    chute.castShadow = true;
+    slide.add(chute);
+    for (const x of [-0.42, 0.42]) {
+      const kerb = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.16, Math.hypot(run, topY)), M(0xb83f3f));
+      kerb.position.set(x, topY / 2 + 0.09, -0.9 + run / 2);
+      kerb.rotation.x = Math.atan2(topY, run);
+      slide.add(kerb);
+    }
+    slide.position.set(-3.6, 0, -1.8);
+    slide.rotation.y = 0.35;
     g.add(slide);
     crowd(g, rng, ctx.people.slice(0, 5), {
       radius: 4.5, spread: Math.PI * 1.2, offset: Math.PI * 0.9,
@@ -592,13 +617,18 @@ const BUILDERS = {
 
   pool(g, rng, ctx) {
     g.add(floorRoom(rng, { floor: 0xcfd6dd, wall: 0xdfe9f2, w: 20, d: 16, h: 5 }));
-    const water = new THREE.Mesh(new THREE.BoxGeometry(12, 0.4, 8),
-      new THREE.MeshLambertMaterial({ color: 0x2f9ed4, transparent: true, opacity: 0.85 }));
-    water.position.set(0, 0.2, -1);
+    // Sunk into the floor, with a tiled lip round it, rather than a slab of
+    // water sitting on top of the tiles.
+    const basin = new THREE.Mesh(new THREE.BoxGeometry(12.6, 1.4, 8.6), M(0x9fb4c4));
+    basin.position.set(0, -0.7, -1);
+    g.add(basin);
+    const water = new THREE.Mesh(new THREE.BoxGeometry(12, 1.2, 8),
+      new THREE.MeshLambertMaterial({ color: 0x2f9ed4, transparent: true, opacity: 0.9 }));
+    water.position.set(0, -0.58, -1);
     g.add(water);
     for (let i = -2; i <= 2; i++) {
       const lane = new THREE.Mesh(new THREE.BoxGeometry(12, 0.05, 0.08), M(0xe8e34a));
-      lane.position.set(0, 0.42, -1 + i * 1.6);
+      lane.position.set(0, 0.03, -1 + i * 1.6);
       g.add(lane);
     }
     for (let i = -2; i <= 2; i++) {
@@ -960,11 +990,19 @@ function schoolScene(g, rng, ctx, scale, accent) {
     post.position.set(x, 1.2, 0);
     frame.add(post);
   }
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.9, 8), barMat);
     rung.rotation.z = Math.PI / 2;
-    rung.position.set(0, 0.5 + i * 0.6, 0);
+    rung.position.set(0, 0.5 + i * 0.55, 0);
     frame.add(rung);
+  }
+  for (const z of [-0.55, 0.55]) {
+    const side = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 8), barMat);
+    side.position.set(1.4, 1.2, z);
+    frame.add(side);
+    const side2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 8), barMat);
+    side2.position.set(-1.4, 1.2, z);
+    frame.add(side2);
   }
   frame.position.set(-7, 0, 4);
   g.add(frame);

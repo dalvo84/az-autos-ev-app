@@ -46,11 +46,43 @@ node build.mjs --artifact   # dist/one-life.artifact.html — body-only
 - **Every decision is a level.** Level 1 is a nursery in Shillington with the
   speakers on. Level 333 is somewhere a very long way from there.
 - **Random challenges** gatecrash the year without warning.
+- **Questions fit your age.** Every pool entry carries an age range, children
+  draw from a children's pool, and career questions check the state of your
+  career — a retired footballer is never asked about pre-season again.
+- **It remembers what you chose.** Questions refer back to your last decision
+  by name, and your club, artist name, business and product appear in the
+  writing from the moment you pick them.
 - **Achievements and secret achievements**, and every one of them carries a perk
   — permanent multipliers on XP, earnings, stat growth or raw talent.
 
 Keyboard: `A` `B` `C` `D` to choose, `Enter` to lock it in and to carry on.
 Drag the scene to look round it, scroll to zoom.
+
+## Careers
+
+From the fork at sixteen, whichever paths you take ask who you actually are and
+then pay you for it. You can run more than one — the fork lets you pick two,
+and income sums across every path you are working.
+
+**Football.** You pick your club from all 92 in the English league, grouped by
+division with each club's average weekly wage shown. You are then paid that
+wage, scaled by how many appearances you make — which depends on how your
+athleticism compares to the level you signed at. Manchester City at £200,000 a
+week is a different life from Bromley at £1,800. Careers end somewhere between
+30 and 38, after which coaching and media pay a fraction of it. Wages are
+public ballpark estimates, not payroll data.
+
+**Music.** You choose the name you release under. From then on, roughly one
+year in two, you are asked to name a track and put it out. Every release rolls
+against your Music and Creativity and your current fame, and lands as viral, a
+hit, fine, or nowhere — with the stream count and the money to match. Talent
+moves the odds; it never guarantees anything. A viral track is worth a secret
+achievement and a great deal of money.
+
+**Business.** You name the business and say what it sells, and both appear in
+your questions from then on. Income is, as asked, genuinely a gamble: about one
+year in six loses money, most years are modest, and a rare year is twenty times
+the rest. Skill raises the ceiling without protecting the floor.
 
 ## Setting it up
 
@@ -173,6 +205,8 @@ lifesim/
     └── content/
         ├── wealth.js        the eight family-wealth tiers
     ├── homes.js         what the house looks like at each tier
+    ├── clubs.js         all 92 English league clubs and their wages
+    ├── career.js        paths, songs, wages and what a year pays
     ├── people.js        family and the seven friends
         ├── timeline.js      places, schools, clubs, stages
         ├── story_early.js   scripted ages 0-12
