@@ -24,15 +24,40 @@ function groundPlane(colour, size = 90) {
 
 // A dollhouse room: four walls whose normals point inward, so the wall between
 // you and the room is back-face culled and you always get to look in.
-function floorRoom(rng, { floor = 0xb08a5f, wall = 0xe8e2d6, w = 9, d = 9, h = 3.2 } = {}) {
+function floorRoom(rng, { floor = 0xb08a5f, wall = 0xe8e2d6, w = 9, d = 9, h = 3.2, hole = null } = {}) {
   const g = new THREE.Group();
 
   const skirt = new THREE.Mesh(new THREE.PlaneGeometry(w + 3, d + 3), M(0x1e222b));
   skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = -0.05;
+  skirt.position.y = hole ? -(hole.depth || 1.6) - 0.4 : -0.05;
   g.add(skirt);
 
-  const f = new THREE.Mesh(new THREE.PlaneGeometry(w, d), M(floor));
+  // A hole means a real hole: the floor is triangulated round it, rather than
+  // something being laid on top and fighting it for the same plane.
+  let floorGeo;
+  if (hole) {
+    const shape = new THREE.Shape();
+    shape.moveTo(-w / 2, -d / 2);
+    shape.lineTo(w / 2, -d / 2);
+    shape.lineTo(w / 2, d / 2);
+    shape.lineTo(-w / 2, d / 2);
+    shape.closePath();
+    // Laying the shape flat maps shape Y to world -Z, and the hole is wound
+    // the opposite way round to the outline.
+    const hx = hole.x || 0;
+    const hy = -(hole.z || 0);
+    const cut = new THREE.Path();
+    cut.moveTo(hx - hole.w / 2, hy - hole.d / 2);
+    cut.lineTo(hx - hole.w / 2, hy + hole.d / 2);
+    cut.lineTo(hx + hole.w / 2, hy + hole.d / 2);
+    cut.lineTo(hx + hole.w / 2, hy - hole.d / 2);
+    cut.closePath();
+    shape.holes.push(cut);
+    floorGeo = new THREE.ShapeGeometry(shape);
+  } else {
+    floorGeo = new THREE.PlaneGeometry(w, d);
+  }
+  const f = new THREE.Mesh(floorGeo, M(floor));
   f.rotation.x = -Math.PI / 2;
   f.receiveShadow = true;
   g.add(f);
@@ -616,33 +641,67 @@ const BUILDERS = {
   },
 
   pool(g, rng, ctx) {
-    g.add(floorRoom(rng, { floor: 0xcfd6dd, wall: 0xdfe9f2, w: 20, d: 16, h: 5 }));
-    // Sunk into the floor, with a tiled lip round it, rather than a slab of
-    // water sitting on top of the tiles.
-    const basin = new THREE.Mesh(new THREE.BoxGeometry(12.6, 1.4, 8.6), M(0x9fb4c4));
-    basin.position.set(0, -0.7, -1);
-    g.add(basin);
-    const water = new THREE.Mesh(new THREE.BoxGeometry(12, 1.2, 8),
-      new THREE.MeshLambertMaterial({ color: 0x2f9ed4, transparent: true, opacity: 0.9 }));
-    water.position.set(0, -0.58, -1);
+    const w = 20;
+    const d = 16;
+    const poolW = 12;
+    const poolD = 8;
+    const poolZ = -1;
+    const depth = 1.6;
+
+    g.add(floorRoom(rng, {
+      floor: 0xcfd6dd, wall: 0xdfe9f2, w, d, h: 5,
+      hole: { x: 0, z: poolZ, w: poolW, d: poolD, depth },
+    }));
+
+    // Tank walls and floor, built below the deck so nothing shares a plane.
+    const tile = M(0xa9bccb);
+    const bottom = new THREE.Mesh(new THREE.BoxGeometry(poolW, 0.2, poolD), tile);
+    bottom.position.set(0, -depth, poolZ);
+    bottom.receiveShadow = true;
+    g.add(bottom);
+    const t = 0.24;
+    for (const [sx, sz, bw, bd] of [
+      [0, -poolD / 2 - t / 2, poolW + t * 2, t],
+      [0, poolD / 2 + t / 2, poolW + t * 2, t],
+      [-poolW / 2 - t / 2, 0, t, poolD],
+      [poolW / 2 + t / 2, 0, t, poolD],
+    ]) {
+      // Stop the wall tops just under the deck. Ending them exactly at floor
+      // level puts two surfaces on the same plane and they flicker against
+      // each other as the camera moves.
+      const sideH = depth - 0.03;
+      const side = new THREE.Mesh(new THREE.BoxGeometry(bw, sideH, bd), tile);
+      side.position.set(sx, -0.03 - sideH / 2, poolZ + sz);
+      g.add(side);
+    }
+
+    // Water surface sits below the deck, where water in a pool goes.
+    const surfaceY = -0.22;
+    const water = new THREE.Mesh(new THREE.BoxGeometry(poolW - 0.02, depth - 0.3, poolD - 0.02),
+      new THREE.MeshLambertMaterial({ color: 0x2f9ed4, transparent: true, opacity: 0.86 }));
+    water.position.set(0, surfaceY - (depth - 0.3) / 2, poolZ);
     g.add(water);
+
     for (let i = -2; i <= 2; i++) {
-      const lane = new THREE.Mesh(new THREE.BoxGeometry(12, 0.05, 0.08), M(0xe8e34a));
-      lane.position.set(0, 0.03, -1 + i * 1.6);
+      const lane = new THREE.Mesh(new THREE.BoxGeometry(poolW - 0.2, 0.05, 0.09), M(0xe8e34a));
+      lane.position.set(0, surfaceY + 0.03, poolZ + i * 1.6);
       g.add(lane);
     }
+
     for (let i = -2; i <= 2; i++) {
       const block = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 0.6), M(0xe8e8ee));
-      block.position.set(-6.6, 0.22, -1 + i * 1.6);
+      block.position.set(-poolW / 2 - 0.55, 0.22, poolZ + i * 1.6);
       block.castShadow = true;
       g.add(block);
     }
+
     crowd(g, rng, ctx.people.slice(0, 3), {
-      radius: 6.8, spread: Math.PI * 0.6, offset: Math.PI * 1.3,
-      avoid: [[0, -1, 6.4, 4.4], [-6.6, -1, 0.7, 3.6]],
-      bounds: [9.2, 7.2],
+      radius: 7.4, spread: Math.PI * 0.6, offset: Math.PI * 1.3,
+      avoid: [[0, poolZ, poolW / 2 + 0.9, poolD / 2 + 0.9], [-poolW / 2 - 0.55, poolZ, 0.7, 3.6]],
+      bounds: [w / 2 - 0.8, d / 2 - 0.8],
     });
-    return { camera: [11, 6.2, 12], target: [0, 0.7, -1], interior: true };
+
+    return { camera: [11, 6.2, 12], target: [0, 0.4, poolZ], interior: true };
   },
 
   ring(g, rng, ctx) {
