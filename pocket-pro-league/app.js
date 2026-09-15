@@ -427,7 +427,9 @@
         { label: '😴 Rest this week', cls: 'primary', sub: 'Wages paid, leagues play on', fn: () => { E.byeWeek(S); U.toast = 'Bye week. You watched the football from the sofa.'; go('hub'); } },
         { label: '← Back to hub', fn: () => go('hub') } ] };
     }
-    const html = `<h2>🏟 Match Day</h2>${fixtureCard()}
+    S.settings = S.settings || {}; const cur = S.settings.difficulty || 'amateur';
+    const diffHtml = `<div class="card"><h3>Difficulty · ${esc(ARC.DIFFICULTY[cur].name)}</h3><div class="choices diff">${ARC.DIFF_ORDER.map(k => `<button type="button" class="sm ${k === cur ? 'primary' : ''} ${k === 'nightmare' ? 'danger' : ''}" data-diff="${k}">${esc(ARC.DIFFICULTY[k].name)}</button>`).join('')}</div><p class="muted">${esc(ARC.DIFFICULTY[cur].blurb)} Rating at full time ${ARC.DIFFICULTY[cur].bonus >= 0 ? '+' : ''}${ARC.DIFFICULTY[cur].bonus.toFixed(1)}.</p></div>`;
+    const html = `<h2>🏟 Match Day</h2>${fixtureCard()}${diffHtml}
       <p class="muted">Play Full Match and Highlights put you on the pitch: joystick or WASD to move, Shoot (hold for power), Pass, and Skill for a sprint burst or slide tackle. Text Match is the choice-based commentary version. Sim scrolls the match, Quick Sim jumps to the result. Chemistry ${P().chem}: teammates look for you ${(1 + 2 * P().chem / 100).toFixed(1)}× as often.</p>`;
     const start = mode => () => { U.match = E.buildMatch(S, mode); U.match.introduced = new Set(); U.match.timeline = buildTimeline(U.match); U.match.pos = 0; U.match.shown = [];
       if (mode === 'quick') { advance(U.match, true); finish(); return; }
@@ -442,7 +444,7 @@
       { label: '⏩ Quick Sim', sub: 'Instant result', fn: start('quick') },
       { label: '← Back to hub', fn: () => go('hub') },
     ];
-    return { html, actions };
+    return { html, actions, after: () => { document.querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { S.settings.difficulty = b.dataset.diff; render(); }); } };
   };
 
   const FILLER = [
@@ -580,7 +582,7 @@
       const introduced = new Set(); const say = (who, txt, cls, prio) => { const el = document.createElement('div'); el.innerHTML = scriptLine(who, txt, cls, 'arc' + S.week + '-' + (log.childElementCount)); log.prepend(el.firstChild); while (log.childElementCount > 6) log.lastElementChild.remove(); if (A) A.speak(who, txt, prio ? { priority: true } : undefined); };
       const nm = pl => pl ? (pl.isUser ? esc(pname()) : pl.team === 0 ? esc(mateRef({ name: pl.name, last: pl.last, pron: pl.pron || '' }, pl.pron ? introduced : null)) : `${esc(opp.name)}'s number ${pl.number}`) : 'someone';
       const starts = p.coach >= 35;
-      U.arcade = ARC.start({ host, onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
+      U.arcade = ARC.start({ host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
         secondsPerHalf: mode === 'highlights' ? 60 : 150, timeScale: U.testTimeScale || 1,
         onEvent: (type, d) => {
           if (type === 'kickoff') { say('John', `${fx.isHome ? esc(club().name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); if (A) A.sfx('kickoff'); }
@@ -611,7 +613,7 @@
     const html = `<h2>Full-time report</h2>
       <div class="score">${scoreline(m)}<small>${ch.win ? 'WIN · +3 pts' : ch.draw ? 'DRAW · +1 pt' : 'LOSS'} · ${esc(club().name)} now ${myPos}${ord(myPos)}</small></div>
       <div class="cards">
-        <div class="card ${ch.motm ? 'hl' : ''}"><h3>Your match</h3><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? 'Unused sub' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${m.saves}</span>` : `<span class="k">Key plays</span><span>${m.keys}</span>`}${m.arcade ? `<span class="k">Shots</span><span>${m.arcade.shots} (${m.arcade.onTarget} on target)</span><span class="k">Passes</span><span>${m.arcade.passesOk}/${m.arcade.passes}</span><span class="k">Tackles</span><span>${m.arcade.tackles}</span><span class="k">Touches</span><span>${m.arcade.touches}</span>` : ''}</div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>
+        <div class="card ${ch.motm ? 'hl' : ''}"><h3>Your match</h3><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? 'Unused sub' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${m.saves}</span>` : `<span class="k">Key plays</span><span>${m.keys}</span>`}${m.arcade ? `<span class="k">Shots</span><span>${m.arcade.shots} (${m.arcade.onTarget} on target)</span><span class="k">Passes</span><span>${m.arcade.passesOk}/${m.arcade.passes}</span><span class="k">Tackles</span><span>${m.arcade.tackles}</span><span class="k">Touches</span><span>${m.arcade.touches}</span><span class="k">Difficulty</span><span>${esc(m.arcade.difficulty || '')}</span>` : ''}</div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>
         <div class="card"><h3>Changes</h3><div class="kv">${delta('Coach', ch.coach)}${delta('Fans', ch.fans)}${delta('Fame', ch.fame)}${delta('Chemistry', ch.chem)}${delta('Charm', ch.charm)}<span class="k">Bonus</span><span class="gold">${money(ch.money)}</span><span class="k">Wage</span><span class="gold">${money(p.contract.wage)}</span></div>${attrs ? `<div>${attrs} → OVR ${p.ovr}</div>` : ''}</div>
       </div>
       ${ch.motm ? `<div class="script">${scriptLine('Ally', `Player of the match, no argument: <b>${esc(p.name)}</b> (${esc(p.pron)}). Remember the pronunciation, John.`)}${scriptLine('John', 'Noted. Again.')}</div>` : ''}

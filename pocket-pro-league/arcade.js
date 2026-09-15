@@ -6,11 +6,26 @@
   const SLOTS = ['GK', 'RB', 'CB', 'CB', 'LB', 'CDM', 'CM', 'CAM', 'RW', 'ST', 'LW'];
   const FORM = [[.5, .05], [.84, .27], [.63, .2], [.37, .2], [.16, .27], [.5, .42], [.31, .54], [.69, .57], [.85, .74], [.5, .8], [.15, .74]];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  // Difficulty: how the opposition plays against you. aiSpeed/aiTackle/aiShot/aiAcc/gk scale the other team,
+  // userTackle scales your slide and stand-up tackles, mateQ scales your AI teammates, bonus is added to your rating at full time.
+  const DIFFICULTY = {
+    beginner:     { name: 'Beginner',     aiSpeed: 0.72, aiTackle: 0.35, aiShot: 0.6,  aiAcc: 0.6,  gk: 0.75, userTackle: 1.4, mateQ: 1.1,  bonus: -0.2, blurb: 'Opponents jog, rarely tackle and shoot wildly.' },
+    amateur:      { name: 'Amateur',      aiSpeed: 0.82, aiTackle: 0.5,  aiShot: 0.75, aiAcc: 0.75, gk: 0.85, userTackle: 1.25, mateQ: 1.05, bonus: 0,    blurb: 'A gentle Sunday league. Good for learning the controls.' },
+    semipro:      { name: 'Semi-Pro',     aiSpeed: 0.9,  aiTackle: 0.7,  aiShot: 0.9,  aiAcc: 0.9,  gk: 0.95, userTackle: 1.1,  mateQ: 1.0,  bonus: 0.1,  blurb: 'Fair fight. Opponents press but you can beat them.' },
+    professional: { name: 'Professional', aiSpeed: 1.0,  aiTackle: 0.9,  aiShot: 1.0,  aiAcc: 1.0,  gk: 1.0,  userTackle: 1.0,  mateQ: 1.0,  bonus: 0.2,  blurb: 'Opponents play to their attributes. Mistakes get punished.' },
+    legendary:    { name: 'Legendary',    aiSpeed: 1.08, aiTackle: 1.1,  aiShot: 1.15, aiAcc: 1.1,  gk: 1.08, userTackle: 0.9,  mateQ: 0.95, bonus: 0.35, blurb: 'Faster, sharper, tighter. Keepers are a wall.' },
+    ultimate:     { name: 'Ultimate',     aiSpeed: 1.1,  aiTackle: 1.3,  aiShot: 1.15, aiAcc: 1.1,  gk: 1.15, userTackle: 0.8,  mateQ: 0.9,  bonus: 0.5,  blurb: 'Every duel is uphill. Bring your best form.' },
+    nightmare:    { name: 'NIGHTMARE',    aiSpeed: 1.18, aiTackle: 1.5,  aiShot: 1.3,  aiAcc: 1.2,  gk: 1.25, userTackle: 0.7,  mateQ: 0.85, bonus: 0.7,  blurb: 'They are faster than you, they never miss, and they want blood.' },
+  };
+  const DIFF_ORDER = ['beginner', 'amateur', 'semipro', 'professional', 'legendary', 'ultimate', 'nightmare'];
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const rnd = () => Math.random();
-  const speedOf = p => (52 + p.attrs.pac * 0.72) * (p.isUser ? 1 : 0.9);
+  let DF = DIFFICULTY.amateur;
+  // Your player is quicker than the raw number: a controlled player needs headroom to feel responsive
+  const speedOf = p => p.isUser ? (66 + p.attrs.pac * 0.72) * 1.12 : (52 + p.attrs.pac * 0.72) * (p.team === 1 ? 0.9 * DF.aiSpeed : 0.9 * DF.mateQ);
 
   function start(opts) {
+    DF = DIFFICULTY[opts.difficulty] || DIFFICULTY.amateur;
     const host = opts.host; host.innerHTML = '';
     const stage = document.createElement('div'); stage.className = 'arc-stage';
     stage.innerHTML = `<canvas id="arc-canvas"></canvas><div class="arc-hud"><span class="arc-score" id="arc-score"></span><span class="arc-clock" id="arc-clock"></span><span class="arc-rating" id="arc-rating"></span><button type="button" class="arc-exit" id="arc-exit">✕</button></div>
@@ -81,7 +96,7 @@
     }
     function shoot(p, power, aim) {
       const gy = goalY(p.team); const gx = W / 2 + clamp(aim || 0, -1, 1) * 55;
-      const spread = ((100 - p.attrs.sho) * 1.3 + 30) * (rnd() - 0.5) * (p.isUser ? 0.9 : 1.9) * (1 + power * 0.4);
+      const spread = ((100 - p.attrs.sho) * 1.3 + 30) * (rnd() - 0.5) * (p.isUser ? 0.9 : 1.9 / (p.team === 1 ? DF.aiAcc : DF.mateQ)) * (1 + power * 0.4);
       const tx = gx + spread, ty = gy;
       const v = (p.isUser ? 230 : 210) + power * 150 + p.attrs.sho * 0.8;
       kick(p, tx - p.x, ty - p.y, v, 30 + power * 70 + rnd() * 30);
@@ -112,7 +127,7 @@
       if (!q) { kick(p, aimx || p.fx, aimy || p.fy, 220, 0); return; }
       const lead = 0.35; const tx = q.x + q.vx * lead, ty = q.y + q.vy * lead;
       const d = Math.hypot(tx - p.x, ty - p.y);
-      const err = (100 - p.attrs.pas) * 0.5; const ex = (rnd() - 0.5) * err, ey = (rnd() - 0.5) * err;
+      const err = (100 - p.attrs.pas) * 0.5 / (p.isUser ? 1 : p.team === 1 ? DF.aiAcc : DF.mateQ); const ex = (rnd() - 0.5) * err, ey = (rnd() - 0.5) * err;
       kick(p, tx - p.x + ex, ty - p.y + ey, clamp(d * 1.5, 150, 340), d > 220 ? 50 : 0, q);
       ball.assist = p; ball.assistT = 0;
       if (p.isUser) st.user.passes++;
@@ -159,10 +174,11 @@
       if (p.isGK) { if (p.hold === undefined) p.hold = 0.7; p.hold -= 0.25; if (p.hold <= 0) { p.hold = undefined; const q = bestPassTarget(p, 0, st.dir[p.team], true); if (q && dist(q, p) < 260) pass(p, 0, 0, false); else kick(p, (rnd() - 0.5) * 0.6, st.dir[p.team], 380, 120); } return; }
       let minOpp = 999, nearest = null; for (const o of teamOf(1 - p.team)) { const d = dist(o, p); if (d < minOpp) { minOpp = d; nearest = o; } }
       const central = Math.abs(p.x - W / 2) < 170;
+      const shotMul = p.team === 1 ? DF.aiShot : DF.mateQ;
       if (dG < 95 && rnd() < 0.9) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.4); return; }
       if (dG < 210 && central) {
         let lane = true; for (const o of teamOf(1 - p.team)) { if (o.isGK) continue; const t = ((o.x - p.x) * (W / 2 - p.x) + (o.y - p.y) * (gy - p.y)) / (dG * dG); if (t > 0.05 && t < 0.9) { const lx = p.x + (W / 2 - p.x) * t, ly = p.y + (gy - p.y) * t; if (Math.hypot(o.x - lx, o.y - ly) < 14) lane = false; } }
-        if (rnd() < (lane ? 0.05 : 0.02) + (210 - dG) / 210 * 0.15 + (minOpp < 25 ? 0.08 : 0)) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.2); return; }
+        if (rnd() < ((lane ? 0.05 : 0.02) + (210 - dG) / 210 * 0.15 + (minOpp < 25 ? 0.08 : 0)) * shotMul) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.2); return; }
       }
       if (minOpp < 48 && rnd() < 0.75) { const q = bestPassTarget(p, 0, st.dir[p.team], false); if (q) { pass(p, 0, 0, false); return; } }
       if (rnd() < 0.12) { const q = bestPassTarget(p, 0, st.dir[p.team], false); if (q && Math.abs(q.y - gy) < Math.abs(p.y - gy) - 60) { pass(p, 0, 0, false); return; } }
@@ -222,7 +238,7 @@
         else if (p.isUser) {
           const s = ctl.state; p.sprint = Math.max(0, p.sprint - dt);
           if (p.stamina < 100) p.stamina += dt * (ball.owner === p ? 5 : 9);
-          if (s.active && p.stun <= 0) { const mul = (p.sprint > 0 ? 1.35 : 1) * (ball.owner === p ? 0.9 : 1); const sp = speedOf(p) * mul; p.vx = s.x * sp; p.vy = s.y * sp; p.x += p.vx * dt; p.y += p.vy * dt; p.fx = s.x / (Math.hypot(s.x, s.y) || 1); p.fy = s.y / (Math.hypot(s.x, s.y) || 1); p.step += dt * 14 * mul; }
+          if (s.active && p.stun <= 0) { const mul = (p.sprint > 0 ? 1.35 : 1) * (ball.owner === p ? 0.95 : 1); const mag = Math.hypot(s.x, s.y) || 1; const k = Math.min(1, mag / 0.55); const sp = speedOf(p) * mul * k; p.vx = s.x / mag * sp; p.vy = s.y / mag * sp; p.x += p.vx * dt; p.y += p.vy * dt; p.fx = s.x / (Math.hypot(s.x, s.y) || 1); p.fy = s.y / (Math.hypot(s.x, s.y) || 1); p.step += dt * 14 * mul; }
           else { p.vx = p.vy = 0; }
         } else {
           aiDecide(p, dt);
@@ -241,13 +257,16 @@
         if (ball.x < 0 || ball.x > W || ball.y < 0 || ball.y > H) { ball.lastTeam = o.team; ball.owner = null; restart(); return; }
         // tackles
         for (const d of teamOf(1 - o.team)) {
-          const dd = dist(d, o); if (dd > 17 && !(d.slide > 0 && dd < 24)) continue;
+          const dd = dist(d, o); if (dd > (o.isUser ? 14 : 17) && !(d.slide > 0 && dd < 24)) continue;
           const gkClaim = d.isGK && Math.abs(o.y - ownGoalY(d.team)) < 150;
           if (d.stun > 0 || (d.isGK && !d.isUser && !gkClaim)) continue;
-          d.contest += dt; const interval = d.slide > 0 ? 0 : 0.3;
+          d.contest += dt; const interval = d.slide > 0 ? 0 : o.isUser ? 0.5 : 0.3;
           if (d.contest >= interval) {
             d.contest = 0;
-            let pr = 0.28 + (d.attrs.def - o.attrs.dri) * 0.006 + (d.slide > 0 ? 0.32 : 0) + (d.isUser ? 0.05 : 0) - (o.isUser ? 0.04 : 0) + (gkClaim ? 0.35 : 0);
+            let pr = 0.28 + (d.attrs.def - o.attrs.dri) * 0.006 + (d.slide > 0 ? 0.32 : 0) + (gkClaim ? 0.35 : 0);
+            if (d.isUser) pr = (pr + 0.05) * DF.userTackle;
+            if (o.isUser) { pr = (pr - 0.06) * DF.aiTackle; if (o.sprint > 0) pr *= 0.55; }
+            else if (d.team === 1) pr *= 0.7 + DF.aiTackle * 0.3;
             if (rnd() < clamp(pr, 0.05, 0.9)) {
               o.stun = 0.5; ball.owner = d; d.cool = 0.15; ball.lastTeam = d.team; ball.passTarget = null; ball.assist = null; if (d.isGK) { d.hold = 0.9; emit('save', { p: d, big: false, claim: true }); }
               if (d.isUser) { st.user.tackles++; st.user.keys++; rate(0.3); emit('tackle', { p: d }); }
@@ -277,7 +296,8 @@
         }
         if (taker) {
           if (taker.isGK && sp > 200 && ball.lastTeam !== taker.team) {
-            const pr = clamp(0.9 + (taker.attrs.def - 55) * 0.006 - (sp - 200) * 0.0006 - (ball.z > 30 ? 0.1 : 0), 0.3, 0.97);
+            let pr = clamp(0.9 + (taker.attrs.def - 55) * 0.006 - (sp - 200) * 0.0006 - (ball.z > 30 ? 0.1 : 0), 0.3, 0.97);
+            if (taker.team === 1) pr = clamp(pr * DF.gk, 0.15, 0.98);
             if (rnd() < pr) { ball.owner = taker; taker.cool = 0.1; if (taker.isUser) { st.user.saves++; rate(0.5); } emit('save', { p: taker, big: sp > 520 }); ball.vx = ball.vy = 0; ball.passTarget = null; ball.assist = null; taker.hold = 0.8; }
             else { taker.cool = 0.4; ball.vy = -ball.vy * 0.45; ball.vx = ball.vx * 0.3 + (rnd() - 0.5) * 220; ball.vz = 110; emit('save', { p: taker, big: true, parry: true }); } // parried away
             return;
@@ -380,7 +400,7 @@
       // HUD
       const min = Math.min(45, Math.floor(st.t / st.secondsPerHalf * 45)) + (st.half === 2 ? 45 : 0);
       hud.score.textContent = `${opts.club.name} ${st.score[0]} – ${st.score[1]} ${opts.opp.name}`;
-      hud.clock.textContent = `${min}'`; hud.rating.textContent = user.benched && !st.subbed ? 'BENCH' : st.user.rating.toFixed(1);
+      hud.clock.textContent = `${min}' · ${DF.name}`; hud.rating.textContent = user.benched && !st.subbed ? 'BENCH' : st.user.rating.toFixed(1);
       ctl.setLabel('skill', isGKUser ? 'DIVE' : ball.owner === user ? 'SPRINT' : 'SLIDE', isGKUser ? '' : ball.owner === user ? `stamina ${Math.round(user.stamina)}` : 'tackle');
     }
 
@@ -396,7 +416,8 @@
     function finish() {
       if (st.ended) return; st.ended = true; alive = false; cancelAnimationFrame(raf);
       banner('FULL TIME', 2500);
-      const u = st.user; const res = { score: st.score.slice(), rating: u.rating, goals: u.goals, assists: u.assists, saves: u.saves, keys: u.keys, shots: u.shots, onTarget: u.onTarget, passes: u.passes, passesOk: u.passesOk, tackles: u.tackles, touches: u.touches, played: !user.benched || st.subbed };
+      const u = st.user; if (!user.benched || st.subbed) u.rating = clamp(u.rating + DF.bonus, 2, 10);
+      const res = { difficulty: DF.name, score: st.score.slice(), rating: u.rating, goals: u.goals, assists: u.assists, saves: u.saves, keys: u.keys, shots: u.shots, onTarget: u.onTarget, passes: u.passes, passesOk: u.passesOk, tackles: u.tackles, touches: u.touches, played: !user.benched || st.subbed };
       emit('fulltime', res);
       setTimeout(() => { if (opts.onEnd) opts.onEnd(res); }, 900);
     }
@@ -405,5 +426,5 @@
     raf = requestAnimationFrame(frame);
     return { destroy() { alive = false; cancelAnimationFrame(raf); ctl.destroy(); window.removeEventListener('resize', resize); host.innerHTML = ''; }, state: st, players, ball, endNow() { st.phase = 'end'; finish(); } };
   }
-  root.PPL_ARCADE = { start, W, H };
+  root.PPL_ARCADE = { start, W, H, DIFFICULTY, DIFF_ORDER };
 })(typeof window !== 'undefined' ? window : globalThis);

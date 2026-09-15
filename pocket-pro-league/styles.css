@@ -151,3 +151,5 @@ body.has-scene { overflow: hidden; }
 .look-row .sm { min-height: 32px; padding: 2px 6px; text-align: center; }
 .look-val { text-align: center; }
 @media (max-width: 480px) { .look { grid-template-columns: 1fr; } .ctl-btn { width: 64px; height: 64px; } }
+.choices.diff { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.choices.diff .sm { text-align: center; }

@@ -52,6 +52,22 @@ Play Full Match (two halves of 150 seconds) and Play Highlights (two halves of 6
 
 Touch controls appear only on touch devices. On a computer a key legend shows instead, with a toggle to bring the touch controls back.
 
+### Difficulty
+
+Chosen at the stadium before a match and remembered. It scales the opposition only: their running speed, how often their tackles succeed against you, how often and how accurately they shoot and pass, and how good their keeper is against your shots. Harder levels add a small bonus to your full-time rating.
+
+| Level | Feel |
+| --- | --- |
+| Beginner | Opponents jog, rarely tackle and shoot wildly |
+| Amateur (default) | Gentle Sunday league, good for learning the controls |
+| Semi-Pro | Fair fight |
+| Professional | Opponents play to their attributes |
+| Legendary | Faster, sharper, keepers are a wall |
+| Ultimate | Every duel is uphill |
+| NIGHTMARE | They are faster than you and they never miss |
+
+Your player always runs a little quicker than the raw Pace number suggests, and the joystick reaches full speed at just over half deflection, so a controlled player feels responsive against AI at every level.
+
 If your coach popularity is under 35 you start on the bench and come on for the last third of the match. Under 15 you are not in the squad and can only sim the match.
 
 ## Sound
