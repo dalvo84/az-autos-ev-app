@@ -8,15 +8,16 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const rnd = () => Math.random();
-  const speedOf = p => (92 + p.attrs.pac * 1.25) * (p.isUser ? 1 : 0.86);
+  const speedOf = p => (52 + p.attrs.pac * 0.72) * (p.isUser ? 1 : 0.9);
 
   function start(opts) {
     const host = opts.host; host.innerHTML = '';
     const stage = document.createElement('div'); stage.className = 'arc-stage';
-    stage.innerHTML = `<div class="arc-hud"><span class="arc-score" id="arc-score"></span><span class="arc-clock" id="arc-clock"></span><span class="arc-rating" id="arc-rating"></span></div>
-      <div class="arc-ticker" id="arc-ticker"></div><canvas id="arc-canvas"></canvas><div class="arc-banner" id="arc-banner" hidden></div>`;
+    stage.innerHTML = `<canvas id="arc-canvas"></canvas><div class="arc-hud"><span class="arc-score" id="arc-score"></span><span class="arc-clock" id="arc-clock"></span><span class="arc-rating" id="arc-rating"></span><button type="button" class="arc-exit" id="arc-exit">✕</button></div>
+      <div class="arc-ticker" id="arc-ticker"></div><div class="arc-banner" id="arc-banner" hidden></div>`;
     host.appendChild(stage);
     const canvas = stage.querySelector('#arc-canvas'), ctx = canvas.getContext('2d');
+    stage.querySelector('#arc-exit').onclick = () => { if (opts.onExit) opts.onExit(); };
     const hud = { score: stage.querySelector('#arc-score'), clock: stage.querySelector('#arc-clock'), rating: stage.querySelector('#arc-rating'), ticker: stage.querySelector('#arc-ticker'), banner: stage.querySelector('#arc-banner') };
     const isGKUser = opts.user.pos === 'GK';
     const ctl = CT.create(stage, { buttons: [
@@ -82,8 +83,8 @@
       const gy = goalY(p.team); const gx = W / 2 + clamp(aim || 0, -1, 1) * 55;
       const spread = ((100 - p.attrs.sho) * 1.3 + 30) * (rnd() - 0.5) * (p.isUser ? 0.9 : 1.9) * (1 + power * 0.4);
       const tx = gx + spread, ty = gy;
-      const v = (p.isUser ? 330 : 300) + power * 240 + p.attrs.sho * 1.2;
-      kick(p, tx - p.x, ty - p.y, v, 40 + power * 90 + rnd() * 40);
+      const v = (p.isUser ? 230 : 210) + power * 150 + p.attrs.sho * 0.8;
+      kick(p, tx - p.x, ty - p.y, v, 30 + power * 70 + rnd() * 30);
       const onT = Math.abs(tx - W / 2) < GOAL_W / 2 - 4;
       if (p.isUser) { st.user.shots++; if (onT) st.user.onTarget++; rate(onT ? 0.15 : -0.05); }
       emit('shot', { p, onTarget: onT });
@@ -108,11 +109,11 @@
     }
     function pass(p, aimx, aimy, useAim) {
       const q = bestPassTarget(p, aimx, aimy, useAim);
-      if (!q) { kick(p, aimx || p.fx, aimy || p.fy, 300, 0); return; }
+      if (!q) { kick(p, aimx || p.fx, aimy || p.fy, 220, 0); return; }
       const lead = 0.35; const tx = q.x + q.vx * lead, ty = q.y + q.vy * lead;
       const d = Math.hypot(tx - p.x, ty - p.y);
       const err = (100 - p.attrs.pas) * 0.5; const ex = (rnd() - 0.5) * err, ey = (rnd() - 0.5) * err;
-      kick(p, tx - p.x + ex, ty - p.y + ey, clamp(d * 2.1, 220, 520), d > 220 ? 60 : 0, q);
+      kick(p, tx - p.x + ex, ty - p.y + ey, clamp(d * 1.5, 150, 340), d > 220 ? 50 : 0, q);
       ball.assist = p; ball.assistT = 0;
       if (p.isUser) st.user.passes++;
       emit('pass', { p, q });
@@ -140,22 +141,25 @@
     }
     function gkTarget(p) {
       const gy = ownGoalY(p.team); const lineY = gy + (gy === 0 ? 16 : -16);
-      const toward = ball.owner ? false : (gy === 0 ? ball.vy < -60 : ball.vy > 60);
+      const toward = ball.owner ? false : (gy === 0 ? ball.vy < -40 : ball.vy > 40);
       if (toward && Math.abs(ball.y - gy) < 320) {
         const t = Math.abs((lineY - ball.y) / (ball.vy || 1)); const px = clamp(ball.x + ball.vx * t, GX0 - 10, GX1 + 10);
         return { x: px, y: lineY, dive: true };
       }
+      // an opponent dribbling into the box: come off the line and claim it
+      if (ball.owner && ball.owner.team !== p.team && Math.abs(ball.y - gy) < 140 && Math.abs(ball.x - W / 2) < 170) return { x: ball.owner.x, y: ball.owner.y, chase: true, rush: true };
       const bx = clamp(W / 2 + (ball.x - W / 2) * 0.6, GX0 + 10, GX1 - 10);
-      const out = ball.owner && ball.owner.team !== p.team && Math.abs(ball.y - gy) < 110 ? 38 : 0;
+      const out = ball.owner && ball.owner.team !== p.team && Math.abs(ball.y - gy) < 220 ? 30 : 0;
       return { x: bx, y: lineY + (gy === 0 ? out : -out) };
     }
     function aiDecide(p, dt) {
       p.decide -= dt; if (p.decide > 0) return; p.decide = 0.18 + rnd() * 0.12;
       if (ball.owner !== p) return;
       const gy = goalY(p.team); const dG = Math.hypot(W / 2 - p.x, gy - p.y);
-      if (p.isGK) { if (p.hold === undefined) p.hold = 0.7; p.hold -= 0.25; if (p.hold <= 0) { p.hold = undefined; const q = bestPassTarget(p, 0, st.dir[p.team], true); if (q && dist(q, p) < 260) pass(p, 0, 0, false); else kick(p, (rnd() - 0.5) * 0.6, st.dir[p.team], 520, 150); } return; }
+      if (p.isGK) { if (p.hold === undefined) p.hold = 0.7; p.hold -= 0.25; if (p.hold <= 0) { p.hold = undefined; const q = bestPassTarget(p, 0, st.dir[p.team], true); if (q && dist(q, p) < 260) pass(p, 0, 0, false); else kick(p, (rnd() - 0.5) * 0.6, st.dir[p.team], 380, 120); } return; }
       let minOpp = 999, nearest = null; for (const o of teamOf(1 - p.team)) { const d = dist(o, p); if (d < minOpp) { minOpp = d; nearest = o; } }
       const central = Math.abs(p.x - W / 2) < 170;
+      if (dG < 95 && rnd() < 0.9) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.4); return; }
       if (dG < 210 && central) {
         let lane = true; for (const o of teamOf(1 - p.team)) { if (o.isGK) continue; const t = ((o.x - p.x) * (W / 2 - p.x) + (o.y - p.y) * (gy - p.y)) / (dG * dG); if (t > 0.05 && t < 0.9) { const lx = p.x + (W / 2 - p.x) * t, ly = p.y + (gy - p.y) * t; if (Math.hypot(o.x - lx, o.y - ly) < 14) lane = false; } }
         if (rnd() < (lane ? 0.05 : 0.02) + (210 - dG) / 210 * 0.15 + (minOpp < 25 ? 0.08 : 0)) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.2); return; }
@@ -176,7 +180,7 @@
       const s = ctl.state; const aimx = s.active ? s.x : user.fx, aimy = s.active ? s.y : user.fy;
       if (id === 'shoot') {
         charging = false;
-        if (ball.owner === user) { const power = clamp(held / 0.8, 0.25, 1); if (isGKUser) kick(user, aimx, aimy || st.dir[0], 480 + power * 200, 160); else shoot(user, power, s.active ? s.x * (st.dir[0] < 0 ? 1 : -1) : 0); }
+        if (ball.owner === user) { const power = clamp(held / 0.8, 0.25, 1); if (isGKUser) kick(user, aimx, aimy || st.dir[0], 330 + power * 150, 130); else shoot(user, power, s.active ? s.x * (st.dir[0] < 0 ? 1 : -1) : 0); }
         else if (!isGKUser) rate(0); // nothing
       }
       if (id === 'pass') { if (ball.owner === user) pass(user, aimx, aimy, s.active); else { user.calling = 1.5; } }
@@ -198,6 +202,7 @@
       st.phaseT += dt;
       if (st.phase === 'kickoff') { if (st.phaseT > 1.1) { st.phase = 'play'; } return; }
       if (st.phase === 'goal') { if (st.phaseT > 2.2) { reset(1 - st.lastGoalTeam); st.phase = 'kickoff'; st.phaseT = 0; } return; }
+      if (st.phase === 'restart') { if (st.phaseT > 1.2) { applyRestart(); st.phase = 'play'; } return; }
       if (st.phase === 'halftime') { if (st.phaseT > 2.5) { st.half = 2; st.dir = [1, -1]; st.t = 0; reset(1); st.phase = 'kickoff'; st.phaseT = 0; emit('secondhalf'); } return; }
       if (st.phase !== 'play') return;
       st.t += dt;
@@ -213,7 +218,7 @@
       // players
       for (const p of onPitch()) {
         p.cool = Math.max(0, p.cool - dt); p.stun = Math.max(0, p.stun - dt); p.calling = Math.max(0, (p.calling || 0) - dt);
-        if (p.slide > 0) { p.slide -= dt; p.x += (p.sx || p.fx) * speedOf(p) * 1.6 * dt; p.y += (p.sy || p.fy) * speedOf(p) * 1.6 * dt; p.step += dt * 8; if (p.slide <= 0) p.stun = 0.45; }
+        if (p.slide > 0) { p.slide -= dt; p.x += (p.sx || p.fx) * speedOf(p) * 1.7 * dt; p.y += (p.sy || p.fy) * speedOf(p) * 1.7 * dt; p.step += dt * 8; if (p.slide <= 0) p.stun = 0.45; }
         else if (p.isUser) {
           const s = ctl.state; p.sprint = Math.max(0, p.sprint - dt);
           if (p.stamina < 100) p.stamina += dt * (ball.owner === p ? 5 : 9);
@@ -222,9 +227,9 @@
         } else {
           aiDecide(p, dt);
           if (ball.owner === p) { const d = p.dribble || { x: 0, y: st.dir[p.team] }; movePlayer(p, p.x + d.x * 60, p.y + d.y * 60, dt, 0.88); }
-          else { const t = aiTarget(p); movePlayer(p, t.x, t.y, dt, t.dive ? 2.2 : t.chase ? 1.05 : 0.85); }
+          else { const t = aiTarget(p); movePlayer(p, t.x, t.y, dt, t.dive ? 2.2 : t.rush ? 1.4 : t.chase ? 1.05 : 0.85); }
         }
-        p.x = clamp(p.x, 6, W - 6); p.y = clamp(p.y, p.isGK ? 4 : -10, p.isGK ? H - 4 : H + 10);
+        p.x = clamp(p.x, -8, W + 8); p.y = clamp(p.y, p.isGK ? 4 : -10, p.isGK ? H - 4 : H + 10);
       }
       // separation
       const ps = onPitch();
@@ -232,16 +237,19 @@
       // ball
       if (ball.owner) {
         const o = ball.owner; ball.x = o.x + o.fx * 12; ball.y = o.y + o.fy * 12; ball.z = 0; ball.vx = o.vx; ball.vy = o.vy;
+        if ((ball.y < 0 || ball.y > H) && ball.x > GX0 && ball.x < GX1) { ball.lastKicker = o; ball.lastTeam = o.team; ball.owner = null; goal(ball.y < 0 ? (st.dir[0] < 0 ? 0 : 1) : (st.dir[0] > 0 ? 0 : 1)); return; }
+        if (ball.x < 0 || ball.x > W || ball.y < 0 || ball.y > H) { ball.lastTeam = o.team; ball.owner = null; restart(); return; }
         // tackles
         for (const d of teamOf(1 - o.team)) {
           const dd = dist(d, o); if (dd > 17 && !(d.slide > 0 && dd < 24)) continue;
-          if (d.stun > 0 || d.isGK && !d.isUser) continue;
+          const gkClaim = d.isGK && Math.abs(o.y - ownGoalY(d.team)) < 150;
+          if (d.stun > 0 || (d.isGK && !d.isUser && !gkClaim)) continue;
           d.contest += dt; const interval = d.slide > 0 ? 0 : 0.3;
           if (d.contest >= interval) {
             d.contest = 0;
-            let pr = 0.28 + (d.attrs.def - o.attrs.dri) * 0.006 + (d.slide > 0 ? 0.32 : 0) + (d.isUser ? 0.05 : 0) - (o.isUser ? 0.04 : 0);
+            let pr = 0.28 + (d.attrs.def - o.attrs.dri) * 0.006 + (d.slide > 0 ? 0.32 : 0) + (d.isUser ? 0.05 : 0) - (o.isUser ? 0.04 : 0) + (gkClaim ? 0.35 : 0);
             if (rnd() < clamp(pr, 0.05, 0.9)) {
-              o.stun = 0.5; ball.owner = d; d.cool = 0.15; ball.lastTeam = d.team; ball.passTarget = null; ball.assist = null;
+              o.stun = 0.5; ball.owner = d; d.cool = 0.15; ball.lastTeam = d.team; ball.passTarget = null; ball.assist = null; if (d.isGK) { d.hold = 0.9; emit('save', { p: d, big: false, claim: true }); }
               if (d.isUser) { st.user.tackles++; st.user.keys++; rate(0.3); emit('tackle', { p: d }); }
               if (o.isUser) { st.user.lost++; rate(-0.07); }
               d.slide = Math.min(d.slide, 0.1);
@@ -251,7 +259,7 @@
       } else {
         ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.z += ball.vz * dt; ball.vz -= 420 * dt;
         if (ball.z <= 0) { ball.z = 0; if (ball.vz < -60) ball.vz = -ball.vz * 0.45; else ball.vz = 0; }
-        const f = ball.z > 0 ? 0.25 : 1.7; ball.vx -= ball.vx * f * dt; ball.vy -= ball.vy * f * dt;
+        const f = ball.z > 0 ? 0.25 : 1.5; ball.vx -= ball.vx * f * dt; ball.vy -= ball.vy * f * dt;
         const sp = Math.hypot(ball.vx, ball.vy);
         // goal?
         if ((ball.y < 0 || ball.y > H) && ball.x > GX0 && ball.x < GX1 && ball.z < 60) { goal(ball.y < 0 ? (st.dir[0] < 0 ? 0 : 1) : (st.dir[0] > 0 ? 0 : 1)); return; }
@@ -264,14 +272,14 @@
           const reach = (p.isGK ? 28 + p.attrs.def * 0.15 : 13) + (ball.passTarget === p ? 8 : 0) + (p.slide > 0 ? 8 : 0) + (p.isUser ? 2 : 0);
           const d = dist(p, ball); if (d > reach || d >= best) continue;
           if (ball.z > (p.isGK || p.slide > 0 ? 70 : 28) && !(ball.z < 45 && p.attrs.phy > 60)) continue;
-          if (sp > (p.isGK ? 900 : ball.passTarget === p ? 560 : 400)) continue;
+          if (sp > (p.isGK ? 900 : ball.passTarget === p ? 420 : 300)) continue;
           taker = p; best = d;
         }
         if (taker) {
-          if (taker.isGK && sp > 300 && ball.lastTeam !== taker.team) {
-            const pr = clamp(0.9 + (taker.attrs.def - 55) * 0.006 - (sp - 300) * 0.0004 - (ball.z > 30 ? 0.1 : 0), 0.3, 0.97);
+          if (taker.isGK && sp > 200 && ball.lastTeam !== taker.team) {
+            const pr = clamp(0.9 + (taker.attrs.def - 55) * 0.006 - (sp - 200) * 0.0006 - (ball.z > 30 ? 0.1 : 0), 0.3, 0.97);
             if (rnd() < pr) { ball.owner = taker; taker.cool = 0.1; if (taker.isUser) { st.user.saves++; rate(0.5); } emit('save', { p: taker, big: sp > 520 }); ball.vx = ball.vy = 0; ball.passTarget = null; ball.assist = null; taker.hold = 0.8; }
-            else { taker.cool = 0.4; ball.vy = -ball.vy * 0.45; ball.vx = ball.vx * 0.3 + (rnd() - 0.5) * 320; ball.vz = 140; emit('save', { p: taker, big: true, parry: true }); } // parried away
+            else { taker.cool = 0.4; ball.vy = -ball.vy * 0.45; ball.vx = ball.vx * 0.3 + (rnd() - 0.5) * 220; ball.vz = 110; emit('save', { p: taker, big: true, parry: true }); } // parried away
             return;
           }
           const wasTeam = ball.lastTeam; ball.owner = taker; taker.cool = 0.12; ball.vx = ball.vy = 0;
@@ -296,25 +304,33 @@
     }
     function restart() {
       const toTeam = 1 - ball.lastTeam;
-      const px = clamp(ball.x, 8, W - 8), py = clamp(ball.y, 8, H - 8);
       const goalLine = ball.y < 0 || ball.y > H;
       const gy = ball.y < 0 ? 0 : H;
       const defendsThatGoal = ownGoalY(0) === gy ? 0 : 1;
-      let taker, bx = px, by = py;
-      if (goalLine && toTeam === defendsThatGoal) { taker = teamOf(toTeam).find(p => p.isGK); bx = W / 2; by = gy === 0 ? 60 : H - 60; }
-      else if (goalLine) { taker = teamOf(toTeam).filter(p => !p.isGK).sort((a, b) => dist(a, ball) - dist(b, ball))[0]; bx = ball.x < W / 2 ? 8 : W - 8; by = gy === 0 ? 8 : H - 8; }
-      else taker = teamOf(toTeam).filter(p => !p.isGK).sort((a, b) => dist(a, ball) - dist(b, ball))[0];
-      taker.x = bx; taker.y = by; ball.x = bx; ball.y = by; ball.z = 0; ball.vx = ball.vy = ball.vz = 0; ball.owner = taker; ball.lastTeam = toTeam; ball.passTarget = null; ball.assist = null; taker.cool = 0.2; taker.hold = 0.6;
-      for (const o of teamOf(1 - toTeam)) if (dist(o, taker) < 40) { o.x += (o.x - taker.x) > 0 ? 40 : -40; }
+      let type, taker, bx = clamp(ball.x, 8, W - 8), by = clamp(ball.y, 8, H - 8);
+      if (goalLine && toTeam === defendsThatGoal) { type = 'GOAL KICK'; taker = teamOf(toTeam).find(p => p.isGK); bx = W / 2; by = gy === 0 ? 60 : H - 60; }
+      else if (goalLine) { type = 'CORNER'; taker = teamOf(toTeam).filter(p => !p.isGK).sort((a, b) => dist(a, ball) - dist(b, ball))[0]; bx = ball.x < W / 2 ? 8 : W - 8; by = gy === 0 ? 8 : H - 8; }
+      else { type = 'THROW-IN'; taker = teamOf(toTeam).filter(p => !p.isGK).sort((a, b) => dist(a, ball) - dist(b, ball))[0]; bx = ball.x < W / 2 ? 4 : W - 4; }
+      ball.owner = null; ball.vx = ball.vy = ball.vz = 0; ball.z = 0; ball.x = clamp(ball.x, -3, W + 3); ball.y = clamp(ball.y, -3, H + 3); ball.passTarget = null; ball.assist = null;
+      st.restart = { type, taker, bx, by, toTeam }; st.phase = 'restart'; st.phaseT = 0;
+      banner(type + (toTeam === 0 ? ' · ' + opts.club.name.toUpperCase() : ' · ' + opts.opp.name.toUpperCase()), 1400);
+      emit('out', { type, team: toTeam });
+    }
+    function applyRestart() {
+      const r = st.restart; if (!r) return; const taker = r.taker;
+      taker.x = r.bx; taker.y = r.by; taker.vx = taker.vy = 0; taker.fx = r.bx < W / 2 ? 1 : -1; taker.fy = 0;
+      ball.x = r.bx; ball.y = r.by; ball.z = 0; ball.vx = ball.vy = ball.vz = 0; ball.owner = taker; ball.lastTeam = r.toTeam; ball.passTarget = null; ball.assist = null; taker.cool = 0.2; taker.hold = 0.6;
+      for (const o of teamOf(1 - r.toTeam)) { const d = dist(o, taker); if (d < 45) { const ang = Math.atan2(o.y - taker.y, o.x - taker.x); o.x = clamp(taker.x + Math.cos(ang) * 50, 6, W - 6); o.y = clamp(taker.y + Math.sin(ang) * 50, 6, H - 6); } }
+      st.restart = null;
     }
 
     // ---- render ----
     let zoom = 1, cw = 0, ch = 0;
     function resize() {
-      const w = Math.min(stage.clientWidth, 760); const h = Math.max(360, Math.min(Math.round(window.innerHeight * 0.62), Math.round(w * 1.25)));
+      const w = stage.clientWidth || window.innerWidth; const h = stage.clientHeight || window.innerHeight;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-      cw = w; ch = h; zoom = w / 330 * dpr; ctx.setTransform(1, 0, 0, 1, 0, 0);
+      cw = w; ch = h; zoom = Math.min(w / 210, h / 330) * dpr; ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
     window.addEventListener('resize', resize); resize();
     function draw() {
@@ -355,7 +371,7 @@
           continue;
         }
         const p = it.p; const moving = Math.hypot(p.vx, p.vy) > 5 || p.slide > 0;
-        SP.drawFigure(ctx, p.x, p.y, 1.05, p.look, p.kit, { step: moving ? p.step : 0, slide: p.slide > 0, gloves: p.isGK, number: p.number });
+        SP.drawFigure(ctx, p.x, p.y, 1.0, p.look, p.kit, { step: moving ? p.step : 0, slide: p.slide > 0, gloves: p.isGK, number: p.number });
         if (p.isUser) { ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.moveTo(p.x - 4, p.y - 30); ctx.lineTo(p.x + 4, p.y - 30); ctx.lineTo(p.x, p.y - 25); ctx.closePath(); ctx.fill(); }
         if (p.calling > 0) { ctx.fillStyle = '#fff'; ctx.font = '7px monospace'; ctx.textAlign = 'center'; ctx.fillText('HERE!', p.x, p.y - 33); }
       }

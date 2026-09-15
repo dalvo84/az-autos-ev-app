@@ -81,7 +81,20 @@
   function soundBtn() { const b = $('#snd'); if (!b || !A) return; b.textContent = A.isEnabled() ? '🔊 Sound on' : '🔇 Sound off'; b.setAttribute('aria-pressed', A.isEnabled() ? 'true' : 'false'); }
 
   // ---------- render root ----------
-  function stopScenes() { if (U.arcade) { U.arcade.destroy(); U.arcade = null; } if (U.town) { U.townPos = U.town.pos(); U.town.destroy(); U.town = null; } }
+  function stopScenes() {
+    if (U.arcade) { U.arcade.destroy(); U.arcade = null; }
+    if (U.town) { U.townPos = U.town.pos(); U.town.destroy(); U.town = null; }
+    document.body.classList.remove('has-scene');
+    const sr = $('#scene-root'); if (sr) sr.remove();
+    try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) { /* ignore */ }
+  }
+  function fullscreenHost() {
+    let host = $('#scene-root');
+    if (!host) { host = document.createElement('div'); host.id = 'scene-root'; host.className = 'scene fullscreen'; document.body.appendChild(host); }
+    host.innerHTML = ''; document.body.classList.add('has-scene');
+    try { const el = document.documentElement; const rq = el.requestFullscreen || el.webkitRequestFullscreen; if (rq && !document.fullscreenElement) rq.call(el, { navigationUI: 'hide' }).catch(() => {}); } catch (e) { /* not allowed here; the fixed overlay still fills the screen */ }
+    return host;
+  }
   function render() {
     ensureLooks();
     stopScenes();
@@ -112,7 +125,7 @@
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitDash($('#dash')));
   window.addEventListener('resize', () => fitDash($('#dash')));
-  function go(screen) { if (A && screen !== U.screen) A.stopSpeech(); U.screen = screen; render(); }
+  function go(screen) { if (A && screen !== U.screen) A.stopSpeech(); if (screen === 'hub' && U.screen !== 'hub') U.townMenu = false; U.screen = screen; render(); }
   function setPhase(ph) { if (A) A.stopSpeech(); S.phase = ph; U.screen = ph; render(); }
   document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (A && b) { A.unlock(); if (b.id !== 'snd') A.sfx('click'); } }, true);
 
@@ -283,13 +296,13 @@
     let welcome = '';
     if (U.welcome) { U.welcome = false; welcome = `<div class="card"><h3>Welcome to ${esc(club().name)}</h3><p>${esc(p.contract.promise)} Wage ${money(p.contract.wage)} a week, ${p.contract.weeksLeft} weeks on the deal. Every week: train, shop, then play. The transfer window opens every 20 weeks.</p></div>`; }
     const html = `${welcome}${toast()}<h2>${esc(club().name)} · ${esc(lg().name)}</h2>
-      <div class="scene" id="town-host"></div>
-      <p class="muted">Walk to a door and press ENTER (or use the quick menu below).${p.fame >= 50 ? ' Fans in town will run at you.' : ''}</p>
+      <p class="muted">The town is full screen: walk to a door and press ENTER. The ☰ MENU button brings you back here.${p.fame >= 50 ? ' Fans in town will run at you.' : ''}</p>
       ${fixtureCard()}
       <div class="card"><h3>Status</h3>${bar('Energy', Math.round(p.energy / E.maxEnergy(S) * 100), 'sky')}${bar('Fame', p.fame, 'gold')}${bar('Fans', p.fans)}${bar('Coach', p.coach)}${bar('Chemistry', p.chem)}${bar('Charm', p.charm, 'gold')}</div>
       ${maybeFanEncounter('hub')}
       ${p.fame >= 50 ? '<p class="muted">Fame 50+: people recognise you in the street now. Expect crowds.</p>' : ''}`;
     const actions = [
+      { label: '🗺 Walk the town', cls: 'primary', sub: 'Full-screen open world', fn: () => { U.townMenu = false; render(); } },
       { label: '🏠 Home', sub: 'Contract, garage, estate', fn: () => go('home') },
       { label: '🛍 Shopping Center', sub: 'Boots, outfits, gear', fn: () => go('shop') },
       { label: '🏃 Training Ground', sub: `${Math.floor(p.energy / E.TRAIN_COST)} sessions left`, fn: () => go('training') },
@@ -301,8 +314,11 @@
     ];
     const after = () => {
       bindFan();
-      const host = $('#town-host');
-      if (host && TOWN) U.town = TOWN.start({ host, look: p.look, kit: myKit(), fame: p.fame, carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week,
+      if (U.townMenu || U.fan || U.forceFan || !TOWN) return;
+      const host = fullscreenHost();
+      U.town = TOWN.start({ host, look: p.look, kit: myKit(), fame: p.fame, carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week,
+        title: `${club().name} · week ${S.week}`, sub: `energy ${Math.round(p.energy)} · $${Math.round(p.money).toLocaleString('en-US')}`,
+        onMenu: () => { U.townMenu = true; render(); },
         onEnter: id => go(id === 'stadium' ? 'stadium' : id),
         onCrowd: () => { if (S.flags.fanWeek === S.week) return; S.flags.fanWeek = S.week; U.fan = { place: 'hub' }; U.toast = null; U.townPos = U.town.pos(); U.forceFan = true; render(); } });
     };
@@ -557,14 +573,14 @@
     const p = P(); const lgx = lg(); const fx = E.nextFixtureFor(lgx, S.clubIdx);
     if (!fx) return VIEWS.stadium();
     const opp = lgx.clubs[fx.opp]; const mode = U.arcadeMode || 'full';
-    const html = `<div class="scene arc-host" id="arc-host"></div>
-      <div class="script" id="arc-log"></div>`;
+    const html = `<p class="muted">Match in progress in full screen.</p><div class="script" id="arc-log"></div>`;
+    const abandon = () => { const m = E.buildMatch(S, 'quick'); m.introduced = new Set(); m.timeline = buildTimeline(m); m.pos = 0; m.shown = []; advance(m, true); U.match = m; finish(); };
     const after = () => {
-      const host = $('#arc-host'); const log = $('#arc-log');
+      const host = fullscreenHost(); const log = document.createElement('div'); log.className = 'script arc-log'; host.appendChild(log);
       const introduced = new Set(); const say = (who, txt, cls, prio) => { const el = document.createElement('div'); el.innerHTML = scriptLine(who, txt, cls, 'arc' + S.week + '-' + (log.childElementCount)); log.prepend(el.firstChild); while (log.childElementCount > 6) log.lastElementChild.remove(); if (A) A.speak(who, txt, prio ? { priority: true } : undefined); };
       const nm = pl => pl ? (pl.isUser ? esc(pname()) : pl.team === 0 ? esc(mateRef({ name: pl.name, last: pl.last, pron: pl.pron || '' }, pl.pron ? introduced : null)) : `${esc(opp.name)}'s number ${pl.number}`) : 'someone';
       const starts = p.coach >= 35;
-      U.arcade = ARC.start({ host, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
+      U.arcade = ARC.start({ host, onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
         secondsPerHalf: mode === 'highlights' ? 60 : 150, timeScale: U.testTimeScale || 1,
         onEvent: (type, d) => {
           if (type === 'kickoff') { say('John', `${fx.isHome ? esc(club().name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); if (A) A.sfx('kickoff'); }
@@ -572,6 +588,8 @@
           else if (type === 'save' && d.big) { say('Ally', d.p.team === 0 ? `What a save by ${d.p.isUser ? esc(pname()) : 'the keeper'}!` : 'Great save by their keeper. So close.', d.p.team === 0 ? 'goal' : 'bad'); if (A) A.sfx('save'); }
           else if (type === 'shot' && d.p.isUser) { if (!d.onTarget) say('John', `${esc(pname())} lets fly... wide.`, 'bad'); }
           else if (type === 'tackle') { say('John', `Big tackle from ${esc(pname())}!`, 'goal'); }
+          else if (type === 'save' && d.claim && d.p.team === 0) { say('Ally', `${d.p.isUser ? esc(pname()) : 'The keeper'} comes out and claims it.`); }
+          else if (type === 'out') { say('John', `${d.type === 'THROW-IN' ? 'Throw-in' : d.type === 'CORNER' ? 'Corner' : 'Goal kick'} to ${d.team === 0 ? esc(club().name) : esc(opp.name)}.`, 'min'); }
           else if (type === 'halftime') { say('John', `Half time. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}.`, 'event', true); if (A) A.sfx('fulltime'); }
           else if (type === 'sub') { say('Ally', `Here comes <b>${esc(pname())}</b>. Time to make a point to the coach.`, 'event', true); }
           else if (type === 'fulltime') { say('John', `Full time. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}. ${esc(pname())} rated ${d.rating.toFixed(1)}.`, 'event', true); if (A) A.sfx('fulltime'); }
@@ -581,7 +599,7 @@
           U.arcade = null; U.result = E.finishMatch(S, m); U.resultMatch = m; S.phase = 'hub'; go('result');
         } });
     };
-    return { html, actions: [{ label: '⏹ Abandon match', cls: 'danger', sub: 'Counts as a quick sim', fn: () => { const m = E.buildMatch(S, 'quick'); m.introduced = new Set(); m.timeline = buildTimeline(m); m.pos = 0; m.shown = []; advance(m, true); U.match = m; finish(); } }], after };
+    return { html, actions: [{ label: '⏹ Abandon match', cls: 'danger', sub: 'Counts as a quick sim', fn: abandon }], after };
   };
 
   VIEWS.result = () => {

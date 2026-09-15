@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const SP = root.PPL_SPRITES, CT = root.PPL_CONTROLS;
-  const W = 720, H = 520;
+  const W = 720, H = 520, VIEW = 300;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const BUILDINGS = [
     { id: 'home', label: 'HOME', x: 60, y: 60, w: 150, h: 110, color: '#7c5cff', roof: '#5b3fd6', door: { x: 135, y: 170 } },
@@ -13,23 +13,25 @@
   function start(opts) {
     const host = opts.host; host.innerHTML = '';
     const stage = document.createElement('div'); stage.className = 'town-stage';
-    stage.innerHTML = `<canvas id="town-canvas"></canvas><div class="town-prompt" id="town-prompt" hidden></div>`;
+    stage.innerHTML = `<canvas id="town-canvas"></canvas><div class="arc-hud town-hud"><span>${opts.title || ''}</span><span class="arc-clock">${opts.sub || ''}</span><button type="button" class="arc-exit" id="town-menu">☰ MENU</button></div><div class="town-prompt" id="town-prompt" hidden></div>`;
     host.appendChild(stage);
     const canvas = stage.querySelector('#town-canvas'), ctx = canvas.getContext('2d'), prompt = stage.querySelector('#town-prompt');
+    stage.querySelector('#town-menu').onclick = () => { if (opts.onMenu) opts.onMenu(); };
     const ctl = CT.create(stage, { buttons: [{ id: 'shoot', label: 'ENTER', hint: 'at a door' }] });
     const me = { x: opts.spawn ? opts.spawn.x : 260, y: opts.spawn ? opts.spawn.y : 240, fx: 0, fy: 1, step: 0, vx: 0, vy: 0 };
+    const cam = { x: me.x, y: me.y };
     const npcs = [];
     const n = 6 + (opts.fame >= 50 ? 5 : 0);
     for (let i = 0; i < n; i++) npcs.push({ x: 120 + Math.random() * 480, y: 190 + Math.random() * 120, look: SP.randomLook(), kit: { shirt: `hsl(${Math.floor(Math.random() * 360)} 45% 45%)`, shorts: '#2b2b2b' }, tx: 0, ty: 0, wait: Math.random() * 2, step: 0, fan: opts.fame >= 50 && i >= 6, done: false });
     let near = null, alive = true, raf = 0, last = performance.now(), crowdT = 0;
     const carColor = ['#8a8a8a', '#c0392b', '#2c3e50', '#111', '#f1c40f', '#e67e22', '#9b59b6'][opts.carIdx || 0];
-    function resize() { const w = Math.min(stage.clientWidth, 760); const h = Math.round(w * H / W); const dpr = Math.min(2, window.devicePixelRatio || 1); canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; }
+    function resize() { const w = stage.clientWidth || window.innerWidth; const h = stage.clientHeight || window.innerHeight; const dpr = Math.min(2, window.devicePixelRatio || 1); canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; }
     window.addEventListener('resize', resize); resize();
     ctl.onUp(id => { if (id === 'shoot' && near) opts.onEnter(near.id); });
     prompt.onclick = () => { if (near) opts.onEnter(near.id); };
     function blocked(x, y) { return BUILDINGS.some(b => x > b.x - 6 && x < b.x + b.w + 6 && y > b.y - 6 && y < b.y + b.h + 2); }
     function update(dt) {
-      const s = ctl.state; const sp = 150;
+      const s = ctl.state; const sp = 95;
       if (s.active) { const nx = me.x + s.x * sp * dt, ny = me.y + s.y * sp * dt; if (!blocked(nx, me.y)) me.x = nx; if (!blocked(me.x, ny)) me.y = ny; me.fx = s.x; me.fy = s.y; me.step += dt * 14; me.vx = s.x; } else me.vx = 0;
       me.x = clamp(me.x, 10, W - 10); me.y = clamp(me.y, 20, H - 10);
       near = BUILDINGS.find(b => Math.hypot(me.x - b.door.x, me.y - b.door.y) < 34) || null;
@@ -42,12 +44,18 @@
         p.wait -= dt;
         if (p.wait <= 0 && !(p.fan && !p.done && Math.hypot(me.x - p.x, me.y - p.y) < 200)) { p.tx = 100 + Math.random() * 520; p.ty = 180 + Math.random() * 130; p.wait = 2 + Math.random() * 4; }
         const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
-        if (d > 3) { const v = (p.fan && !p.done ? 150 : 60) * dt; const nx = p.x + dx / d * Math.min(v, d), ny = p.y + dy / d * Math.min(v, d); if (!blocked(nx, ny)) { p.x = nx; p.y = ny; p.step += dt * 12; p.moving = true; } } else p.moving = false;
+        if (d > 3) { const v = (p.fan && !p.done ? 110 : 45) * dt; const nx = p.x + dx / d * Math.min(v, d), ny = p.y + dy / d * Math.min(v, d); if (!blocked(nx, ny)) { p.x = nx; p.y = ny; p.step += dt * 12; p.moving = true; } } else p.moving = false;
       }
     }
     function draw() {
-      const z = canvas.width / W; ctx.setTransform(z, 0, 0, z, 0, 0); ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = '#4d9a52'; ctx.fillRect(0, 0, W, H);
+      const z = Math.min(canvas.width / VIEW, canvas.height / 300); const vw = canvas.width / z, vh = canvas.height / z;
+      cam.x += (me.x - cam.x) * 0.15; cam.y += (me.y - cam.y) * 0.15;
+      const cx = vw >= W ? W / 2 : clamp(cam.x, vw / 2, W - vw / 2), cy = vh >= H ? H / 2 : clamp(cam.y, vh / 2, H - vh / 2);
+      ctx.setTransform(z, 0, 0, z, canvas.width / 2 - cx * z, canvas.height / 2 - cy * z); ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#4d9a52'; ctx.fillRect(cx - vw / 2 - 4, cy - vh / 2 - 4, vw + 8, vh + 8);
+      // trees and a path beyond the buildings so the edges never look empty
+      ctx.fillStyle = '#3b7d3f'; for (let i = 0; i < 40; i++) { const tx = ((i * 173) % (W + 400)) - 200, ty = ((i * 97) % (H + 500)) - 250; if (tx > -60 && tx < W + 60 && ty > -60 && ty < H + 60 && !(ty > 170 && ty < 310)) continue; ctx.beginPath(); ctx.arc(tx, ty, 14, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#2f6a35'; for (let i = 0; i < 40; i++) { const tx = ((i * 173) % (W + 400)) - 200, ty = ((i * 97) % (H + 500)) - 250; if (tx > -60 && tx < W + 60 && ty > -60 && ty < H + 60 && !(ty > 170 && ty < 310)) continue; ctx.beginPath(); ctx.arc(tx - 3, ty - 4, 9, 0, Math.PI * 2); ctx.fill(); }
       ctx.fillStyle = '#6b6b6b'; ctx.fillRect(0, 180, W, 120); ctx.fillStyle = '#f2d16b'; for (let x = 0; x < W; x += 40) ctx.fillRect(x, 238, 22, 4);
       ctx.fillStyle = '#8f8f8f'; ctx.fillRect(0, 176, W, 4); ctx.fillRect(0, 300, W, 4);
       // paths to doors
