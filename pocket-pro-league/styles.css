@@ -109,3 +109,37 @@ tr.me td { color: var(--pitch); background: rgba(79, 211, 127, .08); }
 footer { color: var(--ink-dim); font-size: 16px; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .blink { animation: none; } button { transition: none; } }
 @media (max-width: 480px) { body { font-size: 19px; } button, select, input { font-size: 18px; } #screen { padding: 10px; } }
+
+/* ---- canvas scenes, joystick and buttons ---- */
+.scene { position: relative; background: #0a2a14; border: 3px solid var(--line); box-shadow: 4px 4px 0 var(--shadow); overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
+.arc-stage, .town-stage { position: relative; }
+.arc-stage canvas, .town-stage canvas { display: block; width: 100%; image-rendering: pixelated; }
+.arc-hud { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--ground); font-family: var(--font-pixel); font-size: 9px; color: var(--ink); }
+.arc-hud .arc-clock { color: var(--gold); } .arc-hud .arc-rating { color: var(--pitch); }
+.arc-ticker { position: absolute; top: 34px; left: 0; right: 0; text-align: center; font-size: 17px; color: #fff; text-shadow: 1px 1px 0 #000; padding: 4px 8px; pointer-events: none; }
+.arc-ticker.flash { animation: tick 3s forwards; } @keyframes tick { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.arc-banner { position: absolute; top: 40%; left: 0; right: 0; text-align: center; font-family: var(--font-pixel); font-size: 20px; color: var(--gold); text-shadow: 3px 3px 0 #000; pointer-events: none; }
+.ctl { position: absolute; inset: 0; pointer-events: none; }
+.ctl-stick { position: absolute; left: 0; bottom: 0; width: 55%; height: 62%; pointer-events: auto; }
+.ctl-stick .ctl-hint { position: absolute; left: 12px; bottom: 10px; font-size: 14px; color: rgba(255,255,255,.55); }
+.ctl-base { position: absolute; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%; border: 3px solid rgba(255,255,255,.55); background: rgba(0,0,0,.25); display: none; }
+.ctl-base.on { display: block; }
+.ctl-knob { position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px 0 0 -21px; border-radius: 50%; background: rgba(255,255,255,.85); }
+.ctl-btns { position: absolute; right: 10px; bottom: 12px; display: flex; gap: 10px; pointer-events: auto; align-items: flex-end; }
+.ctl-btn { width: 66px; height: 66px; border-radius: 50%; border: 3px solid rgba(255,255,255,.8); background: rgba(0,0,0,.45); color: #fff; font-family: var(--font-pixel); font-size: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 3px 0 rgba(0,0,0,.6); padding: 0; min-height: 0; text-align: center; }
+.ctl-btn small { font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,.7); }
+.ctl-btn.on { background: var(--gold); color: #111; transform: translateY(2px); }
+.ctl-shoot { border-color: #ff6b6b; } .ctl-pass { border-color: #63b3ff; } .ctl-skill { border-color: #4fd37f; margin-bottom: 40px; }
+.ctl.kbd .ctl-stick, .ctl.kbd .ctl-btns { display: none; }
+.ctl-legend { position: absolute; left: 8px; bottom: 6px; display: flex; flex-wrap: wrap; gap: 10px; font-size: 14px; color: rgba(255,255,255,.85); text-shadow: 1px 1px 0 #000; pointer-events: auto; align-items: center; }
+.ctl-legend b { color: var(--gold); }
+.ctl-toggle { min-height: 0; padding: 2px 6px; font-size: 13px; box-shadow: none; }
+.town-prompt { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #111; font-family: var(--font-pixel); font-size: 9px; padding: 8px 12px; cursor: pointer; }
+.look { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: start; }
+.look-canvas { background: var(--ground); border: 2px solid var(--line); width: 120px; height: 150px; image-rendering: pixelated; }
+.look-traits { display: flex; flex-direction: column; gap: 6px; }
+.look-row { display: grid; grid-template-columns: 6.5em 2.2em 1fr 2.2em; gap: 6px; align-items: center; }
+.look-row .lbl { color: var(--ink-dim); text-transform: uppercase; font-size: 15px; letter-spacing: .04em; }
+.look-row .sm { min-height: 32px; padding: 2px 6px; text-align: center; }
+.look-val { text-align: center; }
+@media (max-width: 480px) { .look { grid-template-columns: 1fr; } .ctl-btn { width: 58px; height: 58px; } }

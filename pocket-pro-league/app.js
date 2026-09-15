@@ -1,7 +1,7 @@
 /* Pocket Pro League — UI & flow */
 (function () {
   'use strict';
-  const D = window.PPL_DATA, E = window.PPL, A = window.PPL_AUDIO;
+  const D = window.PPL_DATA, E = window.PPL, A = window.PPL_AUDIO, SP = window.PPL_SPRITES, ARC = window.PPL_ARCADE, TOWN = window.PPL_TOWN;
   const $ = s => document.querySelector(s);
   const SAVE_KEY = 'ppl_save_v1';
   let S = null;             // persistent game state
@@ -22,6 +22,35 @@
   const formIcon = () => { const f = P().formHist || []; if (f.length < 2) return '📈'; const last = f.slice(-3), prev = f.slice(-6, -3); const a = arr => arr.reduce((x, y) => x + y, 0) / (arr.length || 1); return prev.length ? (a(last) >= a(prev) ? '📈' : '📉') : (a(last) >= 6.5 ? '📈' : '📉'); };
   const attrLabel = a => (P().pos === 'GK' ? D.GK_ATTR_LABELS : D.ATTR_LABELS)[a];
   const starts = () => P().coach >= 35;
+
+  // ---------- looks ----------
+  function ensureLooks() {
+    if (!S) return;
+    if (!S.player.look) S.player.look = U.look || SP.defaultLook();
+    S.teammates.forEach(t => { if (!t.look) t.look = SP.randomLook(); });
+  }
+  function myKit() { return S && S.clubIdx >= 0 ? SP.baseKit(club().name) : { shirt: '#c8102e', shorts: '#ffffff' }; }
+  // Appearance editor: cycles each trait, live pixel preview
+  function lookEditor(look, onChange) {
+    const traits = [
+      ['skin', 'Skin', SP.SKIN.length, i => 'Tone ' + (i + 1)], ['hair', 'Hair', SP.HAIR_STYLES.length, i => SP.HAIR_STYLES[i]],
+      ['hairColor', 'Hair colour', SP.HAIR_COLORS.length, i => ['Black', 'Brown', 'Chestnut', 'Blond', 'Grey', 'Red', 'Platinum', 'Blue'][i]],
+      ['beard', 'Beard', 2, i => i ? 'Yes' : 'No'], ['boots', 'Boots', SP.BOOTS.length, i => ['Black', 'White', 'Red', 'Green', 'Blue', 'Yellow', 'Pink'][i]], ['build', 'Build', SP.BUILDS.length, i => SP.BUILDS[i]] ];
+    const html = `<div class="look"><canvas class="look-canvas" width="120" height="150"></canvas><div class="look-traits">${traits.map(([k, label, n, name]) => `<div class="look-row"><span class="lbl">${label}</span><button type="button" class="sm" data-lk="${k}" data-d="-1">◀</button><span class="look-val" data-lv="${k}">${name(+look[k])}</span><button type="button" class="sm" data-lk="${k}" data-d="1">▶</button></div>`).join('')}<button type="button" class="sm warn" data-lk="random">🎲 Randomise</button></div></div>`;
+    const bind = rootEl => {
+      const cv = rootEl.querySelector('.look-canvas'); const ctx = cv.getContext('2d');
+      const paint = () => { ctx.clearRect(0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = false; SP.drawFigure(ctx, 60, 128, 5.2, look, myKit(), { number: 10 }); };
+      const refresh = () => { traits.forEach(([k, , , name]) => { const el = rootEl.querySelector(`[data-lv="${k}"]`); if (el) el.textContent = name(+look[k]); }); paint(); onChange && onChange(look); };
+      rootEl.querySelectorAll('[data-lk]').forEach(b => b.onclick = () => {
+        const k = b.dataset.lk;
+        if (k === 'random') Object.assign(look, SP.randomLook());
+        else { const t = traits.find(x => x[0] === k); look[k] = (((+look[k]) + (+b.dataset.d)) % t[2] + t[2]) % t[2]; if (k === 'beard') look.beard = !!look.beard; }
+        refresh();
+      });
+      paint();
+    };
+    return { html, bind };
+  }
 
   // ---------- dashboard ----------
   function dashboard() {
@@ -52,7 +81,10 @@
   function soundBtn() { const b = $('#snd'); if (!b || !A) return; b.textContent = A.isEnabled() ? '🔊 Sound on' : '🔇 Sound off'; b.setAttribute('aria-pressed', A.isEnabled() ? 'true' : 'false'); }
 
   // ---------- render root ----------
+  function stopScenes() { if (U.arcade) { U.arcade.destroy(); U.arcade = null; } if (U.town) { U.townPos = U.town.pos(); U.town.destroy(); U.town = null; } }
   function render() {
+    ensureLooks();
+    stopScenes();
     const dash = $('#dash'), scr = $('#screen'), act = $('#actions');
     const showDash = S && !['intro', 'roster', 'prologue', 'scout'].includes(S.phase) && U.screen !== 'menu';
     dash.innerHTML = showDash ? dashboard() : '';
@@ -125,16 +157,20 @@
         <label>4. Nationality <select id="f-nat">${natOpts}</select></label>
         <label class="wide">Nickname (optional) <input id="f-nick" maxlength="16" placeholder="What the terraces will sing" autocomplete="off"></label>
       </div>
+      <h3>5. Appearance</h3>
+      ${(U.lookEd = lookEditor(U.look || (U.look = SP.randomLook()))).html}
       <p class="muted">Position sets your OVR weighting. Strikers lean on Shooting and Pace, midfielders on Passing and Dribbling, centre-backs on Defending and Physical. Goalkeepers use their own six.</p>
       <div id="f-err" class="red"></div>`;
     const actions = [{ label: '⚽ Send it up to the gantry', cls: 'primary', fn: () => {
       const name = $('#f-name').value.trim(), pron = $('#f-pron').value.trim(), pos = $('#f-pos').value, nat = $('#f-nat').value, nick = $('#f-nick').value.trim();
       if (name.length < 2) { $('#f-err').textContent = 'John needs a name to read out. Two characters minimum.'; return; }
+      const look = U.look;
       S = E.newGame({ name, pron: pron || name, pos, nat, nick });
-      U = { screen: 'roster' };
+      S.player.look = look;
+      U = { screen: 'roster', look };
       render();
     } }, { label: '← Back to menu', fn: () => go('menu') }];
-    return { html, actions, after: () => { const n = $('#f-name'); if (n) n.focus(); } };
+    return { html, actions, after: () => { U.lookEd.bind($('#screen')); const n = $('#f-name'); if (n && !n.value) n.focus(); } };
   };
 
   VIEWS.roster = () => {
@@ -226,7 +262,8 @@
 
   function maybeFanEncounter(place) {
     const p = P();
-    if (p.fame < 50 || S.flags.fanWeek === S.week || Math.random() > 0.4) return '';
+    if (U.forceFan) { U.forceFan = false; }
+    else if (p.fame < 50 || S.flags.fanWeek === S.week || Math.random() > 0.4 || place === 'hub') return '';
     S.flags.fanWeek = S.week;
     U.fan = { place };
     return `<div class="card hl" id="fan"><h3>You've been spotted</h3><p>${place === 'shop' ? 'A group of teenagers outside the sportswear shop do a double take. Phones come out. Within thirty seconds there is a small crowd chanting your name at the escalator.' : place === 'home' ? 'Two kids on bikes have been waiting by the gate for an hour. One is wearing your shirt. The name is spelt wrong.' : 'A steward at the training ground asks, sheepishly, if you would sign a programme for his daughter. Then his mate. Then the whole car park.'}</p>
@@ -246,6 +283,8 @@
     let welcome = '';
     if (U.welcome) { U.welcome = false; welcome = `<div class="card"><h3>Welcome to ${esc(club().name)}</h3><p>${esc(p.contract.promise)} Wage ${money(p.contract.wage)} a week, ${p.contract.weeksLeft} weeks on the deal. Every week: train, shop, then play. The transfer window opens every 20 weeks.</p></div>`; }
     const html = `${welcome}${toast()}<h2>${esc(club().name)} · ${esc(lg().name)}</h2>
+      <div class="scene" id="town-host"></div>
+      <p class="muted">Walk to a door and press ENTER (or use the quick menu below).${p.fame >= 50 ? ' Fans in town will run at you.' : ''}</p>
       ${fixtureCard()}
       <div class="card"><h3>Status</h3>${bar('Energy', Math.round(p.energy / E.maxEnergy(S) * 100), 'sky')}${bar('Fame', p.fame, 'gold')}${bar('Fans', p.fans)}${bar('Coach', p.coach)}${bar('Chemistry', p.chem)}${bar('Charm', p.charm, 'gold')}</div>
       ${maybeFanEncounter('hub')}
@@ -260,7 +299,14 @@
       { label: '📈 Career & Attributes', fn: () => go('career') },
       { label: '💾 Menu', fn: () => go('menu') },
     ];
-    return { html, actions, after: bindFan };
+    const after = () => {
+      bindFan();
+      const host = $('#town-host');
+      if (host && TOWN) U.town = TOWN.start({ host, look: p.look, kit: myKit(), fame: p.fame, carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week,
+        onEnter: id => go(id === 'stadium' ? 'stadium' : id),
+        onCrowd: () => { if (S.flags.fanWeek === S.week) return; S.flags.fanWeek = S.week; U.fan = { place: 'hub' }; U.toast = null; U.townPos = U.town.pos(); U.forceFan = true; render(); } });
+    };
+    return { html, actions, after };
   };
 
   VIEWS.home = () => {
@@ -275,11 +321,12 @@
         <div class="card"><h3>Contract</h3><div class="kv"><span class="k">Club</span><span>${esc(p.contract.club)}</span><span class="k">League</span><span>${esc(p.contract.leagueName)}</span><span class="k">Wage</span><span>${money(p.contract.wage)} / week</span><span class="k">Remaining</span><span>${p.contract.weeksLeft} weeks</span><span class="k">Role</span><span>${esc(p.contract.role)}</span></div><p class="muted">${esc(p.contract.promise)}</p></div>
         <div class="card garage"><h3>Garage · ${esc(car.name)}</h3><pre>${esc(car.art)}</pre></div>
       </div>
+      <h3>Mirror · appearance</h3>${(U.lookEd = lookEditor(p.look)).html}
       <h3>Garage</h3><div class="tablewrap"><table><thead><tr><th>Car</th><th class="n">Price</th><th class="n">Effect</th><th></th></tr></thead><tbody>${carRows}</tbody></table></div>
       <h3>Estate</h3><div class="tablewrap"><table><thead><tr><th>Property</th><th class="n">Price</th><th class="n">Effect</th><th></th></tr></thead><tbody>${estRows}</tbody></table></div>
       ${maybeFanEncounter('home')}`;
     const after = () => {
-      bindFan();
+      bindFan(); U.lookEd.bind($('#screen'));
       document.querySelectorAll('[data-buycar]').forEach(b => b.onclick = () => { const c = D.CARS.find(x => x.id === b.dataset.buycar); p.money -= c.price; p.owned.push(c.id); p.car = c.id; p.charm = E.clamp(p.charm + c.charm, 0, 100); p.fame = E.clamp(p.fame + Math.round(c.charm / 5), 0, 100); U.toast = `Keys to the ${esc(c.name)}. Charm +${c.charm}.`; if (A) A.sfx('cash'); render(); });
       document.querySelectorAll('[data-car]').forEach(b => b.onclick = () => { p.car = b.dataset.car; render(); });
       document.querySelectorAll('[data-buyest]').forEach(b => b.onclick = () => { const e = D.ESTATES.find(x => x.id === b.dataset.buyest); p.money -= e.price; p.owned.push(e.id); p.estate = e.id; p.charm = E.clamp(p.charm + e.charm, 0, 100); p.fame = E.clamp(p.fame + e.fame, 0, 100); U.toast = `You move into the ${esc(e.name)}. Charm +${e.charm}, max energy +${e.energy}.`; if (A) A.sfx('cash'); render(); });
@@ -365,13 +412,16 @@
         { label: '← Back to hub', fn: () => go('hub') } ] };
     }
     const html = `<h2>🏟 Match Day</h2>${fixtureCard()}
-      <p class="muted">Full match: you choose at every moment the ball finds you. Highlights: only the key moments. Sim: watch it scroll. Quick sim: straight to the result. Chemistry ${P().chem} means ${2 + Math.floor(P().chem / 34)} moments in a full match.</p>`;
+      <p class="muted">Play Full Match and Highlights put you on the pitch: joystick or WASD to move, Shoot (hold for power), Pass, and Skill for a sprint burst or slide tackle. Text Match is the choice-based commentary version. Sim scrolls the match, Quick Sim jumps to the result. Chemistry ${P().chem}: teammates look for you ${(1 + 2 * P().chem / 100).toFixed(1)}× as often.</p>`;
     const start = mode => () => { U.match = E.buildMatch(S, mode); U.match.introduced = new Set(); U.match.timeline = buildTimeline(U.match); U.match.pos = 0; U.match.shown = [];
       if (mode === 'quick') { advance(U.match, true); finish(); return; }
       go('match'); };
+    const unused = P().coach < 15;
+    const play = mode => () => { U.arcadeMode = mode; go('arcade'); };
     const actions = [
-      { label: '🎮 Play Full Match', cls: 'primary', sub: 'Choices every few minutes', fn: start('full') },
-      { label: '⚡ Play Highlights', sub: 'Key moments only', fn: start('highlights') },
+      { label: '🕹 Play Full Match', cls: 'primary', sub: unused ? 'Not in the squad this week' : 'Two halves, you control your player', disabled: unused, fn: play('full') },
+      { label: '⚡ Play Highlights', sub: unused ? 'Not in the squad this week' : 'Short halves, same controls', disabled: unused, fn: play('highlights') },
+      { label: '📝 Text Match', sub: 'Choice-based commentary', fn: start('full') },
       { label: '📜 Sim Match', sub: 'Rapid text scroll', fn: start('sim') },
       { label: '⏩ Quick Sim', sub: 'Instant result', fn: start('quick') },
       { label: '← Back to hub', fn: () => go('hub') },
@@ -503,6 +553,37 @@
     } };
   };
 
+  VIEWS.arcade = () => {
+    const p = P(); const lgx = lg(); const fx = E.nextFixtureFor(lgx, S.clubIdx);
+    if (!fx) return VIEWS.stadium();
+    const opp = lgx.clubs[fx.opp]; const mode = U.arcadeMode || 'full';
+    const html = `<div class="scene arc-host" id="arc-host"></div>
+      <div class="script" id="arc-log"></div>`;
+    const after = () => {
+      const host = $('#arc-host'); const log = $('#arc-log');
+      const introduced = new Set(); const say = (who, txt, cls, prio) => { const el = document.createElement('div'); el.innerHTML = scriptLine(who, txt, cls, 'arc' + S.week + '-' + (log.childElementCount)); log.prepend(el.firstChild); while (log.childElementCount > 6) log.lastElementChild.remove(); if (A) A.speak(who, txt, prio ? { priority: true } : undefined); };
+      const nm = pl => pl ? (pl.isUser ? esc(pname()) : pl.team === 0 ? esc(mateRef({ name: pl.name, last: pl.last, pron: pl.pron || '' }, pl.pron ? introduced : null)) : `${esc(opp.name)}'s number ${pl.number}`) : 'someone';
+      const starts = p.coach >= 35;
+      U.arcade = ARC.start({ host, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
+        secondsPerHalf: mode === 'highlights' ? 60 : 150, timeScale: U.testTimeScale || 1,
+        onEvent: (type, d) => {
+          if (type === 'kickoff') { say('John', `${fx.isHome ? esc(club().name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); if (A) A.sfx('kickoff'); }
+          else if (type === 'goal') { const us = d.team === 0; say(us ? 'Ally' : 'John', us ? `GOAL! ${nm(d.scorer)} scores${d.assist ? `, set up by ${nm(d.assist)}` : ''}! ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}.` : `Goal for ${esc(opp.name)}. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}.`, us ? 'goal' : 'bad', true); if (A) A.sfx(us ? 'goal' : 'bad'); }
+          else if (type === 'save' && d.big) { say('Ally', d.p.team === 0 ? `What a save by ${d.p.isUser ? esc(pname()) : 'the keeper'}!` : 'Great save by their keeper. So close.', d.p.team === 0 ? 'goal' : 'bad'); if (A) A.sfx('save'); }
+          else if (type === 'shot' && d.p.isUser) { if (!d.onTarget) say('John', `${esc(pname())} lets fly... wide.`, 'bad'); }
+          else if (type === 'tackle') { say('John', `Big tackle from ${esc(pname())}!`, 'goal'); }
+          else if (type === 'halftime') { say('John', `Half time. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}.`, 'event', true); if (A) A.sfx('fulltime'); }
+          else if (type === 'sub') { say('Ally', `Here comes <b>${esc(pname())}</b>. Time to make a point to the coach.`, 'event', true); }
+          else if (type === 'fulltime') { say('John', `Full time. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}. ${esc(pname())} rated ${d.rating.toFixed(1)}.`, 'event', true); if (A) A.sfx('fulltime'); }
+        },
+        onEnd: res => {
+          const m = { fx, opp, club: club(), mode, score: res.score, rating: res.rating, goals: res.goals, assists: res.assists, saves: res.saves, keys: res.keys, unused: !res.played, starts, teamDiff: club().str - opp.str, shown: [], log: [], arcade: res };
+          U.arcade = null; U.result = E.finishMatch(S, m); U.resultMatch = m; S.phase = 'hub'; go('result');
+        } });
+    };
+    return { html, actions: [{ label: '⏹ Abandon match', cls: 'danger', sub: 'Counts as a quick sim', fn: () => { const m = E.buildMatch(S, 'quick'); m.introduced = new Set(); m.timeline = buildTimeline(m); m.pos = 0; m.shown = []; advance(m, true); U.match = m; finish(); } }], after };
+  };
+
   VIEWS.result = () => {
     const m = U.resultMatch, ch = U.result, p = P();
     if (!m || !ch) return VIEWS.hub();
@@ -512,7 +593,7 @@
     const html = `<h2>Full-time report</h2>
       <div class="score">${scoreline(m)}<small>${ch.win ? 'WIN · +3 pts' : ch.draw ? 'DRAW · +1 pt' : 'LOSS'} · ${esc(club().name)} now ${myPos}${ord(myPos)}</small></div>
       <div class="cards">
-        <div class="card ${ch.motm ? 'hl' : ''}"><h3>Your match</h3><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? 'Unused sub' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${m.saves}</span>` : `<span class="k">Key plays</span><span>${m.keys}</span>`}</div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>
+        <div class="card ${ch.motm ? 'hl' : ''}"><h3>Your match</h3><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? 'Unused sub' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${m.saves}</span>` : `<span class="k">Key plays</span><span>${m.keys}</span>`}${m.arcade ? `<span class="k">Shots</span><span>${m.arcade.shots} (${m.arcade.onTarget} on target)</span><span class="k">Passes</span><span>${m.arcade.passesOk}/${m.arcade.passes}</span><span class="k">Tackles</span><span>${m.arcade.tackles}</span><span class="k">Touches</span><span>${m.arcade.touches}</span>` : ''}</div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>
         <div class="card"><h3>Changes</h3><div class="kv">${delta('Coach', ch.coach)}${delta('Fans', ch.fans)}${delta('Fame', ch.fame)}${delta('Chemistry', ch.chem)}${delta('Charm', ch.charm)}<span class="k">Bonus</span><span class="gold">${money(ch.money)}</span><span class="k">Wage</span><span class="gold">${money(p.contract.wage)}</span></div>${attrs ? `<div>${attrs} → OVR ${p.ovr}</div>` : ''}</div>
       </div>
       ${ch.motm ? `<div class="script">${scriptLine('Ally', `Player of the match, no argument: <b>${esc(p.name)}</b> (${esc(p.pron)}). Remember the pronunciation, John.`)}${scriptLine('John', 'Noted. Again.')}</div>` : ''}
@@ -551,6 +632,7 @@
   };
 
   // ---------- boot ----------
+  window.PPL_DEBUG = { setTimeScale: v => { U.testTimeScale = v; }, state: () => S, ui: () => U };
   const sndBtn = $('#snd');
   if (sndBtn && A) sndBtn.onclick = () => { A.unlock(); A.setEnabled(!A.isEnabled()); soundBtn(); if (A.isEnabled()) A.sfx('ding'); };
   function start(hot) {
