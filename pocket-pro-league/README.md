@@ -19,6 +19,7 @@ Progress autosaves to `localStorage` after every screen.
 | `data.js` | Positions and OVR weightings, nine real leagues with club strengths, name pools with pronunciation guides, shop, cars, estates |
 | `engine.js` | Pure logic: OVR calculator, fixture generation, league simulation, choice-based match engine, training, transfer offers, season rollover |
 | `app.js` | Screens and flow: character creation, prologue penalty, hub, home, shop, training, stadium, match modes, transfer window |
+| `audio.js` | Commentator voices via the Web Speech API, plus whistle, crowd and chant effects synthesised with Web Audio (no audio files) |
 | `styles.css` | Retro handheld look |
 
 `engine.js` loads in Node as well, which is how the balance was tuned:
@@ -33,6 +34,10 @@ node -e "const E=require('./pocket-pro-league/engine.js'); console.log(E.newGame
 2. **Phase 2** — 90+5 penalty in the Regional Academy Final. Miss and the engine rewinds until you score. Then three lower-tier clubs offer academy deals.
 3. **Phase 3** — Weekly loop: Home (contract, garage, estate), Shopping Center (boots, outfits, fitness gear), Training Ground (energy for +1 attribute rolls), Stadium (Full Match, Highlights, Sim, Quick Sim). Every league in the database plays its round each week.
 4. **Phase 4** — Every 20 weeks the transfer window opens with up to three offers driven by OVR, form and charm.
+
+## Sound
+
+John and Ally speak every commentary line through the browser's built-in speech voices. John is pitched low, Ally high, and the game prefers two different British English voices when the device has them. Pronunciation guides are used as the spoken form, so a teammate written as `Dyer (DYE-er)` is said the way the guide reads. Goals, misses, kick-off, full time and Man of the Match each trigger synthesised crowd and whistle effects. Browsers only allow audio after a tap, so sound starts on the first button press. The toggle in the title bar mutes everything and remembers the choice.
 
 ## Mechanics worth knowing
 

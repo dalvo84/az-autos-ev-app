@@ -30,6 +30,8 @@ a { color: var(--sky); }
   font-family: var(--font-pixel); font-size: 11px; letter-spacing: .04em; color: var(--pitch); text-transform: uppercase; }
 .titlebar small { color: var(--ink-dim); font-size: 9px; }
 .titlebar .rev { color: var(--gold); }
+.titlebar .tb-right { display: flex; align-items: center; gap: 10px; }
+.titlebar #snd { font-size: 16px; min-height: 32px; padding: 2px 8px; box-shadow: 3px 3px 0 var(--shadow); }
 pre { margin: 0; font-family: var(--font-mono); white-space: pre; }
 .ascii { font-size: clamp(11px, 3.1vw, 19px); line-height: 1.15; overflow-x: auto; color: var(--ink); }
 .ascii .k { color: var(--ink-dim); }

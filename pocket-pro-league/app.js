@@ -1,7 +1,7 @@
 /* Pocket Pro League — UI & flow */
 (function () {
   'use strict';
-  const D = window.PPL_DATA, E = window.PPL;
+  const D = window.PPL_DATA, E = window.PPL, A = window.PPL_AUDIO;
   const $ = s => document.querySelector(s);
   const SAVE_KEY = 'ppl_save_v1';
   let S = null;             // persistent game state
@@ -36,7 +36,20 @@
     return `┌${'─'.repeat(W)}┐\n${rows.join('\n')}\n└${'─'.repeat(W)}┘`;
   }
   function bar(label, val, cls) { return `<div class="bar ${cls || ''}"><span class="lbl">${label}</span><span class="track"><span class="fill" style="width:${E.clamp(val, 0, 100)}%"></span></span><span>${val}</span></div>`; }
-  function scriptLine(who, what, cls) { const w = who.toLowerCase(); return `<div class="line ${w} ${cls || ''}"><span class="who">${esc(who)}</span><span class="what">${what}</span></div>`; }
+  let lineSeq = 0;
+  const hashKey = s => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return 'h' + (h >>> 0).toString(36); };
+  function scriptLine(who, what, cls, key) { const w = who.toLowerCase(); return `<div class="line ${w} ${cls || ''}" data-say="${key || hashKey(w + what)}"><span class="who">${esc(who)}</span><span class="what">${what}</span></div>`; }
+  const spoken = new Set();
+  function speakNew(rootEl) {
+    if (!A) return;
+    rootEl.querySelectorAll('.line[data-say]').forEach(el => {
+      if (el.hidden || spoken.has(el.dataset.say)) return;
+      spoken.add(el.dataset.say);
+      if (spoken.size > 2000) spoken.clear();
+      A.speak(el.querySelector('.who').textContent, el.querySelector('.what').innerHTML);
+    });
+  }
+  function soundBtn() { const b = $('#snd'); if (!b || !A) return; b.textContent = A.isEnabled() ? '🔊 Sound on' : '🔇 Sound off'; b.setAttribute('aria-pressed', A.isEnabled() ? 'true' : 'false'); }
 
   // ---------- render root ----------
   function render() {
@@ -51,6 +64,8 @@
     (out.actions || []).forEach((a, i) => { const b = $('#act' + i); if (b) b.onclick = a.fn; });
     fitDash(dash);
     if (out.after) out.after();
+    speakNew(scr);
+    soundBtn();
     if (S && U.screen !== 'menu') save();
     window.scrollTo({ top: 0 });
   }
@@ -65,8 +80,9 @@
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitDash($('#dash')));
   window.addEventListener('resize', () => fitDash($('#dash')));
-  function go(screen) { U.screen = screen; render(); }
-  function setPhase(ph) { S.phase = ph; U.screen = ph; render(); }
+  function go(screen) { if (A && screen !== U.screen) A.stopSpeech(); U.screen = screen; render(); }
+  function setPhase(ph) { if (A) A.stopSpeech(); S.phase = ph; U.screen = ph; render(); }
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (A && b) { A.unlock(); if (b.id !== 'snd') A.sfx('click'); } }, true);
 
   // ---------- VIEWS ----------
   const VIEWS = {};
@@ -82,7 +98,7 @@
             L E A G U E   ·   C A R E E R   M O D E</pre>
       <p>A deep-sim football RPG. Start at sixteen in a regional academy final, get scouted, and climb from the Championship to the elite leagues of Europe. Every choice on the pitch feeds your rating, your coach, your fans and your bank balance.</p>
       ${saved ? `<div class="card hl"><h3>Saved career</h3><div>${esc(saved.player.name)} · ${esc(saved.player.pos)} · OVR ${saved.player.ovr} · Week ${saved.week} · ${esc(saved.player.contract.club)}</div></div>` : '<p class="muted">No saved career on this device yet.</p>'}
-      <p class="muted">Progress autosaves in this browser after every screen.</p>`;
+      <p class="muted">Progress autosaves in this browser after every screen. ${A && A.hasSpeech() ? 'John and Ally speak through your browser\'s voices, with crowd noise and whistles synthesised live. Toggle with the sound button at the top.' : 'This browser has no speech voices, so commentary is text only. Crowd and whistle effects still play.'}</p>`;
     const actions = [];
     if (saved) actions.push({ label: '▶ Continue career', cls: 'primary', fn: () => { S = saved; U = { screen: S.phase }; render(); } });
     actions.push({ label: '✚ New career', cls: saved ? 'warn' : 'primary', fn: () => { S = null; U = { screen: 'intro' }; render(); } });
@@ -152,22 +168,24 @@
       actions.push({ label: '▶ Continue: the tunnel', cls: 'primary', fn: () => setPhase('scout') });
     } else if (pen.state === 'failed') {
       html += `<div class="notice">⏪ REWIND AVAILABLE — the engine winds the clock back to 90+5.</div>`;
-      actions.push({ label: '⏪ Rewind and re-take', cls: 'warn', fn: () => { pen.state = null; pen.log.push(scriptLine('SYS', '<span class="blink">⏪⏪⏪</span> The tape rewinds. The ball is back on the spot. Nobody remembers a thing.', 'event')); render(); } });
+      actions.push({ label: '⏪ Rewind and re-take', cls: 'warn', fn: () => { pen.state = null; if (A) A.sfx('rewind'); pen.log.push(scriptLine('SYS', '<span class="blink">⏪⏪⏪</span> The tape rewinds. The ball is back on the spot. Nobody remembers a thing.', 'event', 'penr' + pen.attempts)); render(); } });
     } else {
       html += `<h3>Pick your spot</h3>`;
       E.PEN_DIRS.forEach(dir => actions.push({ label: dir === 'Panenka' ? '🪶 Panenka' : `🎯 ${dir}`, fn: () => {
         pen.attempts++;
         const r = E.takePenalty(dir, p.attrs.sho);
-        pen.log.push(scriptLine('John', `${nm} runs up... goes <b>${esc(dir)}</b>. Keeper goes ${esc(r.keeper.toLowerCase())}...`, 'event'));
+        pen.log.push(scriptLine('John', `${nm} runs up... goes <b>${esc(dir)}</b>. Keeper goes ${esc(r.keeper.toLowerCase())}...`, 'event', 'pen' + pen.attempts + 'a'));
         if (r.result === 'goal') {
           pen.state = 'scored';
-          pen.log.push(scriptLine('Ally', dir === 'Panenka' ? 'A PANENKA! In a final! At SIXTEEN! I need to sit down and I am already sitting down!' : 'GOOOAAAL! In it goes! The academy bench is on the pitch!', 'goal'));
-          pen.log.push(scriptLine('John', `${esc(p.name)} (${esc(p.pron)}) wins it in the 95th minute! Remember the name.`, 'goal'));
+          pen.log.push(scriptLine('Ally', dir === 'Panenka' ? 'A PANENKA! In a final! At SIXTEEN! I need to sit down and I am already sitting down!' : 'GOOOAAAL! In it goes! The academy bench is on the pitch!', 'goal', 'pen' + pen.attempts + 'b'));
+          pen.log.push(scriptLine('John', `${esc(p.name)} (${esc(p.pron)}) wins it in the 95th minute! Remember the name.`, 'goal', 'pen' + pen.attempts + 'c'));
+          if (A) A.sfx('goal');
           p.fame = 3; p.fans = 10;
         } else {
           pen.state = 'failed';
-          pen.log.push(scriptLine('Ally', r.result === 'saved' ? 'SAVED! Oh no. Oh no no no. The keeper guessed right.' : 'OVER THE BAR! Into the car park! Somebody\'s windscreen is done.', 'bad'));
-          pen.log.push(scriptLine('John', '<i>(groans)</i> That is a heavy, heavy moment for a sixteen-year-old.', 'bad'));
+          pen.log.push(scriptLine('Ally', r.result === 'saved' ? 'SAVED! Oh no. Oh no no no. The keeper guessed right.' : 'OVER THE BAR! Into the car park! Somebody\'s windscreen is done.', 'bad', 'pen' + pen.attempts + 'b'));
+          pen.log.push(scriptLine('John', '<i>(groans)</i> That is a heavy, heavy moment for a sixteen-year-old.', 'bad', 'pen' + pen.attempts + 'c'));
+          if (A) A.sfx('bad');
         }
         render();
       } }));
@@ -262,9 +280,9 @@
       ${maybeFanEncounter('home')}`;
     const after = () => {
       bindFan();
-      document.querySelectorAll('[data-buycar]').forEach(b => b.onclick = () => { const c = D.CARS.find(x => x.id === b.dataset.buycar); p.money -= c.price; p.owned.push(c.id); p.car = c.id; p.charm = E.clamp(p.charm + c.charm, 0, 100); p.fame = E.clamp(p.fame + Math.round(c.charm / 5), 0, 100); U.toast = `Keys to the ${esc(c.name)}. Charm +${c.charm}.`; render(); });
+      document.querySelectorAll('[data-buycar]').forEach(b => b.onclick = () => { const c = D.CARS.find(x => x.id === b.dataset.buycar); p.money -= c.price; p.owned.push(c.id); p.car = c.id; p.charm = E.clamp(p.charm + c.charm, 0, 100); p.fame = E.clamp(p.fame + Math.round(c.charm / 5), 0, 100); U.toast = `Keys to the ${esc(c.name)}. Charm +${c.charm}.`; if (A) A.sfx('cash'); render(); });
       document.querySelectorAll('[data-car]').forEach(b => b.onclick = () => { p.car = b.dataset.car; render(); });
-      document.querySelectorAll('[data-buyest]').forEach(b => b.onclick = () => { const e = D.ESTATES.find(x => x.id === b.dataset.buyest); p.money -= e.price; p.owned.push(e.id); p.estate = e.id; p.charm = E.clamp(p.charm + e.charm, 0, 100); p.fame = E.clamp(p.fame + e.fame, 0, 100); U.toast = `You move into the ${esc(e.name)}. Charm +${e.charm}, max energy +${e.energy}.`; render(); });
+      document.querySelectorAll('[data-buyest]').forEach(b => b.onclick = () => { const e = D.ESTATES.find(x => x.id === b.dataset.buyest); p.money -= e.price; p.owned.push(e.id); p.estate = e.id; p.charm = E.clamp(p.charm + e.charm, 0, 100); p.fame = E.clamp(p.fame + e.fame, 0, 100); U.toast = `You move into the ${esc(e.name)}. Charm +${e.charm}, max energy +${e.energy}.`; if (A) A.sfx('cash'); render(); });
       document.querySelectorAll('[data-est]').forEach(b => b.onclick = () => { p.estate = b.dataset.est; render(); });
     };
     return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }], after };
@@ -284,7 +302,7 @@
       bindFan();
       document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { U.shopTab = b.dataset.tab; render(); });
       const key = tab === 'boots' ? 'boots' : tab === 'outfits' ? 'outfit' : 'gear';
-      document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const it = items.find(x => x.id === b.dataset.buy); p.money -= it.price; p.owned.push(it.id); p[key] = it.id; if (it.charm) p.charm = E.clamp(p.charm + it.charm, 0, 100); U.toast = `Bought ${esc(it.name)}.${it.charm ? ` Charm +${it.charm}.` : ''}`; render(); });
+      document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const it = items.find(x => x.id === b.dataset.buy); p.money -= it.price; p.owned.push(it.id); p[key] = it.id; if (it.charm) p.charm = E.clamp(p.charm + it.charm, 0, 100); U.toast = `Bought ${esc(it.name)}.${it.charm ? ` Charm +${it.charm}.` : ''}`; if (A) A.sfx('cash'); render(); });
       document.querySelectorAll('[data-eq]').forEach(b => b.onclick = () => { p[key] = b.dataset.eq; render(); });
     };
     return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }], after };
@@ -301,7 +319,7 @@
       <p class="muted">★ marks the attributes your position weights most.</p>`;
     const actions = E.ATTRS.map(a => {
       const chance = Math.round(E.clamp(0.26 + E.trainBonus(S) / 150 - (p.attrs[a] - 50) * 0.006 + (p.age <= 21 ? 0.05 : p.age <= 27 ? 0 : -0.1), 0.05, 0.8) * 100);
-      return { label: `${attrLabel(a)} ${p.attrs[a]}`, sub: `${chance}% chance of +1`, disabled: sessions < 1, fn: () => { const r = E.train(S, a); U.toast = r.ok ? (r.gained ? `<span class="green">+1 ${attrLabel(a)}!</span> Now ${p.attrs[a]}. OVR ${p.ovr}.` : `Hard session on ${attrLabel(a)}. No gain this time, but the coach saw you working.`) : r.reason; render(); } };
+      return { label: `${attrLabel(a)} ${p.attrs[a]}`, sub: `${chance}% chance of +1`, disabled: sessions < 1, fn: () => { const r = E.train(S, a); if (A && r.ok && r.gained) A.sfx('ding'); U.toast = r.ok ? (r.gained ? `<span class="green">+1 ${attrLabel(a)}!</span> Now ${p.attrs[a]}. OVR ${p.ovr}.` : `Hard session on ${attrLabel(a)}. No gain this time, but the coach saw you working.`) : r.reason; render(); } };
     });
     actions.push({ label: '← Back to hub', fn: () => go('hub') });
     return { html, actions };
@@ -391,15 +409,16 @@
     return ev;
   }
   function scoreline(m) { const [a, b] = m.score; return m.fx.isHome ? `${esc(m.club.name)} ${a} — ${b} ${esc(m.opp.name)}` : `${esc(m.opp.name)} ${b} — ${a} ${esc(m.club.name)}`; }
-  function pushLine(m, who, what, cls) { m.shown.push(scriptLine(who, what, cls)); }
+  function pushLine(m, who, what, cls) { m.shown.push(scriptLine(who, what, cls, 'm' + S.week + '-' + m.shown.length)); }
+  const live = m => A && (m.mode === 'full' || m.mode === 'highlights');
   // Process timeline until a moment needs input (or end). Returns 'moment' | 'end'.
   function advance(m, auto) {
     while (m.pos < m.timeline.length) {
       const e = m.timeline[m.pos];
       if (e.kind === 'filler') pushLine(m, e.f[0], `<span class="muted">${e.minute}'</span> ${fillText(e.f[1], m)}`);
       else if (e.kind === 'bg') {
-        if (e.b.side === 'us') { m.score[0]++; pushLine(m, 'John', `<span class="muted">${e.minute}'</span> GOAL! ${esc(mateRef(e.b.scorer, m.introduced))} scores for ${esc(m.club.name)}! ${scoreline(m)}.`, 'goal'); }
-        else { m.score[1]++; pushLine(m, 'John', `<span class="muted">${e.minute}'</span> Goal for ${esc(m.opp.name)}. ${scoreline(m)}.`, 'bad'); }
+        if (e.b.side === 'us') { m.score[0]++; pushLine(m, 'John', `<span class="muted">${e.minute}'</span> GOAL! ${esc(mateRef(e.b.scorer, m.introduced))} scores for ${esc(m.club.name)}! ${scoreline(m)}.`, 'goal'); if (live(m)) A.sfx('goal'); }
+        else { m.score[1]++; pushLine(m, 'John', `<span class="muted">${e.minute}'</span> Goal for ${esc(m.opp.name)}. ${scoreline(m)}.`, 'bad'); if (live(m)) A.sfx('bad'); }
       }
       else if (e.kind === 'ht') pushLine(m, 'SYS', `HALF TIME · ${scoreline(m)}`, 'event');
       else if (e.kind === 'sub') pushLine(m, 'Ally', `<span class="muted">60'</span> Here comes <b>${esc(pname())}</b> off the bench. Twenty-five minutes to make a point to the coach.`, 'event');
@@ -421,6 +440,7 @@
     if (r.assist) pushLine(m, 'John', `Assist ${esc(pname())}. ${scoreline(m)}.`, 'goal');
     if (r.concede) pushLine(m, 'John', `...and it's in. ${esc(m.opp.name)} score. ${scoreline(m)}.`, 'bad');
     pushLine(m, 'SYS', `Rating now <b>${m.rating.toFixed(1)}</b>`, 'min');
+    if (live(m)) A.sfx(r.goal || r.assist ? 'goal' : r.concede ? 'bad' : r.type === 'save' || r.type === 'key' ? 'save' : r.ok ? 'click' : 'bad');
   }
   function finish() {
     const m = U.match;
@@ -437,6 +457,7 @@
       pushLine(m, 'John', `Welcome to ${m.fx.isHome ? esc(m.club.name) : esc(m.opp.name)}'s ground for ${scoreline(m).replace(/\d+ — \d+/, 'v')}. ${m.starts ? `<b>${esc(P().name)}</b> (${esc(P().pron)}) starts.` : `<b>${esc(pname())}</b> on the bench today.`}`);
       pushLine(m, 'Ally', `${esc(m.club.name)} rated ${m.club.str}, ${esc(m.opp.name)} ${m.opp.str}. ${m.teamDiff > 4 ? 'We should be winning this.' : m.teamDiff < -4 ? 'Big test today.' : 'Nothing between them on paper.'}`);
       m.state = 'run';
+      if (A && m.mode !== 'sim') A.sfx('kickoff');
     }
     let actions = [];
     if (m.state === 'run') {
@@ -459,6 +480,7 @@
       html = `<div class="score">${scoreline(m)}<small>FULL TIME · RATING ${m.unused ? '—' : m.rating.toFixed(1)}</small></div><div class="log" id="log">${m.shown.join('')}</div>`;
       actions = [{ label: '▶ Full-time report', cls: 'primary', fn: finish }];
       m.state = 'done';
+      if (A && m.mode !== 'sim') A.sfx('fulltime');
     }
     return { html, actions, after: () => {
       const l = $('#log'); if (!l) return;
@@ -469,8 +491,10 @@
         if (!reduce && lines.length) {
           lines.forEach(x => { x.hidden = true; }); act.hidden = true;
           let i = 0; const skip = document.createElement('button'); skip.className = 'sm'; skip.textContent = '⏩ Skip to full time'; l.before(skip);
-          const done = () => { clearInterval(t); lines.forEach(x => { x.hidden = false; }); act.hidden = false; skip.remove(); l.scrollTop = l.scrollHeight; };
-          const t = setInterval(() => { if (i >= lines.length) return done(); lines[i++].hidden = false; l.scrollTop = l.scrollHeight; }, 110);
+          if (A) A.sfx('kickoff');
+          const done = () => { clearInterval(t); lines.forEach(x => { x.hidden = false; }); act.hidden = false; skip.remove(); l.scrollTop = l.scrollHeight; if (A) { A.stopSpeech(); A.sfx('fulltime'); } };
+          const t = setInterval(() => { if (i >= lines.length) return done(); const x = lines[i++]; x.hidden = false; l.scrollTop = l.scrollHeight;
+            if (A && (x.classList.contains('goal') || x.classList.contains('bad'))) { A.sfx(x.classList.contains('goal') ? 'goal' : 'bad'); spoken.add(x.dataset.say); A.speak(x.querySelector('.who').textContent, x.querySelector('.what').innerHTML, { priority: true }); } }, 160);
           skip.onclick = done;
           return;
         }
@@ -494,7 +518,7 @@
       ${ch.motm ? `<div class="script">${scriptLine('Ally', `Player of the match, no argument: <b>${esc(p.name)}</b> (${esc(p.pron)}). Remember the pronunciation, John.`)}${scriptLine('John', 'Noted. Again.')}</div>` : ''}
       <div class="card"><h3>${esc(lg().name)} · top of the table</h3><div class="tablewrap"><table><tbody>${st.slice(0, 5).map((r, i) => `<tr class="${r.idx === S.clubIdx ? 'me' : ''}"><td class="n">${i + 1}</td><td>${esc(r.club.name)}</td><td class="n">${r.p}</td><td class="n">${r.pts}</td></tr>`).join('')}${myPos > 5 ? `<tr class="me"><td class="n">${myPos}</td><td>${esc(club().name)}</td><td class="n">${lg().table[S.clubIdx].p}</td><td class="n">${lg().table[S.clubIdx].pts}</td></tr>` : ''}</tbody></table></div></div>
       ${S.flags.transferWindow ? '<div class="notice">📋 The transfer window opens this week.</div>' : ''}${S.flags.seasonEnd ? '<div class="notice">🏁 That was the final round of the season.</div>' : ''}`;
-    return { html, actions: [{ label: '▶ Continue', cls: 'primary', fn: () => { U.match = null; U.resultMatch = null; U.result = null; go('hub'); } }] };
+    return { html, actions: [{ label: '▶ Continue', cls: 'primary', fn: () => { U.match = null; U.resultMatch = null; U.result = null; go('hub'); } }], after: () => { if (A && ch.motm) A.sfx('chant'); } };
   };
 
   // ---- PHASE 4: transfer window ----
@@ -527,6 +551,8 @@
   };
 
   // ---------- boot ----------
+  const sndBtn = $('#snd');
+  if (sndBtn && A) sndBtn.onclick = () => { A.unlock(); A.setEnabled(!A.isEnabled()); soundBtn(); if (A.isEnabled()) A.sfx('ding'); };
   function start(hot) {
     if (hot && hot.S) { S = hot.S; U = hot.U || { screen: S.phase }; if (U.match && U.match.introduced) U.match.introduced = new Set(U.match.introduced); }
     render();
