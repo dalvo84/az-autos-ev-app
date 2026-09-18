@@ -23,7 +23,7 @@ Progress autosaves to `localStorage` after every screen.
 | `sprites.js` | Pixel character models (customisable look for the player, randomised for NPCs) and club kits |
 | `controls.js` | Virtual joystick and action buttons for touch, keyboard bindings for desktop |
 | `arcade.js` | Real-time top-down match engine: physics ball, 22 players, attribute-driven AI, keepers, halves, camera, HUD |
-| `town.js` | Walkable town hub with Home, Shopping Center, Training Ground and Stadium, plus fans once Fame passes 50 |
+| `world.js` | Walkable open world: town, house (two floors), Shopping Center (two floors), training ground, stadium tunnel, agent's office, with furniture you use and weekly perks |
 | `styles.css` | Retro handheld look |
 
 `engine.js` loads in Node as well, which is how the balance was tuned:
@@ -69,6 +69,20 @@ Chosen at the stadium before a match and remembered. It scales the opposition on
 Your player always runs a little quicker than the raw Pace number suggests, and the joystick reaches full speed at just over half deflection, so a controlled player feels responsive against AI at every level.
 
 If your coach popularity is under 35 you start on the bench and come on for the last third of the match. Under 15 you are not in the squad and can only sim the match.
+
+## Open world
+
+The town is full screen. Walking into a door takes you inside. Every room has furniture you can walk up to and use with ENTER, and the map you were on is remembered when you come back from a screen.
+
+| Place | What is there |
+| --- | --- |
+| House, ground floor | TV (league tables), sofa (nap, +10 energy weekly), trophy cabinet (career), fridge (snack, +6 energy weekly), garage door, stairs |
+| House, upstairs | Bed (sleep, +15 energy weekly), laptop (contract and estate), mirror (appearance), balcony |
+| Shopping Center, ground | Boot wall, outfit rail, café (coffee, $25 for +6 energy weekly), escalator |
+| Shopping Center, upstairs | Fitness gear, car showroom, estate agent, barber (appearance), escalator |
+| Training ground | Gym and pitch (training), coach's office (+2 coach weekly), physio (+10 energy weekly), teammates wandering |
+| Stadium tunnel | Dressing room (squad), press room (+1 fame, +1 charm weekly once you have some fame), trophy room, tunnel to the pitch (match day) |
+| Town | Agent's office, park kickabout (20 energy for a chance of +1 attribute), bus stop to the stadium, fans once Fame passes 50 |
 
 ## Sound
 

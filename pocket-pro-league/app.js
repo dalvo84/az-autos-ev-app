@@ -273,6 +273,39 @@
   }
   const ord = n => (n % 10 === 1 && n % 100 !== 11) ? 'st' : (n % 10 === 2 && n % 100 !== 12) ? 'nd' : (n % 10 === 3 && n % 100 !== 13) ? 'rd' : 'th';
 
+  // ---------- open-world actions and weekly perks ----------
+  const energySub = () => `energy ${Math.round(P().energy)}/${E.maxEnergy(S)} · $${Math.round(P().money).toLocaleString('en-US')}`;
+  function perkOnce(id) { S.flags.perks = S.flags.perks && S.flags.perks.week === S.week ? S.flags.perks : { week: S.week, used: {} }; if (S.flags.perks.used[id]) return false; S.flags.perks.used[id] = true; return true; }
+  function gainEnergy(n) { const p = P(); const before = p.energy; p.energy = Math.min(E.maxEnergy(S), p.energy + n); return Math.round(p.energy - before); }
+  const PERKS = {
+    nap: () => perkOnce('nap') ? `Twenty minutes on the sofa. Energy +${gainEnergy(10)}.` : 'You already napped this week. The sofa judges you.',
+    sleep: () => perkOnce('sleep') ? `A proper night's sleep. Energy +${gainEnergy(15)}.` : 'You have slept enough this week. Go and train.',
+    snack: () => perkOnce('snack') ? `Leftover pasta, cold, standing up. Energy +${gainEnergy(6)}.` : 'The fridge is empty. Shopping Center is across the road.',
+    coffee: () => { const p = P(); if (p.money < 25) return 'Coffee is $25. You are $' + (25 - Math.round(p.money)) + ' short.'; if (!perkOnce('coffee')) return 'The barista cuts you off. One a week, athlete.'; p.money -= 25; return `Flat white. $25. Energy +${gainEnergy(6)}.`; },
+    physio: () => perkOnce('physio') ? `Ice bath and a rub down. Energy +${gainEnergy(10)}.` : 'Physio has seen you already this week.',
+    coach: () => { const p = P(); if (!perkOnce('coach')) return 'The coach waves you out. "Show me on the pitch."'; p.coach = E.clamp(p.coach + 2, 0, 100); return p.coach >= 60 ? '"Keep doing what you are doing." Coach +2.' : p.coach >= 35 ? '"Work harder in training and you will start." Coach +2.' : '"You are not close to the team yet. Train." Coach +2.'; },
+    press: () => { const p = P(); if (p.fame < 10) return 'Two journalists and a work-experience kid. Nobody asks a question.'; if (!perkOnce('press')) return 'The press officer says you have done enough talking this week.'; p.fame = E.clamp(p.fame + 1, 0, 100); p.charm = E.clamp(p.charm + 1, 0, 100); return 'You handle the questions well. Fame +1, Charm +1.'; },
+    balcony: () => { const p = P(); const st = E.standings(lg()); const pos = st.findIndex(r => r.idx === S.clubIdx) + 1; return `Floodlights on the horizon. ${club().name} sit ${pos}${ord(pos)}. Fame ${p.fame}, fans ${p.fans}.`; },
+  };
+  function worldAction(action) {
+    const p = P();
+    if (action.startsWith('open:')) {
+      const [, screen, tab] = action.split(':');
+      if (screen === 'shop') { U.shopTab = tab || 'boots'; go('shop'); }
+      else if (screen === 'garage' || screen === 'contract' || screen === 'estate' || screen === 'mirror') { U.homeFocus = screen; go('home'); }
+      else go(screen);
+      return;
+    }
+    if (action.startsWith('perk:')) { const f = PERKS[action.slice(5)]; if (f) { U.town.note(f()); U.town.setSub(energySub()); save(); } return; }
+    if (action === 'bus') { U.town.note('The number 9 to the stadium. Free with a season ticket.'); U.town.goto('stadium', 180, 60); return; }
+    if (action === 'kickabout') {
+      if (p.energy < 20) { U.town.note('Too tired for a kickabout. Energy 20 needed.'); return; }
+      p.energy -= 20; let msg = 'Jumpers for goalposts. A kid nutmegs you. No gain today.';
+      if (Math.random() < 0.3) { const at = E.pick(E.ATTRS); p.attrs[at] = E.clamp(p.attrs[at] + 1, 20, 99); p.ovr = E.calcOVR(p.attrs, p.pos); msg = `Jumpers for goalposts. +1 ${attrLabel(at)}! OVR ${p.ovr}.`; }
+      U.town.note(msg); U.town.setSub(energySub()); save(); return;
+    }
+  }
+
   function maybeFanEncounter(place) {
     const p = P();
     if (U.forceFan) { U.forceFan = false; }
@@ -296,7 +329,7 @@
     let welcome = '';
     if (U.welcome) { U.welcome = false; welcome = `<div class="card"><h3>Welcome to ${esc(club().name)}</h3><p>${esc(p.contract.promise)} Wage ${money(p.contract.wage)} a week, ${p.contract.weeksLeft} weeks on the deal. Every week: train, shop, then play. The transfer window opens every 20 weeks.</p></div>`; }
     const html = `${welcome}${toast()}<h2>${esc(club().name)} · ${esc(lg().name)}</h2>
-      <p class="muted">The town is full screen: walk to a door and press ENTER. The ☰ MENU button brings you back here.${p.fame >= 50 ? ' Fans in town will run at you.' : ''}</p>
+      <p class="muted">The town is full screen. Walk into a door to go inside: your house has two floors, the Shopping Center has two floors, and the training ground, stadium tunnel and agent's office are all open. Walk up to furniture and press ENTER to use it. ☰ MENU brings you back here.${p.fame >= 50 ? ' Fans in town will run at you.' : ''}</p>
       ${fixtureCard()}
       <div class="card"><h3>Status</h3>${bar('Energy', Math.round(p.energy / E.maxEnergy(S) * 100), 'sky')}${bar('Fame', p.fame, 'gold')}${bar('Fans', p.fans)}${bar('Coach', p.coach)}${bar('Chemistry', p.chem)}${bar('Charm', p.charm, 'gold')}</div>
       ${maybeFanEncounter('hub')}
@@ -316,10 +349,10 @@
       bindFan();
       if (U.townMenu || U.fan || U.forceFan || !TOWN) return;
       const host = fullscreenHost();
-      U.town = TOWN.start({ host, look: p.look, kit: myKit(), fame: p.fame, carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week,
-        title: `${club().name} · week ${S.week}`, sub: `energy ${Math.round(p.energy)} · $${Math.round(p.money).toLocaleString('en-US')}`,
+      U.town = TOWN.start({ host, look: p.look, kit: myKit(), fame: p.fame, carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week, teammates: S.teammates,
+        title: `${club().name} · week ${S.week}`, sub: energySub(),
         onMenu: () => { U.townMenu = true; render(); },
-        onEnter: id => go(id === 'stadium' ? 'stadium' : id),
+        onAction: worldAction,
         onCrowd: () => { if (S.flags.fanWeek === S.week) return; S.flags.fanWeek = S.week; U.fan = { place: 'hub' }; U.toast = null; U.townPos = U.town.pos(); U.forceFan = true; render(); } });
     };
     return { html, actions, after };
@@ -337,9 +370,9 @@
         <div class="card"><h3>Contract</h3><div class="kv"><span class="k">Club</span><span>${esc(p.contract.club)}</span><span class="k">League</span><span>${esc(p.contract.leagueName)}</span><span class="k">Wage</span><span>${money(p.contract.wage)} / week</span><span class="k">Remaining</span><span>${p.contract.weeksLeft} weeks</span><span class="k">Role</span><span>${esc(p.contract.role)}</span></div><p class="muted">${esc(p.contract.promise)}</p></div>
         <div class="card garage"><h3>Garage · ${esc(car.name)}</h3><pre>${esc(car.art)}</pre></div>
       </div>
-      <h3>Mirror · appearance</h3>${(U.lookEd = lookEditor(p.look)).html}
-      <h3>Garage</h3><div class="tablewrap"><table><thead><tr><th>Car</th><th class="n">Price</th><th class="n">Effect</th><th></th></tr></thead><tbody>${carRows}</tbody></table></div>
-      <h3>Estate</h3><div class="tablewrap"><table><thead><tr><th>Property</th><th class="n">Price</th><th class="n">Effect</th><th></th></tr></thead><tbody>${estRows}</tbody></table></div>
+      <h3 id="h-mirror">Mirror · appearance</h3>${(U.lookEd = lookEditor(p.look)).html}
+      <h3 id="h-garage">Garage</h3><div class="tablewrap"><table><thead><tr><th>Car</th><th class="n">Price</th><th class="n">Effect</th><th></th></tr></thead><tbody>${carRows}</tbody></table></div>
+      <h3 id="h-estate">Estate</h3><div class="tablewrap"><table><thead><tr><th>Property</th><th class="n">Price</th><th class="n">Effect</th><th></th></tr></thead><tbody>${estRows}</tbody></table></div>
       ${maybeFanEncounter('home')}`;
     const after = () => {
       bindFan(); U.lookEd.bind($('#screen'));
@@ -348,7 +381,8 @@
       document.querySelectorAll('[data-buyest]').forEach(b => b.onclick = () => { const e = D.ESTATES.find(x => x.id === b.dataset.buyest); p.money -= e.price; p.owned.push(e.id); p.estate = e.id; p.charm = E.clamp(p.charm + e.charm, 0, 100); p.fame = E.clamp(p.fame + e.fame, 0, 100); U.toast = `You move into the ${esc(e.name)}. Charm +${e.charm}, max energy +${e.energy}.`; if (A) A.sfx('cash'); render(); });
       document.querySelectorAll('[data-est]').forEach(b => b.onclick = () => { p.estate = b.dataset.est; render(); });
     };
-    return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }], after };
+    const afterHome = () => { after(); const f = U.homeFocus; U.homeFocus = null; const sel = f === 'garage' ? '#h-garage' : f === 'estate' ? '#h-estate' : f === 'mirror' ? '#h-mirror' : null; if (sel && $(sel)) $(sel).scrollIntoView({ block: 'start' }); };
+    return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }], after: afterHome };
   };
 
   VIEWS.shop = () => {

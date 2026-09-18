@@ -153,3 +153,4 @@ body.has-scene { overflow: hidden; }
 @media (max-width: 480px) { .look { grid-template-columns: 1fr; } .ctl-btn { width: 64px; height: 64px; } }
 .choices.diff { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .choices.diff .sm { text-align: center; }
+.town-note { top: auto; bottom: 30%; font-size: 11px; color: #fff; background: rgba(5,8,15,.8); margin: 0 16px; padding: 10px 12px; line-height: 1.6; }
