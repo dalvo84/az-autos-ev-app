@@ -52,6 +52,19 @@
     return { html, bind };
   }
 
+  // ---------- purchasable item card (garage, estate, shop) ----------
+  // state: 'cur' | 'owned' | 'buy'. Buttons are full width so they read on a phone.
+  function itemCard(it, o) {
+    const p = P(); const short = Math.max(0, Math.round(it.price - p.money));
+    const fx = (o.effects || []).filter(Boolean).join(' · ') || 'No effect';
+    let btn;
+    if (o.state === 'cur') btn = `<span class="pill ok">${esc(o.curLabel)}</span>`;
+    else if (o.state === 'owned') btn = `<button type="button" class="sm" data-${o.key || 'eq'}="${it.id}">${esc(o.useLabel)}</button>`;
+    else if (short > 0) btn = `<button type="button" class="sm" disabled>Buy · ${money(it.price)}<span class="sub">${money(short)} short</span></button>`;
+    else btn = `<button type="button" class="sm warn" data-buy${o.key}="${it.id}">Buy · ${money(it.price)}</button>`;
+    return `<div class="item ${o.state === 'cur' ? 'cur' : ''}"><div class="item-main"><b>${esc(it.name)}</b>${it.desc ? `<span class="muted">${esc(it.desc)}</span>` : ''}<span class="fx">${fx}${it.price ? ` · <span class="gold">${money(it.price)}</span>` : ''}</span></div><div class="item-act">${btn}</div></div>`;
+  }
+
   // ---------- dashboard ----------
   function dashboard() {
     const p = P(); const W = 56;
@@ -361,18 +374,17 @@
   VIEWS.home = () => {
     const p = P();
     const car = D.CARS.find(c => c.id === p.car), est = D.ESTATES.find(e => e.id === p.estate);
-    const carRows = D.CARS.map(c => { const owned = p.owned.includes(c.id); const cur = c.id === p.car;
-      return `<tr class="${cur ? 'me' : ''}"><td>${esc(c.name)}</td><td class="n">${c.price ? money(c.price) : '—'}</td><td class="n">+${c.charm} charm</td><td>${cur ? '<span class="pill ok">Driving</span>' : owned ? `<button class="sm" data-car="${c.id}">Drive</button>` : `<button class="sm ${p.money >= c.price ? 'warn' : ''}" data-buycar="${c.id}" ${p.money < c.price ? 'disabled' : ''}>Buy</button>`}</td></tr>`; }).join('');
-    const estRows = D.ESTATES.map(e => { const owned = p.owned.includes(e.id); const cur = e.id === p.estate;
-      return `<tr class="${cur ? 'me' : ''}"><td>${esc(e.name)}<br><span class="muted">${esc(e.desc)}</span></td><td class="n">${e.price ? money(e.price) : '—'}</td><td class="n">+${e.charm} charm<br>+${e.energy} energy</td><td>${cur ? '<span class="pill ok">Living</span>' : owned ? `<button class="sm" data-est="${e.id}">Move in</button>` : `<button class="sm ${p.money >= e.price ? 'warn' : ''}" data-buyest="${e.id}" ${p.money < e.price ? 'disabled' : ''}>Buy</button>`}</td></tr>`; }).join('');
+    const carRows = D.CARS.map(c => itemCard(c, { key: 'car', state: c.id === p.car ? 'cur' : p.owned.includes(c.id) ? 'owned' : 'buy', curLabel: 'Driving', useLabel: 'Drive this', effects: [`+${c.charm} charm`] })).join('');
+    const estRows = D.ESTATES.map(e => itemCard(e, { key: 'est', state: e.id === p.estate ? 'cur' : p.owned.includes(e.id) ? 'owned' : 'buy', curLabel: 'Living here', useLabel: 'Move in', effects: [`+${e.charm} charm`, `+${e.energy} max energy`] })).join('');
     const html = `${toast()}<h2>🏠 Home · ${esc(est.name)}</h2>
       <div class="cards">
         <div class="card"><h3>Contract</h3><div class="kv"><span class="k">Club</span><span>${esc(p.contract.club)}</span><span class="k">League</span><span>${esc(p.contract.leagueName)}</span><span class="k">Wage</span><span>${money(p.contract.wage)} / week</span><span class="k">Remaining</span><span>${p.contract.weeksLeft} weeks</span><span class="k">Role</span><span>${esc(p.contract.role)}</span></div><p class="muted">${esc(p.contract.promise)}</p></div>
         <div class="card garage"><h3>Garage · ${esc(car.name)}</h3><pre>${esc(car.art)}</pre></div>
       </div>
       <h3 id="h-mirror">Mirror · appearance</h3>${(U.lookEd = lookEditor(p.look)).html}
-      <h3 id="h-garage">Garage</h3><div class="tablewrap"><table><thead><tr><th>Car</th><th class="n">Price</th><th class="n">Effect</th><th></th></tr></thead><tbody>${carRows}</tbody></table></div>
-      <h3 id="h-estate">Estate</h3><div class="tablewrap"><table><thead><tr><th>Property</th><th class="n">Price</th><th class="n">Effect</th><th></th></tr></thead><tbody>${estRows}</tbody></table></div>
+      <div class="row"><span>Wallet: <span class="gold">${money(p.money)}</span></span><span class="muted">Wages land every week after the match. Win and goal bonuses on top.</span></div>
+      <h3 id="h-garage">Garage</h3><div class="items">${carRows}</div>
+      <h3 id="h-estate">Estate</h3><div class="items">${estRows}</div>
       ${maybeFanEncounter('home')}`;
     const after = () => {
       bindFan(); U.lookEd.bind($('#screen'));
@@ -389,11 +401,10 @@
     const p = P(); const tab = U.shopTab || 'boots';
     const items = D.SHOP[tab];
     const cur = p[tab === 'boots' ? 'boots' : tab === 'outfits' ? 'outfit' : 'gear'];
-    const rows = items.map(it => { const owned = p.owned.includes(it.id); const eff = [it.charm ? `+${it.charm} charm` : '', it.train ? `+${it.train} training` : '', it.energy ? `+${it.energy} energy` : ''].filter(Boolean).join(', ') || '—';
-      return `<tr class="${it.id === cur ? 'me' : ''}"><td>${esc(it.name)}<br><span class="muted">${esc(it.desc)}</span></td><td class="n">${it.price ? money(it.price) : '—'}</td><td>${eff}</td><td>${it.id === cur ? '<span class="pill ok">Equipped</span>' : owned ? `<button class="sm" data-eq="${it.id}">Equip</button>` : `<button class="sm ${p.money >= it.price ? 'warn' : ''}" data-buy="${it.id}" ${p.money < it.price ? 'disabled' : ''}>Buy</button>`}</td></tr>`; }).join('');
+    const rows = items.map(it => itemCard(it, { key: '', state: it.id === cur ? 'cur' : p.owned.includes(it.id) ? 'owned' : 'buy', curLabel: 'Equipped', useLabel: 'Equip', effects: [it.charm ? `+${it.charm} charm` : '', it.train ? `+${it.train} training` : '', it.energy ? `+${it.energy} max energy` : ''] })).join('');
     const html = `${toast()}<h2>🛍 Shopping Center</h2><div class="row"><span>Wallet: <span class="gold">${money(p.money)}</span></span><span class="muted">Boots and gear sharpen training. Outfits raise Charm, which pulls bigger clubs into the transfer window.</span></div>
       <div class="choices"><button class="sm ${tab === 'boots' ? 'primary' : ''}" data-tab="boots">👟 Boots</button><button class="sm ${tab === 'outfits' ? 'primary' : ''}" data-tab="outfits">🧥 Outfits</button><button class="sm ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🏋 Fitness gear</button></div>
-      <div class="tablewrap"><table><thead><tr><th>Item</th><th class="n">Price</th><th>Effect</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="items">${rows}</div>
       ${maybeFanEncounter('shop')}`;
     const after = () => {
       bindFan();

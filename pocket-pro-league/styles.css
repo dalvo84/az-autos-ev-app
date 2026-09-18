@@ -154,3 +154,12 @@ body.has-scene { overflow: hidden; }
 .choices.diff { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .choices.diff .sm { text-align: center; }
 .town-note { top: auto; bottom: 30%; font-size: 11px; color: #fff; background: rgba(5,8,15,.8); margin: 0 16px; padding: 10px 12px; line-height: 1.6; }
+.items { display: flex; flex-direction: column; gap: 8px; }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; align-items: center; background: var(--panel-2); border: 2px solid var(--line); padding: 10px 12px; }
+.item.cur { border-color: var(--pitch); }
+.item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.item-main .fx { font-size: 17px; color: var(--ink-dim); }
+.item-act { display: flex; align-items: center; }
+.item-act .sm { white-space: nowrap; min-width: 9em; text-align: center; }
+.item-act .sm .sub { font-size: 14px; text-align: center; }
+@media (max-width: 560px) { .item { grid-template-columns: 1fr; } .item-act .sm { width: 100%; } }
