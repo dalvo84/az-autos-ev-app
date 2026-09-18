@@ -391,7 +391,7 @@
           continue;
         }
         const p = it.p; const moving = Math.hypot(p.vx, p.vy) > 5 || p.slide > 0;
-        SP.drawFigure(ctx, p.x, p.y, 1.0, p.look, p.kit, { step: moving ? p.step : 0, slide: p.slide > 0, gloves: p.isGK, number: p.number });
+        SP.drawFigure(ctx, p.x, p.y, 1.0, p.look, p.kit, { step: moving ? p.step : 0, slide: p.slide > 0, gloves: p.isGK, number: p.number, acc: p.isUser ? opts.user.acc : undefined });
         if (p.isUser) { ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.moveTo(p.x - 4, p.y - 30); ctx.lineTo(p.x + 4, p.y - 30); ctx.lineTo(p.x, p.y - 25); ctx.closePath(); ctx.fill(); }
         if (p.calling > 0) { ctx.fillStyle = '#fff'; ctx.font = '7px monospace'; ctx.textAlign = 'center'; ctx.fillText('HERE!', p.x, p.y - 33); }
       }

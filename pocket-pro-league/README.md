@@ -36,7 +36,7 @@ node -e "const E=require('./pocket-pro-league/engine.js'); console.log(E.newGame
 
 1. **Phase 1** — John and Ally ask for name, pronunciation, position and nationality. Ten academy teammates are generated with pronunciation guides the commentators reuse.
 2. **Phase 2** — 90+5 penalty in the Regional Academy Final. Miss and the engine rewinds until you score. Then three lower-tier clubs offer academy deals.
-3. **Phase 3** — Weekly loop: Home (contract, garage, estate), Shopping Center (boots, outfits, fitness gear), Training Ground (energy for +1 attribute rolls), Stadium (Full Match, Highlights, Sim, Quick Sim). Every league in the database plays its round each week.
+3. **Phase 3** — Weekly loop: Home (contract, garage, estate), Shopping Center (boots, outfits, kits, accessories, fitness gear), Training Ground (energy for +1 attribute rolls), Stadium (Full Match, Highlights, Sim, Quick Sim). Every league in the database plays its round each week.
 4. **Phase 4** — Every 20 weeks the transfer window opens with up to three offers driven by OVR, form and charm.
 
 ## Playing a match
@@ -78,11 +78,17 @@ The town is full screen. Walking into a door takes you inside. Every room has fu
 | --- | --- |
 | House, ground floor | TV (league tables), sofa (nap, +10 energy weekly), trophy cabinet (career), fridge (snack, +6 energy weekly), garage door, stairs |
 | House, upstairs | Bed (sleep, +15 energy weekly), laptop (contract and estate), mirror (appearance), balcony |
-| Shopping Center, ground | Boot wall, outfit rail, café (coffee, $25 for +6 energy weekly), escalator |
+| Shopping Center, ground | Boot wall, outfit rail, kits and accessories, café (coffee, $25 for +6 energy weekly), escalator |
 | Shopping Center, upstairs | Fitness gear, car showroom, estate agent, barber (appearance), escalator |
 | Training ground | Gym and pitch (training), coach's office (+2 coach weekly), physio (+10 energy weekly), teammates wandering |
 | Stadium tunnel | Dressing room (squad), press room (+1 fame, +1 charm weekly once you have some fame), trophy room, tunnel to the pitch (match day) |
 | Town | Agent's office, park kickabout (20 energy for a chance of +1 attribute), bus stop to the stadium, fans once Fame passes 50 |
+
+## Kits and accessories
+
+Kits are worn around town in place of the club kit and raise Charm: training bib, retro hoops, a national team kit in your country's colours, candy stripes, a neon third kit, a blackout kit and a gold legends kit. Matches always use club colours.
+
+Accessories fill slots on your model: head, face, neck, wrist, hands and arm. Headbands, wrist tape, gloves and the tattoo sleeve are pitch-legal and show in matches. Beanies, caps, sunglasses, earrings, chains and the watch are town only. Each adds Charm when bought, and you can take any of them off in the shop.
 
 ## Sound
 

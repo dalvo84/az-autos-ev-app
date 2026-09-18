@@ -65,6 +65,9 @@
     // shorts and shirt
     px(-4 - wide + slim * 0.5, top + 10, 8 + wide * 2 - slim, 3.4, kit.shorts);
     px(-4 - wide + slim * 0.5, top + 5 + bob, 8 + wide * 2 - slim, 5.4, kit.shirt);
+    if (kit.pattern === 'stripes' && kit.shirt2) { for (let i = -3 - wide; i < 4 + wide; i += 2) px(i + slim * 0.5, top + 5 + bob, 1, 5.4, kit.shirt2); }
+    else if (kit.pattern === 'hoops' && kit.shirt2) { px(-4 - wide + slim * 0.5, top + 6.4 + bob, 8 + wide * 2 - slim, 1, kit.shirt2); px(-4 - wide + slim * 0.5, top + 8.6 + bob, 8 + wide * 2 - slim, 1, kit.shirt2); }
+    else if (kit.pattern === 'sash' && kit.shirt2) { for (let i = 0; i < 5; i++) px(-3.5 + i * 1.5 - wide, top + 5 + i * 1.05 + bob, 1.6, 1.1, kit.shirt2); }
     if (o.number !== undefined) { ctx.fillStyle = kit.shirt === '#ffffff' || kit.shirt === '#f4f4f4' ? '#222' : '#fff'; ctx.font = `bold ${Math.max(6, 3.2 * u)}px monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(o.number), x, y + (top + 8 + bob) * u); }
     // arms
     px(-5.5 - wide, top + 5.5 + bob, 1.6, 4, kit.shirt); px(3.9 + wide, top + 5.5 + bob, 1.6, 4, kit.shirt);
@@ -85,6 +88,19 @@
       default: px(-3.4, top - 1 + bob, 6.8, 1.8, hairC); px(-3.4, top + 0.6 + bob, 1.6, 2.4, hairC); px(1.8, top + 0.6 + bob, 1.6, 2.4, hairC);
     }
     if (o.gloves) { px(-5.5 - wide, top + 9.3 + bob, 1.6, 1.4, '#ffe066'); px(3.9 + wide, top + 9.3 + bob, 1.6, 1.4, '#ffe066'); }
+    // accessories (o.acc = { slot: {type, color} })
+    const acc = o.acc || {};
+    const col = a => a.color === 'club' ? kit.shirt : a.color;
+    if (acc.arm && acc.arm.type === 'tattoo') { px(-5.5 - wide, top + 5.5 + bob, 1.6, 4, col(acc.arm)); }
+    if (acc.wrist && acc.wrist.type === 'tape') { px(-5.5 - wide, top + 8.6 + bob, 1.6, 0.9, col(acc.wrist)); px(3.9 + wide, top + 8.6 + bob, 1.6, 0.9, col(acc.wrist)); }
+    if (acc.wrist && acc.wrist.type === 'watch') { px(3.9 + wide, top + 8.6 + bob, 1.6, 1, '#222'); px(4.2 + wide, top + 8.7 + bob, 1, 0.8, col(acc.wrist)); }
+    if (acc.hands && acc.hands.type === 'gloves') { px(-5.5 - wide, top + 9.3 + bob, 1.6, 1.4, col(acc.hands)); px(3.9 + wide, top + 9.3 + bob, 1.6, 1.4, col(acc.hands)); }
+    if (acc.neck && acc.neck.type === 'chain') { px(-2, top + 5.2 + bob, 4, 0.7, col(acc.neck)); px(-0.5, top + 5.8 + bob, 1, 0.8, col(acc.neck)); }
+    if (acc.face && acc.face.type === 'shades') { px(-2.6, top + 1.9 + bob, 5.2, 1.4, col(acc.face)); }
+    if (acc.face && acc.face.type === 'earring') { px(2.9, top + 3 + bob, 0.8, 0.8, col(acc.face)); }
+    if (acc.head && acc.head.type === 'band') { px(-3.2, top + 0.9 + bob, 6.4, 1.1, col(acc.head)); }
+    if (acc.head && acc.head.type === 'beanie') { px(-3.4, top - 2 + bob, 6.8, 3.2, col(acc.head)); px(-3.4, top + 0.6 + bob, 6.8, 0.8, '#ffffff'); }
+    if (acc.head && acc.head.type === 'cap') { px(-3.4, top - 1.6 + bob, 6.8, 2.4, col(acc.head)); px(1.5, top + 0.4 + bob, 4, 1, col(acc.head)); }
   }
 
   root.PPL_SPRITES = { SKIN, HAIR_COLORS, HAIR_STYLES, BOOTS, BUILDS, randomLook, defaultLook, kitsFor, baseKit, drawFigure };

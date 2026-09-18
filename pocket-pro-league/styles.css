@@ -163,3 +163,5 @@ body.has-scene { overflow: hidden; }
 .item-act .sm { white-space: nowrap; min-width: 9em; text-align: center; }
 .item-act .sm .sub { font-size: 14px; text-align: center; }
 @media (max-width: 560px) { .item { grid-template-columns: 1fr; } .item-act .sm { width: 100%; } }
+.shoptabs { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.item-act { gap: 8px; flex-wrap: wrap; }

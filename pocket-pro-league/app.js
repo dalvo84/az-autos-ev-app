@@ -27,9 +27,22 @@
   function ensureLooks() {
     if (!S) return;
     if (!S.player.look) S.player.look = U.look || SP.defaultLook();
+    if (!S.player.kit) S.player.kit = 'k0';
+    if (!S.player.acc) S.player.acc = {};
+    if (!S.player.owned.includes('k0')) S.player.owned.push('k0');
     S.teammates.forEach(t => { if (!t.look) t.look = SP.randomLook(); });
   }
-  function myKit() { return S && S.clubIdx >= 0 ? SP.baseKit(club().name) : { shirt: '#c8102e', shorts: '#ffffff' }; }
+  function clubKit() { return S && S.clubIdx >= 0 ? SP.baseKit(club().name) : { shirt: '#c8102e', shorts: '#ffffff' }; }
+  const NAT_KIT = { England: ['#ffffff', '#1d3a8a'], Spain: ['#c60b1e', '#1d3a8a'], Italy: ['#0b5fbf', '#ffffff'], Germany: ['#ffffff', '#111111'], France: ['#1d3a8a', '#ffffff'], Brazil: ['#f5d800', '#1d3a8a'], Argentina: ['#75aadb', '#111111'], Nigeria: ['#2ecc71', '#ffffff'], Netherlands: ['#ff7f00', '#ffffff'], Portugal: ['#c8102e', '#1e7a3e'], USA: ['#ffffff', '#1d3a8a'], Japan: ['#1a2f8a', '#ffffff'], Senegal: ['#ffffff', '#1e7a3e'], 'Saudi Arabia': ['#1e7a3e', '#ffffff'] };
+  // The kit worn around town: the equipped shop kit, or the club kit
+  function myKit() {
+    const p = S && S.player; const k = p && D.SHOP.kits.find(x => x.id === p.kit);
+    if (!k || k.club) return clubKit();
+    if (k.national) { const c = NAT_KIT[p.nat] || ['#ffffff', '#222222']; return { shirt: c[0], shorts: c[1], pattern: 'plain' }; }
+    return { shirt: k.shirt, shirt2: k.shirt2, shorts: k.shorts, pattern: k.pattern };
+  }
+  // Equipped accessories as {slot: item}; pitchOnly keeps the ones allowed in a match
+  function myAcc(pitchOnly) { const p = S && S.player; const out = {}; if (!p) return out; for (const [slot, id] of Object.entries(p.acc || {})) { const it = D.SHOP.accessories.find(x => x.id === id); if (it && (!pitchOnly || it.pitch)) out[slot] = it; } return out; }
   // Appearance editor: cycles each trait, live pixel preview
   function lookEditor(look, onChange) {
     const traits = [
@@ -39,7 +52,7 @@
     const html = `<div class="look"><canvas class="look-canvas" width="120" height="150"></canvas><div class="look-traits">${traits.map(([k, label, n, name]) => `<div class="look-row"><span class="lbl">${label}</span><button type="button" class="sm" data-lk="${k}" data-d="-1">◀</button><span class="look-val" data-lv="${k}">${name(+look[k])}</span><button type="button" class="sm" data-lk="${k}" data-d="1">▶</button></div>`).join('')}<button type="button" class="sm warn" data-lk="random">🎲 Randomise</button></div></div>`;
     const bind = rootEl => {
       const cv = rootEl.querySelector('.look-canvas'); const ctx = cv.getContext('2d');
-      const paint = () => { ctx.clearRect(0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = false; SP.drawFigure(ctx, 60, 128, 5.2, look, myKit(), { number: 10 }); };
+      const paint = () => { ctx.clearRect(0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = false; SP.drawFigure(ctx, 60, 128, 5.2, look, myKit(), { number: 10, acc: myAcc(false) }); };
       const refresh = () => { traits.forEach(([k, , , name]) => { const el = rootEl.querySelector(`[data-lv="${k}"]`); if (el) el.textContent = name(+look[k]); }); paint(); onChange && onChange(look); };
       rootEl.querySelectorAll('[data-lk]').forEach(b => b.onclick = () => {
         const k = b.dataset.lk;
@@ -58,7 +71,7 @@
     const p = P(); const short = Math.max(0, Math.round(it.price - p.money));
     const fx = (o.effects || []).filter(Boolean).join(' · ') || 'No effect';
     let btn;
-    if (o.state === 'cur') btn = `<span class="pill ok">${esc(o.curLabel)}</span>`;
+    if (o.state === 'cur') btn = `<span class="pill ok">${esc(o.curLabel)}</span>${o.unequip ? ` <button type="button" class="sm" data-uneq="${o.unequip}">Take off</button>` : ''}`;
     else if (o.state === 'owned') btn = `<button type="button" class="sm" data-${o.key || 'eq'}="${it.id}">${esc(o.useLabel)}</button>`;
     else if (short > 0) btn = `<button type="button" class="sm" disabled>Buy · ${money(it.price)}<span class="sub">${money(short)} short</span></button>`;
     else btn = `<button type="button" class="sm warn" data-buy${o.key}="${it.id}">Buy · ${money(it.price)}</button>`;
@@ -362,7 +375,7 @@
       bindFan();
       if (U.townMenu || U.fan || U.forceFan || !TOWN) return;
       const host = fullscreenHost();
-      U.town = TOWN.start({ host, look: p.look, kit: myKit(), fame: p.fame, carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week, teammates: S.teammates,
+      U.town = TOWN.start({ host, look: p.look, kit: myKit(), acc: myAcc(false), fame: p.fame, carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week, teammates: S.teammates,
         title: `${club().name} · week ${S.week}`, sub: energySub(),
         onMenu: () => { U.townMenu = true; render(); },
         onAction: worldAction,
@@ -400,18 +413,26 @@
   VIEWS.shop = () => {
     const p = P(); const tab = U.shopTab || 'boots';
     const items = D.SHOP[tab];
-    const cur = p[tab === 'boots' ? 'boots' : tab === 'outfits' ? 'outfit' : 'gear'];
-    const rows = items.map(it => itemCard(it, { key: '', state: it.id === cur ? 'cur' : p.owned.includes(it.id) ? 'owned' : 'buy', curLabel: 'Equipped', useLabel: 'Equip', effects: [it.charm ? `+${it.charm} charm` : '', it.train ? `+${it.train} training` : '', it.energy ? `+${it.energy} max energy` : ''] })).join('');
+    const isAcc = tab === 'accessories';
+    const cur = tab === 'kits' ? p.kit : isAcc ? null : p[tab === 'boots' ? 'boots' : tab === 'outfits' ? 'outfit' : 'gear'];
+    const rows = items.map(it => { const equipped = isAcc ? p.acc[it.slot] === it.id : it.id === cur;
+      return itemCard(it, { key: '', state: equipped ? 'cur' : p.owned.includes(it.id) ? 'owned' : 'buy', curLabel: isAcc ? 'Wearing' : 'Equipped', useLabel: isAcc ? 'Wear' : 'Equip', unequip: isAcc && equipped ? it.id : null,
+        effects: [it.charm ? `+${it.charm} charm` : '', it.train ? `+${it.train} training` : '', it.energy ? `+${it.energy} max energy` : '', isAcc ? `${it.slot}${it.pitch ? ' · pitch OK' : ' · town only'}` : '', tab === 'kits' && !it.club ? 'worn in town' : ''] }); }).join('');
+    const preview = `<div class="look"><canvas class="look-canvas" id="shop-preview" width="120" height="150"></canvas><div class="muted">This is how you look in town right now: kit, boots and accessories. Pitch-legal accessories show in matches too.</div></div>`;
     const html = `${toast()}<h2>🛍 Shopping Center</h2><div class="row"><span>Wallet: <span class="gold">${money(p.money)}</span></span><span class="muted">Boots and gear sharpen training. Outfits raise Charm, which pulls bigger clubs into the transfer window.</span></div>
-      <div class="choices"><button class="sm ${tab === 'boots' ? 'primary' : ''}" data-tab="boots">👟 Boots</button><button class="sm ${tab === 'outfits' ? 'primary' : ''}" data-tab="outfits">🧥 Outfits</button><button class="sm ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🏋 Fitness gear</button></div>
+      ${preview}
+      <div class="choices shoptabs"><button class="sm ${tab === 'boots' ? 'primary' : ''}" data-tab="boots">👟 Boots</button><button class="sm ${tab === 'outfits' ? 'primary' : ''}" data-tab="outfits">🧥 Outfits</button><button class="sm ${tab === 'kits' ? 'primary' : ''}" data-tab="kits">👕 Kits</button><button class="sm ${tab === 'accessories' ? 'primary' : ''}" data-tab="accessories">💍 Accessories</button><button class="sm ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🏋 Fitness gear</button></div>
       <div class="items">${rows}</div>
       ${maybeFanEncounter('shop')}`;
     const after = () => {
       bindFan();
       document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { U.shopTab = b.dataset.tab; render(); });
-      const key = tab === 'boots' ? 'boots' : tab === 'outfits' ? 'outfit' : 'gear';
-      document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const it = items.find(x => x.id === b.dataset.buy); p.money -= it.price; p.owned.push(it.id); p[key] = it.id; if (it.charm) p.charm = E.clamp(p.charm + it.charm, 0, 100); U.toast = `Bought ${esc(it.name)}.${it.charm ? ` Charm +${it.charm}.` : ''}`; if (A) A.sfx('cash'); render(); });
-      document.querySelectorAll('[data-eq]').forEach(b => b.onclick = () => { p[key] = b.dataset.eq; render(); });
+      const pv = $('#shop-preview'); if (pv) { const c = pv.getContext('2d'); c.imageSmoothingEnabled = false; SP.drawFigure(c, 60, 128, 5.2, p.look, myKit(), { number: 10, acc: myAcc(false) }); }
+      const key = tab === 'boots' ? 'boots' : tab === 'outfits' ? 'outfit' : tab === 'kits' ? 'kit' : 'gear';
+      const equip = it => { if (isAcc) p.acc[it.slot] = it.id; else p[key] = it.id; };
+      document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const it = items.find(x => x.id === b.dataset.buy); p.money -= it.price; p.owned.push(it.id); equip(it); if (it.charm) p.charm = E.clamp(p.charm + it.charm, 0, 100); U.toast = `Bought ${esc(it.name)}.${it.charm ? ` Charm +${it.charm}.` : ''}`; if (A) A.sfx('cash'); render(); });
+      document.querySelectorAll('[data-eq]').forEach(b => b.onclick = () => { equip(items.find(x => x.id === b.dataset.eq)); render(); });
+      document.querySelectorAll('[data-uneq]').forEach(b => b.onclick = () => { const it = items.find(x => x.id === b.dataset.uneq); delete p.acc[it.slot]; render(); });
     };
     return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }], after };
   };
@@ -627,7 +648,7 @@
       const introduced = new Set(); const say = (who, txt, cls, prio) => { const el = document.createElement('div'); el.innerHTML = scriptLine(who, txt, cls, 'arc' + S.week + '-' + (log.childElementCount)); log.prepend(el.firstChild); while (log.childElementCount > 6) log.lastElementChild.remove(); if (A) A.speak(who, txt, prio ? { priority: true } : undefined); };
       const nm = pl => pl ? (pl.isUser ? esc(pname()) : pl.team === 0 ? esc(mateRef({ name: pl.name, last: pl.last, pron: pl.pron || '' }, pl.pron ? introduced : null)) : `${esc(opp.name)}'s number ${pl.number}`) : 'someone';
       const starts = p.coach >= 35;
-      U.arcade = ARC.start({ host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
+      U.arcade = ARC.start({ host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
         secondsPerHalf: mode === 'highlights' ? 60 : 150, timeScale: U.testTimeScale || 1,
         onEvent: (type, d) => {
           if (type === 'kickoff') { say('John', `${fx.isHome ? esc(club().name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); if (A) A.sfx('kickoff'); }
