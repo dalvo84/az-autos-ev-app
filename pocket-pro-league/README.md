@@ -68,6 +68,8 @@ Chosen at the stadium before a match and remembered. It scales the opposition on
 
 Your player always runs a little quicker than the raw Pace number suggests, and the joystick reaches full speed at just over half deflection, so a controlled player feels responsive against AI at every level.
 
+Keepers have a reaction delay on your shots, and hard or well-placed strikes beat them more often, so around a third of shots from the edge of the box go in at Amateur. Attackers hold an offside line and cannot camp on the goal. Everyone kicks off in their own half. Teammates weight you heavily as a pass target, far more when you press PASS without the ball to call for it. As a goalkeeper you auto-position when the stick is idle, the camera follows play, and SKILL is a directional dive.
+
 If your coach popularity is under 35 you start on the bench and come on for the last third of the match. Under 15 you are not in the squad and can only sim the match.
 
 ## Open world
