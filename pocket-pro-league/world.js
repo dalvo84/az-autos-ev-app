@@ -12,11 +12,11 @@
       walls: [], solids: [R(60, 60, 150, 110), R(300, 40, 200, 120), R(40, 320, 220, 150), R(420, 280, 260, 200), R(740, 60, 180, 100)],
       decor: m => m.town(),
       doors: [
-        { x: 120, y: 166, w: 30, h: 12, to: 'house1', spawn: { x: 170, y: 250 }, label: 'HOME' },
-        { x: 385, y: 156, w: 30, h: 12, to: 'shop1', spawn: { x: 200, y: 270 }, label: 'SHOPPING CENTER' },
-        { x: 135, y: 310, w: 30, h: 12, to: 'training', spawn: { x: 200, y: 60 }, label: 'TRAINING GROUND' },
-        { x: 535, y: 270, w: 30, h: 12, to: 'stadium', spawn: { x: 180, y: 60 }, label: 'STADIUM' },
-        { x: 815, y: 156, w: 30, h: 12, to: 'agent', spawn: { x: 150, y: 220 }, label: "AGENT'S OFFICE" } ],
+        { x: 120, y: 168, w: 30, h: 14, to: 'house1', spawn: { x: 170, y: 250 }, label: 'HOME' },
+        { x: 385, y: 158, w: 30, h: 14, to: 'shop1', spawn: { x: 200, y: 270 }, label: 'SHOPPING CENTER' },
+        { x: 135, y: 308, w: 30, h: 14, to: 'training', spawn: { x: 200, y: 60 }, label: 'TRAINING GROUND' },
+        { x: 535, y: 268, w: 30, h: 14, to: 'stadium', spawn: { x: 180, y: 60 }, label: 'STADIUM' },
+        { x: 815, y: 158, w: 30, h: 14, to: 'agent', spawn: { x: 150, y: 220 }, label: "AGENT'S OFFICE" } ],
       hots: [ { x: 720, y: 330, w: 200, h: 150, label: 'Park kickabout', action: 'kickabout', hint: 'costs 20 energy, chance of +1 attribute' },
               { x: 610, y: 190, w: 40, h: 40, label: 'Bus stop', action: 'bus', hint: 'ride to the stadium' } ] },
     house1: { w: 360, h: 300, view: 230, floor: 'wood', title: 'Home · ground floor',
@@ -30,7 +30,7 @@
         { r: R(300, 100, 40, 70), c: '#8a6d3b', label: 'STAIRS', hot: { label: 'Go upstairs', action: 'map:house2:60:250' } },
         { r: R(230, 200, 60, 60), c: '#5a5a5a', label: 'GARAGE', hot: { label: 'Garage door', action: 'open:garage', hint: 'your cars' } },
         { r: R(120, 240, 40, 12), c: '#6b4a2b', label: '', hot: null } ],
-      doors: [ { x: 150, y: 286, w: 40, h: 14, to: 'town', spawn: { x: 135, y: 195 }, label: 'FRONT DOOR' } ] },
+      doors: [ { x: 150, y: 286, w: 40, h: 14, to: 'town', spawn: { x: 135, y: 200 }, label: 'FRONT DOOR' } ] },
     house2: { w: 360, h: 300, view: 230, floor: 'carpet', title: 'Home · upstairs',
       walls: [R(0, 0, 360, 14), R(0, 0, 10, 300), R(350, 0, 10, 300), R(0, 286, 360, 14), R(170, 120, 10, 180)],
       solids: [R(30, 30, 90, 60), R(200, 30, 60, 40), R(280, 30, 60, 60), R(40, 220, 60, 40), R(40, 230, 40, 60)],
@@ -49,7 +49,7 @@
         { r: R(280, 30, 110, 40), c: '#d9603a', label: 'OUTFITS', hot: { label: 'Outfit rail', action: 'open:shop:outfits', hint: 'raise your charm' } },
         { r: R(30, 200, 90, 50), c: '#6b4a2b', label: 'CAFÉ', hot: { label: 'Café counter', action: 'perk:coffee', hint: 'coffee: $25 for +6 energy' } },
         { r: R(340, 180, 50, 90), c: '#8f8f8f', label: 'ESCALATOR', hot: { label: 'Escalator up', action: 'map:shop2:330:250' } } ],
-      doors: [ { x: 180, y: 306, w: 50, h: 14, to: 'town', spawn: { x: 400, y: 185 }, label: 'EXIT' } ] },
+      doors: [ { x: 180, y: 306, w: 50, h: 14, to: 'town', spawn: { x: 400, y: 190 }, label: 'EXIT' } ] },
     shop2: { w: 420, h: 320, view: 240, floor: 'tile', title: 'Shopping Center · upstairs', npcs: 2,
       walls: [R(0, 0, 420, 14), R(0, 0, 10, 320), R(410, 0, 10, 320), R(0, 306, 420, 14)],
       solids: [R(30, 30, 120, 40), R(240, 30, 150, 60), R(30, 200, 100, 50), R(340, 180, 50, 90), R(180, 220, 60, 40)],
@@ -68,7 +68,7 @@
         { r: R(360, 40, 130, 70), c: '#c9a86a', label: "COACH'S OFFICE", hot: { label: "Coach's office", action: 'perk:coach', hint: 'a word with the coach, once a week' } },
         { r: R(360, 300, 130, 80), c: '#dfe4ea', label: 'PHYSIO', hot: { label: 'Physio room', action: 'perk:physio', hint: 'treatment: +10 energy, once a week' } },
         { r: R(60, 180, 240, 200), c: '#2f8f45', label: 'PITCH', pitch: true, hot: { label: 'Training pitch', action: 'open:training', hint: 'drills with the squad' } } ],
-      doors: [ { x: 180, y: 12, w: 40, h: 12, to: 'town', spawn: { x: 150, y: 330 }, label: 'GATE' } ] },
+      doors: [ { x: 180, y: 12, w: 40, h: 12, to: 'town', spawn: { x: 150, y: 296 }, label: 'GATE' } ] },
     stadium: { w: 480, h: 360, view: 250, floor: 'concrete', title: 'Stadium · tunnel', mates: true,
       walls: [R(0, 0, 480, 12), R(0, 0, 10, 360), R(470, 0, 10, 360), R(0, 348, 480, 12), R(240, 120, 10, 130)],
       solids: [R(30, 200, 180, 40), R(300, 40, 150, 60), R(300, 260, 150, 60)],
@@ -77,12 +77,12 @@
         { r: R(300, 40, 150, 60), c: '#f3c34f', label: 'PRESS ROOM', hot: { label: 'Press conference', action: 'perk:press', hint: 'talk to the media, once a week' } },
         { r: R(300, 260, 150, 60), c: '#c9a86a', label: 'TROPHY ROOM', hot: { label: 'Trophy room', action: 'open:career' } },
         { r: R(30, 300, 180, 40), c: '#2f8f45', label: 'TUNNEL → PITCH', hot: { label: 'Walk out to the pitch', action: 'open:stadium', hint: 'match day' } } ],
-      doors: [ { x: 160, y: 12, w: 50, h: 12, to: 'town', spawn: { x: 550, y: 300 }, label: 'EXIT' } ] },
+      doors: [ { x: 160, y: 12, w: 50, h: 12, to: 'town', spawn: { x: 550, y: 256 }, label: 'EXIT' } ] },
     agent: { w: 300, h: 260, view: 220, floor: 'carpet', title: "Agent's office",
       walls: [R(0, 0, 300, 14), R(0, 0, 10, 260), R(290, 0, 10, 260), R(0, 246, 300, 14)],
       solids: [R(90, 40, 120, 50)],
       furniture: [ { r: R(90, 40, 120, 50), c: '#c9a86a', label: 'DESK', hot: { label: 'Talk to your agent', action: 'open:contract', hint: 'contract, transfer window timing' } } ],
-      doors: [ { x: 130, y: 246, w: 40, h: 14, to: 'town', spawn: { x: 830, y: 180 }, label: 'EXIT' } ] },
+      doors: [ { x: 130, y: 246, w: 40, h: 14, to: 'town', spawn: { x: 830, y: 190 }, label: 'EXIT' } ] },
   };
 
   function start(opts) {
@@ -98,7 +98,7 @@
     let map = MAPS[opts.spawn && opts.spawn.map] || MAPS.town;
     const me = { x: opts.spawn ? opts.spawn.x : 260, y: opts.spawn ? opts.spawn.y : 240, fx: 0, fy: 1, step: 0, moving: false };
     const cam = { x: me.x, y: me.y };
-    let npcs = [], near = null, alive = true, raf = 0, last = performance.now(), crowdT = 0, transition = 0;
+    let npcs = [], near = null, alive = true, raf = 0, last = performance.now(), crowdT = 0, transition = 0, doorLock = true;
     const carColor = ['#8a8a8a', '#c0392b', '#2c3e50', '#111', '#f1c40f', '#e67e22', '#9b59b6'][opts.carIdx || 0];
     function spawnNpcs() {
       npcs = [];
@@ -106,7 +106,7 @@
       for (let i = 0; i < n; i++) npcs.push({ x: 40 + Math.random() * (map.w - 80), y: map.outside ? 190 + Math.random() * 120 : 40 + Math.random() * (map.h - 80), look: SP.randomLook(), kit: { shirt: `hsl(${Math.floor(Math.random() * 360)} 45% 45%)`, shorts: '#2b2b2b' }, tx: 0, ty: 0, wait: Math.random() * 2, step: 0, fan: map.outside && opts.fame >= 50 && i >= (map.npcs || 0), done: false });
       if (map.mates && opts.teammates) opts.teammates.slice(0, 6).forEach((t, i) => npcs.push({ x: 60 + i * 60, y: map.id === 'training' ? 250 : 160, look: t.look || SP.randomLook(), kit: opts.kit, tx: 0, ty: 0, wait: 1 + Math.random() * 3, step: 0, mate: true, name: t.last }));
     }
-    function setMap(id, x, y) { map = MAPS[id]; map.id = id; me.x = x; me.y = y; cam.x = x; cam.y = y; spawnNpcs(); transition = 0.35; titleEl.textContent = map.title || opts.title || ''; if (opts.onMap) opts.onMap(id); }
+    function setMap(id, x, y) { map = MAPS[id]; map.id = id; me.x = x; me.y = y; cam.x = x; cam.y = y; spawnNpcs(); transition = 0.35; doorLock = true; titleEl.textContent = map.title || opts.title || ''; if (opts.onMap) opts.onMap(id); }
     map.id = Object.keys(MAPS).find(k => MAPS[k] === map); spawnNpcs(); titleEl.textContent = map.title || opts.title || '';
     function resize() { const w = stage.clientWidth || window.innerWidth; const h = stage.clientHeight || window.innerHeight; const dpr = Math.min(2, window.devicePixelRatio || 1); canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; }
     window.addEventListener('resize', resize); resize();
@@ -124,11 +124,13 @@
     function update(dt) {
       transition = Math.max(0, transition - dt);
       const s = ctl.state; const sp = 95;
-      if (s.active && transition <= 0) { const mag = Math.hypot(s.x, s.y) || 1; const k = Math.min(1, mag / 0.55); const nx = me.x + s.x / mag * k * sp * dt, ny = me.y + s.y / mag * k * sp * dt; if (!blocked(nx, me.y)) me.x = nx; if (!blocked(me.x, ny)) me.y = ny; me.fx = s.x; me.fy = s.y; me.step += dt * 14; me.moving = true; } else me.moving = false;
+      if (s.active && transition <= 0) { const mag = Math.hypot(s.x, s.y) || 1; const k = Math.min(1, mag / 0.55); const nx = me.x + s.x / mag * k * sp * dt, ny = me.y + s.y / mag * k * sp * dt; const stuck = blocked(me.x, me.y); if (stuck || !blocked(nx, me.y)) me.x = nx; if (stuck || !blocked(me.x, ny)) me.y = ny; me.fx = s.x; me.fy = s.y; me.step += dt * 14; me.moving = true; } else me.moving = false;
       me.x = clamp(me.x, 8, map.w - 8); me.y = clamp(me.y, 16, map.h - 6);
       // doors: walking in travels
       near = null;
-      for (const d of map.doors || []) { if (inRect(me.x, me.y, d, 10)) { if (d.to && me.moving) { setMap(d.to, d.spawn.x, d.spawn.y); return; } near = { door: d, label: d.label }; } }
+      let onDoor = false;
+      for (const d of map.doors || []) { if (inRect(me.x, me.y, d, 10)) { onDoor = true; if (d.to && me.moving && !doorLock) { setMap(d.to, d.spawn.x, d.spawn.y); return; } near = { door: d, label: d.label }; } }
+      if (!onDoor) doorLock = false;
       if (!near) for (const f of map.furniture || []) { if (f.hot && inRect(me.x, me.y, f.r, 16)) { near = { hot: f.hot, label: f.hot.label }; break; } }
       if (!near) for (const h of map.hots || []) { if (inRect(me.x, me.y, h, 6)) { near = { hot: h, label: h.label }; break; } }
       prompt.hidden = !near; if (near) prompt.textContent = `ENTER · ${near.label}${near.hot && near.hot.hint ? ' — ' + near.hot.hint : ''}`;
