@@ -126,6 +126,26 @@
       }
       return best;
     }
+    function keeperDistribute(p) {
+      const gy = ownGoalY(p.team); const opps = teamOf(1 - p.team);
+      const mates = teamOf(p.team).filter(q => q !== p);
+      const space = q => { let m = 999; for (const o of opps) m = Math.min(m, dist(o, q)); return m; };
+      // short options: teammates within 260 with room around them
+      const shortOpts = mates.filter(q => dist(q, p) < 260 && space(q) > 45).sort((x, y) => space(y) - space(x));
+      if (shortOpts.length) { passTo(p, shortOpts[0], 1.0); return; }
+      // otherwise a long ball to the most open teammate up the pitch, dropped in front of them
+      const longOpts = mates.filter(q => Math.abs(q.y - gy) > 300).sort((x, y) => space(y) - space(x));
+      const q = longOpts[0] || mates.sort((x, y) => Math.abs(y.y - gy) - Math.abs(x.y - gy))[0];
+      passTo(p, q, 0.9, true);
+    }
+    function passTo(p, q, scale, long) {
+      const lead = 0.35; const tx = q.x + q.vx * lead, ty = q.y + q.vy * lead;
+      const d = Math.hypot(tx - p.x, ty - p.y);
+      const err = (100 - p.attrs.pas) * (long ? 0.6 : 0.4);
+      kick(p, tx - p.x + (rnd() - 0.5) * err, ty - p.y + (rnd() - 0.5) * err, clamp(d * 1.5 * scale, 150, long ? 360 : 320), long ? 150 : d > 220 ? 50 : 0, q);
+      ball.assist = p; ball.assistT = 0; st.teamPasses[p.team]++; if (q.isUser && !p.isUser) st.passesToUser++;
+      emit('pass', { p, q });
+    }
     function pass(p, aimx, aimy, useAim) {
       const q = bestPassTarget(p, aimx, aimy, useAim);
       if (!q) { kick(p, aimx || p.fx, aimy || p.fy, 220, 0); return; }
@@ -159,7 +179,11 @@
       const rank = byDist.indexOf(p);
       if (ownerTeam !== p.team) { // chase / press
         const og = ownGoalY(p.team); const danger = Math.abs(ball.y - og) < H * 0.36;
-        if (rank === 0 || (rank === 1 && ownerTeam === 1 - p.team)) { const o = ball.owner || ball; return { x: o.x, y: o.y, chase: true }; }
+        if (rank === 0 || (rank === 1 && ownerTeam === 1 - p.team)) {
+          const o = ball.owner || ball;
+          if (ball.owner && ball.owner.isGK) { const gy = ownGoalY(ball.owner.team); const standY = gy + (gy === 0 ? 150 : -150); return { x: clamp(o.x + (p.x < o.x ? -60 : 60), 40, W - 40), y: standY }; }
+          return { x: o.x, y: o.y, chase: true };
+        }
         if (danger && p.slot >= 1 && p.slot <= 4) { const o = ball.owner || ball; return { x: tx * 0.7 + o.x * 0.3, y: ty * 0.7 + o.y * 0.3 }; }
       } else if (ball.passTarget === p) return { x: ball.x + ball.vx * 0.3, y: ball.y + ball.vy * 0.3, chase: true };
       // make a run when your team attacks
@@ -186,7 +210,7 @@
       p.decide -= dt; if (p.decide > 0) return; p.decide = 0.18 + rnd() * 0.12;
       if (ball.owner !== p) return;
       const gy = goalY(p.team); const dG = Math.hypot(W / 2 - p.x, gy - p.y);
-      if (p.isGK) { if (p.hold === undefined) p.hold = 0.7; p.hold -= 0.25; if (p.hold <= 0) { p.hold = undefined; const q = bestPassTarget(p, 0, st.dir[p.team], true); if (q && dist(q, p) < 260) pass(p, 0, 0, false); else kick(p, (rnd() - 0.5) * 0.6, st.dir[p.team], 380, 120); } return; }
+      if (p.isGK) { if (p.hold === undefined) p.hold = 0.7; p.hold -= 0.25; if (p.hold <= 0) { p.hold = undefined; keeperDistribute(p); } return; }
       let minOpp = 999, nearest = null; for (const o of teamOf(1 - p.team)) { const d = dist(o, p); if (d < minOpp) { minOpp = d; nearest = o; } }
       const central = Math.abs(p.x - W / 2) < 170;
       const shotMul = p.team === 1 ? DF.aiShot : 0.75;
@@ -218,7 +242,7 @@
         if (ball.owner === user) { const power = clamp(held / 0.8, 0.25, 1); if (isGKUser) kick(user, aimx, aimy || st.dir[0], 330 + power * 150, 130); else shoot(user, power, s.active ? s.x * (st.dir[0] < 0 ? 1 : -1) : 0); }
         else if (!isGKUser) rate(0); // nothing
       }
-      if (id === 'pass') { if (ball.owner === user) pass(user, aimx, aimy, s.active); else { user.calling = 1.5; } }
+      if (id === 'pass') { if (ball.owner === user) { if (isGKUser && !s.active) keeperDistribute(user); else pass(user, aimx, aimy, s.active); } else { user.calling = 1.5; } }
       if (id === 'skill') {
         if (ball.owner === user && !isGKUser) { if (user.stamina > 20) { user.sprint = 0.9; user.stamina -= 20; } }
         else if (user.slide <= 0 && user.stun <= 0) { user.slide = isGKUser ? 0.4 : 0.45; user.sx = aimx; user.sy = aimy;
@@ -370,6 +394,7 @@
       taker.x = r.bx; taker.y = r.by; taker.vx = taker.vy = 0; taker.fx = r.bx < W / 2 ? 1 : -1; taker.fy = 0;
       ball.x = r.bx; ball.y = r.by; ball.z = 0; ball.vx = ball.vy = ball.vz = 0; ball.owner = taker; ball.lastTeam = r.toTeam; ball.passTarget = null; ball.assist = null; taker.cool = 0.2; taker.hold = 0.6;
       for (const o of teamOf(1 - r.toTeam)) { const d = dist(o, taker); if (d < 45) { const ang = Math.atan2(o.y - taker.y, o.x - taker.x); o.x = clamp(taker.x + Math.cos(ang) * 50, 6, W - 6); o.y = clamp(taker.y + Math.sin(ang) * 50, 6, H - 6); } }
+      if (r.type === 'GOAL KICK') { const gy = ownGoalY(r.toTeam); for (const o of teamOf(1 - r.toTeam)) { if (Math.abs(o.y - gy) < 200) o.y = gy + (gy === 0 ? 200 + rnd() * 40 : -200 - rnd() * 40); } }
       st.restart = null;
     }
 
