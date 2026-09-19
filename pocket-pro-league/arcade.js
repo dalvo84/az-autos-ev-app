@@ -189,11 +189,11 @@
       if (p.isGK) { if (p.hold === undefined) p.hold = 0.7; p.hold -= 0.25; if (p.hold <= 0) { p.hold = undefined; const q = bestPassTarget(p, 0, st.dir[p.team], true); if (q && dist(q, p) < 260) pass(p, 0, 0, false); else kick(p, (rnd() - 0.5) * 0.6, st.dir[p.team], 380, 120); } return; }
       let minOpp = 999, nearest = null; for (const o of teamOf(1 - p.team)) { const d = dist(o, p); if (d < minOpp) { minOpp = d; nearest = o; } }
       const central = Math.abs(p.x - W / 2) < 170;
-      const shotMul = p.team === 1 ? DF.aiShot : DF.mateQ;
+      const shotMul = p.team === 1 ? DF.aiShot : 0.75;
       if (dG < 95 && rnd() < 0.9) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.4); return; }
-      if (p.fresh && dG < 200 && Math.abs(p.x - W / 2) < 190 && rnd() < 0.55 * shotMul) { p.fresh = false; shoot(p, 0.6 + rnd() * 0.4, (rnd() - 0.5) * 1.2); return; }
+      if (p.fresh && dG < 200 && Math.abs(p.x - W / 2) < 190 && rnd() < 0.45 * shotMul) { p.fresh = false; shoot(p, 0.6 + rnd() * 0.4, (rnd() - 0.5) * 1.2); return; }
       p.fresh = false;
-      if (minOpp < 26 && dG < 230 && Math.abs(p.x - W / 2) < 190 && rnd() < 0.45 * shotMul) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.3); return; }
+      if (minOpp < 26 && dG < 230 && Math.abs(p.x - W / 2) < 190 && rnd() < 0.35 * shotMul) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.3); return; }
       if (dG < 210 && central) {
         let lane = true; for (const o of teamOf(1 - p.team)) { if (o.isGK) continue; const t = ((o.x - p.x) * (W / 2 - p.x) + (o.y - p.y) * (gy - p.y)) / (dG * dG); if (t > 0.05 && t < 0.9) { const lx = p.x + (W / 2 - p.x) * t, ly = p.y + (gy - p.y) * t; if (Math.hypot(o.x - lx, o.y - ly) < 14) lane = false; } }
         if (rnd() < ((lane ? 0.12 : 0.04) + (210 - dG) / 210 * 0.3 + (minOpp < 25 ? 0.1 : 0)) * shotMul) { shoot(p, 0.5 + rnd() * 0.5, (rnd() - 0.5) * 1.2); return; }
@@ -323,7 +323,8 @@
               const nearPost = Math.abs(ball.x - W / 2) > 42 ? 0.22 : 0;
               pr = clamp(0.5 + (taker.attrs.def - 55) * 0.005 - (sp - 350) * 0.0009 - nearPost - (ball.z > 30 ? 0.08 : 0), 0.08, 0.8);
             }
-            if (taker.team === 1) pr = clamp(pr * DF.gk, 0.08, 0.98);
+            if (taker.team === 1 && ball.lastKicker && ball.lastKicker.isUser) pr = clamp(pr * DF.gk, 0.08, 0.98);
+            else if (taker.team === 1) pr = clamp(pr * (0.85 + DF.gk * 0.15), 0.3, 0.98);
             if (taker.isUser && taker.slide > 0) pr = clamp(pr + 0.2, 0, 0.97);
             if (rnd() < pr) { ball.owner = taker; taker.cool = 0.1; st.gkSaves[taker.team]++; if (taker.isUser) { st.user.saves++; rate(0.5); } emit('save', { p: taker, big: sp > 520 }); ball.vx = ball.vy = 0; ball.passTarget = null; ball.assist = null; taker.hold = 0.8; }
             else { taker.cool = 0.4; ball.vy = -ball.vy * 0.45; ball.vx = ball.vx * 0.3 + (rnd() - 0.5) * 220; ball.vz = 110; emit('save', { p: taker, big: true, parry: true }); } // parried away
