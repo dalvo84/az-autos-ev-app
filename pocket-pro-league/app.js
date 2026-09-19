@@ -17,8 +17,53 @@
   const mateRef = (m, introduced) => { if (introduced && !introduced.has(m.name)) { introduced.add(m.name); return `${m.last} (${m.pron})`; } return m.last; };
   const dispW = s => [...s].reduce((n, ch) => n + (ch.codePointAt(0) > 0xFFFF || /[\u2600-\u27BF]/.test(ch) ? 2 : 1), 0);
   const fit = (s, w) => { let out = ''; for (const ch of [...s]) { if (dispW(out + ch) > w) break; out += ch; } return out + ' '.repeat(Math.max(0, w - dispW(out))); };
-  const save = () => { try { if (S) localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } };
+  // ---------- saving: this browser (localStorage) plus the artifact's per-user cloud store when available ----------
+  const cloud = { ref: null, status: 'checking', lastSync: 0, busy: false, dirty: false, remote: null, error: null };
+  const saveLocal = () => { try { if (S) localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } };
   const load = () => { try { const j = localStorage.getItem(SAVE_KEY); return j ? JSON.parse(j) : null; } catch (e) { return null; } };
+  const save = () => { if (!S) return; S.savedAt = Date.now(); saveLocal(); cloudSave(); };
+  async function cloudSave() {
+    if (!cloud.ref || !S) return;
+    if (cloud.busy) { cloud.dirty = true; return; }
+    cloud.busy = true; cloud.dirty = false;
+    try {
+      const body = JSON.parse(JSON.stringify(S));
+      if (JSON.stringify(body).length > 240000) throw new Error('save too large for cloud');
+      await cloud.ref.set(body);
+      cloud.status = 'on'; cloud.lastSync = Date.now(); cloud.error = null;
+    } catch (e) { cloud.status = 'error'; cloud.error = e && (e.code || e.message) || 'unknown'; }
+    cloud.busy = false;
+    if (cloud.dirty) { cloud.dirty = false; setTimeout(cloudSave, 400); }
+    else if (U.screen === 'menu') render();
+  }
+  async function cloudInit() {
+    try {
+      if (!(window.claude && typeof window.claude.use === 'function')) { cloud.status = 'off'; return; }
+      const [user, db] = await Promise.all([window.claude.use('user'), window.claude.use('db')]);
+      const uid = user && await user.id();
+      if (!db || !uid) { cloud.status = 'off'; return; }
+      cloud.ref = db.doc('data/users/' + uid + '/career');
+      const snap = await cloud.ref.get();
+      if (snap.exists) {
+        const remote = snap.data();
+        const local = load();
+        // the newer of the two wins; the cloud copy is what follows you between devices
+        if (!local || (remote.savedAt || 0) >= (local.savedAt || 0)) { cloud.remote = remote; try { localStorage.setItem(SAVE_KEY, JSON.stringify(remote)); } catch (e) { /* ignore */ } }
+        cloud.lastSync = remote.savedAt || Date.now();
+      }
+      cloud.status = 'on';
+      if (S && !cloud.remote) cloudSave(); // a career started before the cloud answered gets backed up now
+    } catch (e) { cloud.status = 'error'; cloud.error = e && (e.code || e.message) || 'unknown'; }
+    if (U.screen === 'menu') render();
+  }
+  cloudInit();
+  function cloudLine() {
+    const ago = cloud.lastSync ? Math.max(0, Math.round((Date.now() - cloud.lastSync) / 60000)) : null;
+    if (cloud.status === 'on') return `<span class="green">☁ Cloud save on</span>${ago !== null ? ` · synced ${ago < 1 ? 'just now' : ago + ' min ago'}` : ''}. Your career follows your account across devices.`;
+    if (cloud.status === 'checking') return '☁ Checking cloud save…';
+    if (cloud.status === 'error') return `<span class="red">☁ Cloud save failed (${esc(String(cloud.error))})</span>. Progress is still kept in this browser.`;
+    return '☁ Cloud save unavailable here. Progress is kept in this browser only.';
+  }
   const formIcon = () => { const f = P().formHist || []; if (f.length < 2) return '📈'; const last = f.slice(-3), prev = f.slice(-6, -3); const a = arr => arr.reduce((x, y) => x + y, 0) / (arr.length || 1); return prev.length ? (a(last) >= a(prev) ? '📈' : '📉') : (a(last) >= 6.5 ? '📈' : '📉'); };
   const attrLabel = a => (P().pos === 'GK' ? D.GK_ATTR_LABELS : D.ATTR_LABELS)[a];
   const starts = () => P().coach >= 35;
@@ -168,8 +213,9 @@
 |_|    \\___/ \\____|_|\\_\\_____| |_|   |_|   |_| \\_\\\\___/
             L E A G U E   ·   C A R E E R   M O D E</pre>
       <p>A deep-sim football RPG. Start at sixteen in a regional academy final, get scouted, and climb from the Championship to the elite leagues of Europe. Every choice on the pitch feeds your rating, your coach, your fans and your bank balance.</p>
-      ${saved ? `<div class="card hl"><h3>Saved career</h3><div>${esc(saved.player.name)} · ${esc(saved.player.pos)} · OVR ${saved.player.ovr} · Week ${saved.week} · ${esc(saved.player.contract.club)}</div></div>` : '<p class="muted">No saved career on this device yet.</p>'}
-      <p class="muted">Progress autosaves in this browser after every screen. ${A && A.hasSpeech() ? 'John and Ally speak through your browser\'s voices, with crowd noise and whistles synthesised live. Toggle with the sound button at the top.' : 'This browser has no speech voices, so commentary is text only. Crowd and whistle effects still play.'}</p>`;
+      ${saved ? `<div class="card hl"><h3>Saved career</h3><div>${esc(saved.player.name)} · ${esc(saved.player.pos)} · OVR ${saved.player.ovr} · Week ${saved.week} · ${esc(saved.player.contract.club)}</div><div class="muted">${saved.savedAt ? 'Last saved ' + new Date(saved.savedAt).toLocaleString() : ''}</div></div>` : '<p class="muted">No saved career yet.</p>'}
+      <p class="muted">${cloudLine()}</p>
+      <p class="muted">Progress autosaves after every screen. ${A && A.hasSpeech() ? 'John and Ally speak through your browser\'s voices, with crowd noise and whistles synthesised live. Toggle with the sound button at the top.' : 'This browser has no speech voices, so commentary is text only. Crowd and whistle effects still play.'}</p>`;
     const actions = [];
     if (saved) actions.push({ label: '▶ Continue career', cls: 'primary', fn: () => { S = saved; U = { screen: S.phase }; render(); } });
     actions.push({ label: '✚ New career', cls: saved ? 'warn' : 'primary', fn: () => { S = null; U = { screen: 'intro' }; render(); } });
