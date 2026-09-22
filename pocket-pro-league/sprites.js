@@ -55,23 +55,29 @@
     const wide = look.build === 2 ? 1 : 0, slim = look.build === 0 ? 1 : 0;
     const px = (bx, by, bw, bh, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x + bx * u), Math.round(y + by * u), Math.ceil(bw * u), Math.ceil(bh * u)); };
     const bob = o.step ? Math.round(Math.sin(o.step) * 1) : 0;
+    const cheer = o.pose === 'cheer', kneel = o.pose === 'kneel', suit = o.pose === 'suit' || o.suit;
     // shadow
     ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y + 0.5 * u, 4.5 * u, 1.6 * u, 0, 0, Math.PI * 2); ctx.fill();
-    const top = -18 + (o.slide ? 6 : 0);
+    const top = -18 + (o.slide ? 6 : 0) + (kneel ? 5 : 0);
     // legs (animated)
     const lp = o.step ? Math.sin(o.step) * 1.2 : 0;
-    px(-3 + lp, top + 13, 2 + wide, 3.5, skin); px(1 - lp, top + 13, 2 + wide, 3.5, skin);
-    px(-3.5 + lp, top + 16, 3 + wide, 1.6, boots); px(0.6 - lp, top + 16, 3 + wide, 1.6, boots);
+    if (kneel) { px(-5, top + 12, 4 + wide, 2.2, skin); px(2, top + 12.5, 4 + wide, 2, skin); px(-6, top + 13.6, 2.5, 1.5, boots); px(5.5 + wide, top + 13.6, 2.5, 1.5, boots); }
+    else if (suit) { px(-3 + lp, top + 13, 2 + wide, 3.5, '#1c1c24'); px(1 - lp, top + 13, 2 + wide, 3.5, '#1c1c24'); px(-3.5 + lp, top + 16, 3 + wide, 1.6, '#111'); px(0.6 - lp, top + 16, 3 + wide, 1.6, '#111'); }
+    else { px(-3 + lp, top + 13, 2 + wide, 3.5, skin); px(1 - lp, top + 13, 2 + wide, 3.5, skin);
+    px(-3.5 + lp, top + 16, 3 + wide, 1.6, boots); px(0.6 - lp, top + 16, 3 + wide, 1.6, boots); }
     // shorts and shirt
-    px(-4 - wide + slim * 0.5, top + 10, 8 + wide * 2 - slim, 3.4, kit.shorts);
-    px(-4 - wide + slim * 0.5, top + 5 + bob, 8 + wide * 2 - slim, 5.4, kit.shirt);
+    px(-4 - wide + slim * 0.5, top + 10, 8 + wide * 2 - slim, 3.4, suit ? '#1c1c24' : kit.shorts);
+    px(-4 - wide + slim * 0.5, top + 5 + bob, 8 + wide * 2 - slim, 5.4, suit ? '#23233a' : kit.shirt);
+    if (suit) { px(-1, top + 5 + bob, 2, 5, '#f4f4f4'); px(-0.5, top + 5.6 + bob, 1, 3.6, o.tie || '#b3261e'); }
     if (kit.pattern === 'stripes' && kit.shirt2) { for (let i = -3 - wide; i < 4 + wide; i += 2) px(i + slim * 0.5, top + 5 + bob, 1, 5.4, kit.shirt2); }
     else if (kit.pattern === 'hoops' && kit.shirt2) { px(-4 - wide + slim * 0.5, top + 6.4 + bob, 8 + wide * 2 - slim, 1, kit.shirt2); px(-4 - wide + slim * 0.5, top + 8.6 + bob, 8 + wide * 2 - slim, 1, kit.shirt2); }
     else if (kit.pattern === 'sash' && kit.shirt2) { for (let i = 0; i < 5; i++) px(-3.5 + i * 1.5 - wide, top + 5 + i * 1.05 + bob, 1.6, 1.1, kit.shirt2); }
     if (o.number !== undefined) { ctx.fillStyle = kit.shirt === '#ffffff' || kit.shirt === '#f4f4f4' ? '#222' : '#fff'; ctx.font = `bold ${Math.max(6, 3.2 * u)}px monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(o.number), x, y + (top + 8 + bob) * u); }
-    // arms
-    px(-5.5 - wide, top + 5.5 + bob, 1.6, 4, kit.shirt); px(3.9 + wide, top + 5.5 + bob, 1.6, 4, kit.shirt);
-    px(-5.5 - wide, top + 9.3 + bob, 1.6, 1.4, skin); px(3.9 + wide, top + 9.3 + bob, 1.6, 1.4, skin);
+    // arms (up when cheering)
+    const armC = suit ? '#23233a' : kit.shirt;
+    if (cheer) { px(-5.5 - wide, top + 0.5 + bob, 1.6, 5, armC); px(3.9 + wide, top + 0.5 + bob, 1.6, 5, armC); px(-5.5 - wide, top - 1 + bob, 1.6, 1.5, skin); px(3.9 + wide, top - 1 + bob, 1.6, 1.5, skin); }
+    else { px(-5.5 - wide, top + 5.5 + bob, 1.6, 4, armC); px(3.9 + wide, top + 5.5 + bob, 1.6, 4, armC);
+    px(-5.5 - wide, top + 9.3 + bob, 1.6, 1.4, skin); px(3.9 + wide, top + 9.3 + bob, 1.6, 1.4, skin); }
     // head
     px(-3, top + bob, 6, 5.4, skin);
     if (look.beard) px(-2.4, top + 3.9 + bob, 4.8, 1.5, hairC);
@@ -103,6 +109,17 @@
     if (acc.head && acc.head.type === 'cap') { px(-3.4, top - 1.6 + bob, 6.8, 2.4, col(acc.head)); px(1.5, top + 0.4 + bob, 4, 1, col(acc.head)); }
   }
 
-  root.PPL_SPRITES = { SKIN, HAIR_COLORS, HAIR_STYLES, BOOTS, BUILDS, randomLook, defaultLook, kitsFor, baseKit, drawFigure };
+  function drawTrophy(ctx, x, y, u, kind) {
+    const px = (bx, by, bw, bh, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x + bx * u), Math.round(y + by * u), Math.ceil(bw * u), Math.ceil(bh * u)); };
+    if (kind === 'ball') { ctx.fillStyle = '#f3c34f'; ctx.beginPath(); ctx.arc(x, y - 6 * u, 5 * u, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#c9962b'; ctx.beginPath(); ctx.arc(x + 1.5 * u, y - 4.5 * u, 2 * u, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff6c9'; ctx.fillRect(x - 3 * u, y - 9 * u, 1.5 * u, 1.5 * u); px(-4, 0, 8, 2, '#3a3a3a'); return; }
+    if (kind === 'boot') { px(-5, -4, 7, 4, '#f3c34f'); px(-6, -1, 11, 2.5, '#c9962b'); px(-2, -6, 4, 2, '#f3c34f'); px(-4, 1.5, 9, 1.5, '#3a3a3a'); return; }
+    if (kind === 'plaque') { px(-6, -10, 12, 12, '#2c3e50'); px(-5, -9, 10, 10, '#f3c34f'); px(-3, -6, 6, 1, '#2c3e50'); px(-3, -4, 6, 1, '#2c3e50'); return; }
+    // cup
+    px(-5, -12, 10, 6, '#f3c34f'); px(-6, -13, 12, 2, '#ffe08a'); px(-3, -6, 6, 3, '#f3c34f'); px(-1.5, -3, 3, 2, '#f3c34f'); px(-4, -1, 8, 2, '#3a3a3a');
+    px(-8, -11, 2, 4, '#f3c34f'); px(6, -11, 2, 4, '#f3c34f'); px(-8, -7, 3, 1.2, '#f3c34f'); px(5, -7, 3, 1.2, '#f3c34f');
+    px(-3, -11, 1.2, 3, '#fff6c9');
+  }
+
+  root.PPL_SPRITES = { drawTrophy, SKIN, HAIR_COLORS, HAIR_STYLES, BOOTS, BUILDS, randomLook, defaultLook, kitsFor, baseKit, drawFigure };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PPL_SPRITES;
 })(typeof window !== 'undefined' ? window : globalThis);

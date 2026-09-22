@@ -1,7 +1,7 @@
 /* Pocket Pro League — UI & flow */
 (function () {
   'use strict';
-  const D = window.PPL_DATA, E = window.PPL, A = window.PPL_AUDIO, SP = window.PPL_SPRITES, ARC = window.PPL_ARCADE, TOWN = window.PPL_TOWN;
+  const D = window.PPL_DATA, E = window.PPL, A = window.PPL_AUDIO, SP = window.PPL_SPRITES, ARC = window.PPL_ARCADE, TOWN = window.PPL_TOWN, CUT = window.PPL_CUT;
   const $ = s => document.querySelector(s);
   const SAVE_KEY = 'ppl_save_v1';
   let S = null;             // persistent game state
@@ -155,9 +155,32 @@
   function stopScenes() {
     if (U.arcade) { U.arcade.destroy(); U.arcade = null; }
     if (U.town) { U.townPos = U.town.pos(); U.town.destroy(); U.town = null; }
+    if (U.cut) { const c = U.cut; U.cut = null; c.end(); }
     document.body.classList.remove('has-scene');
     const sr = $('#scene-root'); if (sr) sr.remove();
     try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) { /* ignore */ }
+  }
+  // ---------- cutscenes ----------
+  function cutData(extra) { const p = P(); return Object.assign({ look: p.look, kit: clubKit(), acc: myAcc(false), name: pname(), club: S.clubIdx >= 0 ? club().name : 'Riverside Academy', mates: S.teammates }, extra || {}); }
+  // Plays a cutscene full screen, then calls done. Skippable. Falls through if the module is missing.
+  function playCut(type, data, done) {
+    if (!CUT || !CUT.SCENES[type]) { done && done(); return; }
+    stopScenes();
+    const host = fullscreenHost(); host.classList.add('cut-host');
+    let finished = false;
+    const finish = () => { if (finished) return; finished = true; U.cut = null; if (A) A.stopSpeech(); const sr = $('#scene-root'); if (sr) sr.remove(); document.body.classList.remove('has-scene'); done && done(); };
+    U.cut = CUT.play(host, CUT.SCENES[type](data), { onDone: finish, speak: (who, text) => { if (A && (who === 'John' || who === 'Ally')) A.speak(who, esc(text), { priority: true }); }, sfx: n => { if (A) A.sfx(n); } });
+  }
+  function playCuts(list, done) { const next = () => { const c = list.shift(); if (!c) { done && done(); return; } playCut(c.type, c.data, next); }; next(); }
+  // Season awards: computed from the season just finished
+  function computeAwards(s) {
+    const p = P(); const avg = E.formAvg(p); const ga = s.goals + s.assists; const tier = lg().tier; const att = ['ST', 'LW', 'RW', 'CAM'].includes(p.pos);
+    const out = [];
+    if (s.apps >= 15 && s.goals >= Math.max(12, Math.round(s.apps * 0.4))) out.push({ kind: 'goldenboot', name: 'Golden Boot', fame: 5, fans: 4, line: `${s.goals} goals in ${s.apps} games. Nobody else came close.`, stats: `${s.goals} goals, ${s.assists} assists.` });
+    if (s.apps >= 15 && s.age <= 21 && avg >= 6.9) out.push({ kind: 'ypoty', name: 'Young Player of the Year', fame: 6, fans: 5, line: `${s.age} years old and already the best young player in the ${lg().name}.`, stats: `Average rating ${avg.toFixed(1)} across ${s.apps} games.` });
+    if (s.apps >= 15 && (avg >= 7.4 || (avg >= 7.1 && ga >= 12))) out.push({ kind: 'poty', name: `${lg().name} Player of the Year`, fame: 8, fans: 6, line: 'The best player in the league this season. Nobody argued.', stats: `Average rating ${avg.toFixed(1)}, ${s.goals} goals, ${s.assists} assists, ${s.motm} player of the match awards.` });
+    if (s.apps >= 20 && tier >= 4 && s.finish <= 3 && (att ? (avg >= 7.6 && ga >= 20) : avg >= 7.8)) out.push({ kind: 'ballondor', name: "Ballon d'Or", fame: 15, fans: 10, charm: 5, line: 'The best footballer on the planet. From a regional academy final to this.', stats: `${s.goals} goals, ${s.assists} assists, ${s.finish === 1 ? 'a league title' : 'a top-three finish'}, rating ${avg.toFixed(1)}.` });
+    return out;
   }
   function fullscreenHost() {
     let host = $('#scene-root');
@@ -328,7 +351,8 @@
       </div>
       <div class="cards">${cards}</div>`;
     const actions = U.offers.map(o => ({ label: `✍ Sign for ${esc(o.clubName)}`, cls: 'primary', sub: `${esc(o.leagueName)} · ${money(o.wage)}/wk`, fn: () => {
-      E.acceptOffer(S, o); U.offers = null; S.phase = 'hub'; U.screen = 'hub'; U.welcome = true; render();
+      E.acceptOffer(S, o); U.offers = null; S.phase = 'hub'; U.welcome = true; save();
+      playCut('contract', cutData({ money: money(o.wage), weeks: o.weeks, role: o.role }), () => { U.screen = 'hub'; render(); });
     } }));
     return { html, actions };
   };
@@ -526,6 +550,7 @@
     const html = `<h2>📈 Career</h2>
       <div class="cards"><div class="card"><h3>This season</h3><div class="kv"><span class="k">Apps</span><span>${p.apps}</span><span class="k">Goals</span><span>${p.goals}</span><span class="k">Assists</span><span>${p.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${p.saves}</span>` : ''}<span class="k">MOTM</span><span>${p.motm}</span><span class="k">Form (avg)</span><span>${E.formAvg(p).toFixed(2)}</span></div></div>
       <div class="card"><h3>Attributes · OVR ${p.ovr}</h3>${E.ATTRS.map(a => bar(attrLabel(a), p.attrs[a])).join('')}</div></div>
+      ${S.honours && S.honours.length ? `<div class="card hl"><h3>Honours</h3>${S.honours.map(h => `<div>🏆 ${esc(h.name)} <span class="muted">· season ${h.season} · ${esc(h.club)}</span></div>`).join('')}</div>` : ''}
       ${hist ? `<h3>Past seasons</h3><div class="tablewrap"><table><thead><tr><th>S</th><th>Club</th><th>League</th><th class="n">Fin</th><th class="n">Apps</th><th class="n">G</th><th class="n">A</th><th class="n">MOTM</th><th class="n">OVR</th></tr></thead><tbody>${hist}</tbody></table></div>` : '<p class="muted">No completed seasons yet.</p>'}`;
     return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }] };
   };
@@ -690,15 +715,20 @@
     const html = `<p class="muted">Match in progress in full screen.</p><div class="script" id="arc-log"></div>`;
     const abandon = () => { const m = E.buildMatch(S, 'quick'); m.introduced = new Set(); m.timeline = buildTimeline(m); m.pos = 0; m.shown = []; advance(m, true); U.match = m; finish(); };
     const after = () => {
-      const host = fullscreenHost(); const log = document.createElement('div'); log.className = 'script arc-log'; host.appendChild(log);
-      const introduced = new Set(); const say = (who, txt, cls, prio) => { const el = document.createElement('div'); el.innerHTML = scriptLine(who, txt, cls, 'arc' + S.week + '-' + (log.childElementCount)); log.prepend(el.firstChild); while (log.childElementCount > 6) log.lastElementChild.remove(); if (A) A.speak(who, txt, prio ? { priority: true } : undefined); };
+      const host = fullscreenHost(); let logEl = document.createElement('div'); logEl.className = 'script arc-log'; host.appendChild(logEl);
+      const introduced = new Set(); const say = (who, txt, cls, prio) => { const log = logEl; const el = document.createElement('div'); el.innerHTML = scriptLine(who, txt, cls, 'arc' + S.week + '-' + (log.childElementCount)); log.prepend(el.firstChild); while (log.childElementCount > 6) log.lastElementChild.remove(); if (A) A.speak(who, txt, prio ? { priority: true } : undefined); };
       const nm = pl => pl ? (pl.isUser ? esc(pname()) : pl.team === 0 ? esc(mateRef({ name: pl.name, last: pl.last, pron: pl.pron || '' }, pl.pron ? introduced : null)) : `${esc(opp.name)}'s number ${pl.number}`) : 'someone';
       const starts = p.coach >= 35;
-      U.arcade = ARC.start({ host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
+      const startMatch = () => { U.arcade = ARC.start(arcOpts); };
+      const arcOpts = { host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
         secondsPerHalf: mode === 'highlights' ? 60 : 150, timeScale: U.testTimeScale || 1,
         onEvent: (type, d) => {
           if (type === 'kickoff') { say('John', `${fx.isHome ? esc(club().name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); if (A) A.sfx('kickoff'); }
-          else if (type === 'goal') { const us = d.team === 0; say(us ? 'Ally' : 'John', us ? `GOAL! ${nm(d.scorer)} scores${d.assist ? `, set up by ${nm(d.assist)}` : ''}! ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}.` : `Goal for ${esc(opp.name)}. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}.`, us ? 'goal' : 'bad', true); if (A) A.sfx(us ? 'goal' : 'bad'); }
+          else if (type === 'goal') { const us = d.team === 0;
+            if (us && d.hattrick) say('Ally', `HAT-TRICK! ${nm(d.scorer)} has three! ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}. Take the match ball home!`, 'goal', true);
+            else if (us && d.late) say('Ally', `${d.minute} minutes gone and ${nm(d.scorer)} SCORES! ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}! The place has gone absolutely wild!`, 'goal', true);
+            else say(us ? 'Ally' : 'John', us ? `GOAL! ${nm(d.scorer)} scores${d.assist ? `, set up by ${nm(d.assist)}` : ''}! ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}.` : `Goal for ${esc(opp.name)}. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}.`, us ? 'goal' : 'bad', true);
+            if (A) { A.sfx(us ? 'goal' : 'bad'); if (us && d.big) setTimeout(() => A.sfx('chant'), 900); } }
           else if (type === 'save' && d.big) { say('Ally', d.p.team === 0 ? `What a save by ${d.p.isUser ? esc(pname()) : 'the keeper'}!` : 'Great save by their keeper. So close.', d.p.team === 0 ? 'goal' : 'bad'); if (A) A.sfx('save'); }
           else if (type === 'shot' && d.p.isUser) { if (!d.onTarget) say('John', `${esc(pname())} lets fly... wide.`, 'bad'); }
           else if (type === 'tackle') { say('John', `Big tackle from ${esc(pname())}!`, 'goal'); }
@@ -711,7 +741,9 @@
         onEnd: res => {
           const m = { fx, opp, club: club(), mode, score: res.score, rating: res.rating, goals: res.goals, assists: res.assists, saves: res.saves, keys: res.keys, unused: !res.played, starts, teamDiff: club().str - opp.str, shown: [], log: [], arcade: res };
           U.arcade = null; U.result = E.finishMatch(S, m); U.resultMatch = m; S.phase = 'hub'; go('result');
-        } });
+        } };
+      if (p.apps === 0 && !S.flags.debutShown) { S.flags.debutShown = true; save(); playCut('debut', cutData({ club: club().name }), () => { const h = fullscreenHost(); arcOpts.host = h; const lg2 = document.createElement('div'); lg2.className = 'script arc-log'; h.appendChild(lg2); logEl = lg2; startMatch(); }); }
+      else startMatch();
     };
     return { html, actions: [{ label: '⏹ Abandon match', cls: 'danger', sub: 'Counts as a quick sim', fn: abandon }], after };
   };
@@ -731,7 +763,10 @@
       ${ch.motm ? `<div class="script">${scriptLine('Ally', `Player of the match, no argument: <b>${esc(p.name)}</b> (${esc(p.pron)}). Remember the pronunciation, John.`)}${scriptLine('John', 'Noted. Again.')}</div>` : ''}
       <div class="card"><h3>${esc(lg().name)} · top of the table</h3><div class="tablewrap"><table><tbody>${st.slice(0, 5).map((r, i) => `<tr class="${r.idx === S.clubIdx ? 'me' : ''}"><td class="n">${i + 1}</td><td>${esc(r.club.name)}</td><td class="n">${r.p}</td><td class="n">${r.pts}</td></tr>`).join('')}${myPos > 5 ? `<tr class="me"><td class="n">${myPos}</td><td>${esc(club().name)}</td><td class="n">${lg().table[S.clubIdx].p}</td><td class="n">${lg().table[S.clubIdx].pts}</td></tr>` : ''}</tbody></table></div></div>
       ${S.flags.transferWindow ? '<div class="notice">📋 The transfer window opens this week.</div>' : ''}${S.flags.seasonEnd ? '<div class="notice">🏁 That was the final round of the season.</div>' : ''}`;
-    return { html, actions: [{ label: '▶ Continue', cls: 'primary', fn: () => { U.match = null; U.resultMatch = null; U.result = null; go('hub'); } }], after: () => { if (A && ch.motm) A.sfx('chant'); } };
+    return { html, actions: [{ label: '▶ Continue', cls: 'primary', fn: () => { U.match = null; U.resultMatch = null; U.result = null; U.motmCut = false; go('hub'); } }], after: () => {
+      if (ch.motm && !U.motmCut) { U.motmCut = true; playCut('award', cutData({ kind: 'motm', club: club().name, stats: `${m.goals} goals, ${m.assists} assists, rated ${ch.rating.toFixed(1)} against ${m.opp.name}.` }), () => { if (A) A.sfx('chant'); }); }
+      else if (A && ch.motm) A.sfx('chant');
+    } };
   };
 
   // ---- PHASE 4: transfer window ----
@@ -748,23 +783,36 @@
       <p>OVR ${p.ovr}, form ${E.formAvg(p).toFixed(1)}, charm ${p.charm}. ${p.charm >= 40 ? 'Your profile is pulling bigger clubs in.' : 'More charm would tempt bigger clubs.'} ${expired ? '<span class="red">Your contract has expired: you must sign somewhere.</span>' : `${p.contract.weeksLeft} weeks left on your current deal.`}</p>
       <div class="cards">${cards}</div>`;
     const actions = U.offers.map(o => ({ label: `✍ ${o.kind === 'renewal' ? 'Renew with' : 'Join'} ${esc(o.clubName)}`, cls: 'primary', sub: `${money(o.wage + o.imageRights)}/wk · ${esc(o.role)}`, fn: () => {
-      E.acceptOffer(S, o); p.contract.wage = o.wage + o.imageRights; U.offers = null; S.flags.transferWindow = false; U.welcome = o.kind !== 'renewal'; U.toast = o.kind === 'renewal' ? `New deal signed at ${esc(o.clubName)}.` : null; go('hub'); } }));
+      E.acceptOffer(S, o); p.contract.wage = o.wage + o.imageRights; U.offers = null; S.flags.transferWindow = false; U.welcome = o.kind !== 'renewal'; U.toast = o.kind === 'renewal' ? `New deal signed at ${esc(o.clubName)}.` : null; save();
+      playCut('contract', cutData({ money: money(o.wage + o.imageRights), weeks: o.weeks, role: o.role }), () => go('hub')); } }));
     actions.push({ label: '✋ Decline all offers', cls: 'warn', disabled: expired, sub: expired ? 'Contract expired' : 'Stay on current terms', fn: () => { U.offers = null; S.flags.transferWindow = false; U.toast = 'You stay put. The agent sighs audibly.'; go('hub'); } });
     return { html, actions };
   };
 
   VIEWS.season = () => {
-    if (!U.summary) U.summary = E.seasonRollover(S);
+    if (!U.summary) {
+      const lgName = lg().name; const awards = computeAwards({ age: P().age, apps: P().apps, goals: P().goals, assists: P().assists, motm: P().motm, finish: E.standings(lg()).findIndex(r => r.idx === S.clubIdx) + 1 });
+      U.summary = E.seasonRollover(S);
+      U.summary.awards = awards; U.summary.leagueName = lgName;
+      S.honours = S.honours || [];
+      if (U.summary.finish === 1) S.honours.push({ season: U.summary.season, name: `${lgName} champion`, club: U.summary.club });
+      awards.forEach(w => { const p = P(); p.fame = E.clamp(p.fame + w.fame, 0, 100); p.fans = E.clamp(p.fans + w.fans, 0, 100); if (w.charm) p.charm = E.clamp(p.charm + w.charm, 0, 100); S.honours.push({ season: U.summary.season, name: w.name, club: U.summary.club }); });
+      const cuts = [];
+      if (U.summary.finish === 1) cuts.push({ type: 'trophy', data: cutData({ league: lgName, club: U.summary.club }) });
+      awards.forEach(w => cuts.push({ type: 'award', data: cutData({ kind: w.kind, club: U.summary.club, line: w.line, stats: w.stats }) }));
+      U.seasonCuts = cuts; save();
+    }
     const s = U.summary, p = P();
     const html = `<h2>🏁 Season ${s.season} complete</h2>
       <div class="cards"><div class="card hl"><h3>${esc(s.club)} · ${esc(s.league)}</h3><div class="kv"><span class="k">Finished</span><span class="gold">${s.finish}${ord(s.finish)}</span><span class="k">Points</span><span>${s.pts}</span></div>${s.finish === 1 ? '<span class="pill gold">🏆 Champions</span>' : ''}</div>
       <div class="card"><h3>Your season</h3><div class="kv"><span class="k">Apps</span><span>${s.apps}</span><span class="k">Goals</span><span>${s.goals}</span><span class="k">Assists</span><span>${s.assists}</span><span class="k">MOTM</span><span>${s.motm}</span><span class="k">OVR</span><span>${s.ovr}</span></div></div></div>
+      ${s.awards && s.awards.length ? `<div class="card hl"><h3>Honours</h3>${s.awards.map(w => `<div>🏆 ${esc(w.name)}</div>`).join('')}</div>` : ''}
       <div class="script">${scriptLine('John', `Another year older. <b>${esc(p.name)}</b> turns ${p.age}.`)}${scriptLine('Ally', s.finish <= 3 ? 'Top-three finish. The phone will be ringing.' : s.finish >= 15 ? 'Rough season. Time to knuckle down on the training ground.' : 'Solid, unspectacular. Next year has to be the step up.')}</div>`;
-    return { html, actions: [{ label: '▶ New season', cls: 'primary', fn: () => { U.summary = null; go('hub'); } }] };
+    return { html, actions: [{ label: '▶ New season', cls: 'primary', fn: () => { U.summary = null; go('hub'); } }], after: () => { if (U.seasonCuts && U.seasonCuts.length) { const cuts = U.seasonCuts; U.seasonCuts = null; playCuts(cuts, () => render()); } } };
   };
 
   // ---------- boot ----------
-  window.PPL_DEBUG = { setTimeScale: v => { U.testTimeScale = v; }, state: () => S, ui: () => U };
+  window.PPL_DEBUG = { setTimeScale: v => { U.testTimeScale = v; }, state: () => S, ui: () => U, cut: (type, extra, done) => playCut(type, cutData(extra || {}), done) };
   const sndBtn = $('#snd');
   if (sndBtn && A) sndBtn.onclick = () => { A.unlock(); A.setEnabled(!A.isEnabled()); soundBtn(); if (A.isEnabled()) A.sfx('ding'); };
   function start(hot) {

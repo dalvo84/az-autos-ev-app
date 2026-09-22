@@ -24,6 +24,7 @@ Progress autosaves to `localStorage` after every screen.
 | `controls.js` | Virtual joystick and action buttons for touch, keyboard bindings for desktop |
 | `arcade.js` | Real-time top-down match engine: physics ball, 22 players, attribute-driven AI, keepers, halves, camera, HUD |
 | `world.js` | Walkable open world: town, house (two floors), Shopping Center (two floors), training ground, stadium tunnel, agent's office, with furniture you use and weekly perks |
+| `cutscene.js` | Cutscene engine and scenes: contract signing, trophy lift, awards gala, debut, man of the match |
 | `styles.css` | Retro handheld look |
 
 `engine.js` loads in Node as well, which is how the balance was tuned:
@@ -91,6 +92,16 @@ The town is full screen. Walking into a door takes you inside. Every room has fu
 Kits are worn around town in place of the club kit and raise Charm: training bib, retro hoops, a national team kit in your country's colours, candy stripes, a neon third kit, a blackout kit and a gold legends kit. Matches always use club colours.
 
 Accessories fill slots on your model: head, face, neck, wrist, hands and arm. Headbands, wrist tape, gloves and the tattoo sleeve are pitch-legal and show in matches. Beanies, caps, sunglasses, earrings, chains and the watch are town only. Each adds Charm when bought, and you can take any of them off in the shop.
+
+## Cutscenes and celebrations
+
+- **Goal celebrations** in the match: the scorer runs to the corner and teammates mob him. From the 85th minute, or for a hat-trick, it becomes a knee slide, the whole team piles in, confetti and fireworks, a LATE DRAMA banner and the commentators lose it.
+- **Contract signing** on every deal: boardroom, chairman, agent, flashbulbs, and you in a suit.
+- **Trophy lift** when your club wins the league: night stadium, the squad on the podium, fireworks and ticker tape.
+- **Awards gala** at season end: Golden Boot, Young Player of the Year (21 and under), League Player of the Year, and the Ballon d'Or for a top-tier league, a top-three finish and an outstanding season. Awards add Fame and fans and appear under Honours on the career screen.
+- **Man of the Match** presentation after any match you dominate, and a **debut** walk out of the tunnel before your first professional match.
+
+Every cutscene has a SKIP button.
 
 ## Sound
 

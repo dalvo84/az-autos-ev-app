@@ -261,7 +261,19 @@
     function update(dt) {
       st.phaseT += dt;
       if (st.phase === 'kickoff') { if (st.phaseT > 1.1) { st.phase = 'play'; } return; }
-      if (st.phase === 'goal') { if (st.phaseT > 2.2) { reset(1 - st.lastGoalTeam); st.phase = 'kickoff'; st.phaseT = 0; } return; }
+      if (st.phase === 'goal') {
+        const c = st.celebration;
+        if (c) {
+          const sc = c.scorer; const arrive = dist(sc, c) < 14;
+          if (!arrive && st.phaseT < 2.2) movePlayer(sc, c.cx, c.cy, dt, 1.15); else { sc.vx = sc.vy = 0; sc.pose = c.big && st.phaseT > 1.2 ? 'kneel' : 'cheer'; }
+          c.mates.forEach((m, i) => { const tx = sc.x + Math.cos(i * 1.1) * 22, ty = sc.y + Math.sin(i * 1.1) * 14; if (dist(m, { x: tx, y: ty }) > 6 && st.phaseT < 3.2) movePlayer(m, tx, ty, dt, 1.0); else { m.vx = m.vy = 0; m.pose = 'cheer'; } });
+          if (c.big && st.phaseT < 4 && rnd() < 0.5) { burst(sc.x + (rnd() - 0.5) * 120, sc.y - 60 - rnd() * 80, 10, 'firework'); }
+          if (c.big && st.phaseT < 2 && rnd() < 0.6) burst(sc.x + (rnd() - 0.5) * 200, sc.y - 120, 4, 'confetti');
+          if (!c.big && st.phaseT < 0.3) burst(sc.x, sc.y - 30, 10, 'confetti');
+        }
+        if (st.phaseT > (st.goalDur || 2.2)) { onPitch().forEach(p => { p.pose = null; }); st.celebration = null; reset(1 - st.lastGoalTeam); st.phase = 'kickoff'; st.phaseT = 0; }
+        return;
+      }
       if (st.phase === 'restart') { if (st.phaseT > 1.2) { applyRestart(); st.phase = 'play'; } return; }
       if (st.phase === 'halftime') { if (st.phaseT > 2.5) { st.half = 2; st.dir = [1, -1]; st.t = 0; reset(1); st.phase = 'kickoff'; st.phaseT = 0; emit('secondhalf'); } return; }
       if (st.phase !== 'play') return;
@@ -364,15 +376,28 @@
       }
       st.shake = Math.max(0, st.shake - dt);
     }
+    const particles = [];
+    function burst(x, y, n, kind) { for (let i = 0; i < n; i++) { const ang = rnd() * Math.PI * 2, sp = 40 + rnd() * (kind === 'firework' ? 160 : 90); particles.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - (kind === 'confetti' ? 60 : 20), life: 1.2 + rnd() * 1.4, c: ['#f3c34f', '#ff5a5a', '#63b3ff', '#4fd37f', '#ffffff', '#ff3cac'][i % 6], s: kind === 'firework' ? 2 : 3, kind }); } }
     function goal(team) {
       st.score[team]++; st.lastGoalTeam = team; st.phase = 'goal'; st.phaseT = 0; st.shake = 0.6;
       const scorer = ball.lastKicker && ball.lastKicker.team === team ? ball.lastKicker : null;
       const assist = ball.assist && ball.assist.team === team && ball.assist !== scorer && ball.assistT < 7 ? ball.assist : null;
+      const minute = Math.min(45, Math.floor(st.t / st.secondsPerHalf * 45)) + (st.half === 2 ? 45 : 0);
+      const late = minute >= 85, hattrick = scorer && scorer.isUser && st.user.goals + 1 === 3;
       if (scorer && scorer.isUser) { st.user.goals++; rate(0.9); }
       if (assist && assist.isUser) { st.user.assists++; rate(0.6); }
       if (team !== 0 && isGKUser && !user.benched) rate(-0.2);
-      banner(team === 0 ? 'GOAL!' : 'GOAL ' + opts.opp.name.toUpperCase(), 2000);
-      emit('goal', { team, scorer, assist, score: st.score.slice() });
+      // celebration: the scorer runs to the corner, teammates mob him; late goals get the knee slide and the fireworks
+      const ourGoal = team === 0 && scorer;
+      const big = ourGoal && (late || hattrick);
+      st.goalDur = ourGoal ? (big ? 5.2 : 3.4) : 2.2;
+      if (ourGoal) {
+        const gy = goalY(team); const cx = scorer.x < W / 2 ? 40 : W - 40, cy = gy === 0 ? 70 : H - 70;
+        st.celebration = { scorer, late, hattrick, big, cx, cy, mates: teamOf(team).filter(p => p !== scorer && !p.isGK).sort((a, b) => dist(a, scorer) - dist(b, scorer)).slice(0, big ? 9 : 4) };
+        if (big) st.shake = 1.4;
+      } else st.celebration = null;
+      banner(team === 0 ? (hattrick ? 'HAT-TRICK!' : late ? `LATE DRAMA! ${minute}'` : 'GOAL!') : 'GOAL ' + opts.opp.name.toUpperCase(), big ? 4500 : 2000);
+      emit('goal', { team, scorer, assist, score: st.score.slice(), minute, late, hattrick, big });
       ball.owner = null; ball.vx = ball.vy = 0;
     }
     function restart() {
@@ -445,10 +470,11 @@
           continue;
         }
         const p = it.p; const moving = Math.hypot(p.vx, p.vy) > 5 || p.slide > 0;
-        SP.drawFigure(ctx, p.x, p.y, 1.0, p.look, p.kit, { step: moving ? p.step : 0, slide: p.slide > 0, gloves: p.isGK, number: p.number, acc: p.isUser ? opts.user.acc : undefined });
+        SP.drawFigure(ctx, p.x, p.y, 1.0, p.look, p.kit, { step: moving ? p.step : (p.pose === 'cheer' ? performance.now() / 90 : 0), slide: p.slide > 0, gloves: p.isGK, number: p.number, acc: p.isUser ? opts.user.acc : undefined, pose: p.pose });
         if (p.isUser) { ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.moveTo(p.x - 4, p.y - 30); ctx.lineTo(p.x + 4, p.y - 30); ctx.lineTo(p.x, p.y - 25); ctx.closePath(); ctx.fill(); }
         if (p.calling > 0) { ctx.fillStyle = '#fff'; ctx.font = '7px monospace'; ctx.textAlign = 'center'; ctx.fillText('HERE!', p.x, p.y - 33); }
       }
+      for (const q of particles) { ctx.fillStyle = q.c; ctx.globalAlpha = Math.min(1, q.life); ctx.fillRect(q.x, q.y, q.s, q.s); } ctx.globalAlpha = 1;
       // charge meter
       if (charging && ball.owner === user) { const c = clamp((performance.now() - ctl.state.pressed.shoot) / 800, 0, 1); ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(user.x - 12, user.y + 6, 24, 4); ctx.fillStyle = c > 0.8 ? '#ff5a5a' : '#ffe14d'; ctx.fillRect(user.x - 12, user.y + 6, 24 * c, 4); }
       // HUD
@@ -460,9 +486,11 @@
 
     // ---- loop ----
     let last = performance.now(), raf = 0, alive = true;
+    function updateParticles(dt) { for (let i = particles.length - 1; i >= 0; i--) { const q = particles[i]; q.life -= dt; if (q.life <= 0) { particles.splice(i, 1); continue; } q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.kind === 'confetti' ? 60 : 30) * dt; q.vx *= 0.98; } }
     function frame(now) {
       if (!alive) return;
       let dt = Math.min(0.033, (now - last) / 1000) * st.timeScale; last = now;
+      updateParticles(dt);
       const steps = Math.max(1, Math.ceil(dt / 0.033));
       for (let i = 0; i < steps; i++) update(dt / steps);
       draw(); raf = requestAnimationFrame(frame);

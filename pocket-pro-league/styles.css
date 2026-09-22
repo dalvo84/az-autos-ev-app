@@ -165,3 +165,10 @@ body.has-scene { overflow: hidden; }
 @media (max-width: 560px) { .item { grid-template-columns: 1fr; } .item-act .sm { width: 100%; } }
 .shoptabs { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
 .item-act { gap: 8px; flex-wrap: wrap; }
+.cut-stage { position: absolute; inset: 0; background: #05070c; }
+.cut-stage canvas { position: absolute; inset: 0; display: block; image-rendering: pixelated; }
+.cut-caption { position: absolute; left: 12px; right: 12px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: rgba(5, 8, 15, .9); border: 3px solid var(--line); box-shadow: 4px 4px 0 var(--shadow); padding: 10px 12px; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+.cut-caption .who { font-family: var(--font-pixel); font-size: 9px; color: var(--gold); padding-top: 5px; text-transform: uppercase; }
+.cut-caption .what { font-size: 20px; line-height: 1.2; color: var(--ink); }
+.cut-banner { top: 12%; font-size: 22px; } .cut-banner small { display: block; font-size: 10px; color: var(--ink); margin-top: 8px; }
+.cut-skip { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; min-height: 32px; padding: 4px 10px; font-family: var(--font-pixel); font-size: 8px; box-shadow: none; border-width: 2px; background: rgba(5,8,15,.8); }
