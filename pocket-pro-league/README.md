@@ -1,6 +1,6 @@
 # Pocket Pro League
 
-A text-based football career RPG in the style of a retro pixel mobile game. Plain HTML, CSS and JavaScript with no build step.
+A football career RPG in the style of a retro pixel mobile game: real-time matches, a walkable town, and a career with a life around it. Plain HTML, CSS and JavaScript with no build step.
 
 ## Run it
 
@@ -18,13 +18,13 @@ Progress autosaves to `localStorage` after every screen.
 | --- | --- |
 | `data.js` | Positions and OVR weightings, nine real leagues with club strengths, name pools with pronunciation guides, shop, cars, estates |
 | `engine.js` | Pure logic: OVR calculator, fixture generation, league simulation, choice-based match engine, training, transfer offers, season rollover |
-| `app.js` | Screens and flow: character creation, prologue penalty, hub, home, shop, training, stadium, match modes, transfer window |
+| `app.js` | Screens and flow: character creation, prologue penalty, hub, home, shop, training, stadium, match modes, transfer window, manager talks, agent, internationals, phone, dating and family, retirement |
 | `audio.js` | Commentator voices via the Web Speech API, plus whistle, crowd and chant effects synthesised with Web Audio (no audio files) |
 | `sprites.js` | Pixel character models (customisable look for the player, randomised for NPCs) and club kits |
 | `controls.js` | Virtual joystick and action buttons for touch, keyboard bindings for desktop |
-| `arcade.js` | Real-time top-down match engine: physics ball, 22 players, attribute-driven AI, keepers, halves, camera, HUD |
-| `world.js` | Walkable open world: town, house (two floors), Shopping Center (two floors), training ground, stadium tunnel, agent's office, with furniture you use and weekly perks |
-| `cutscene.js` | Cutscene engine and scenes: contract signing, trophy lift, awards gala, debut, man of the match |
+| `arcade.js` | Real-time top-down match engine: physics ball, 22 players, attribute-driven AI, keepers, fouls and set pieces, stamina, weather, replays, celebrations, camera, HUD |
+| `world.js` | Walkable open world: town, house (two floors), Shopping Center (two floors), training ground, stadium tunnel, agent's office, with furniture you use, weekly perks, timing mini games, and your partner and children at home |
+| `cutscene.js` | Cutscene engine and scenes: contract signing, trophy lift, awards gala, debut, man of the match, season highlights reel, wedding, new baby, retirement lap of honour |
 | `styles.css` | Retro handheld look |
 
 `engine.js` loads in Node as well, which is how the balance was tuned:
@@ -79,13 +79,13 @@ The town is full screen. Walking into a door takes you inside. Every room has fu
 
 | Place | What is there |
 | --- | --- |
-| House, ground floor | TV (league tables), sofa (nap, +10 energy weekly), trophy cabinet (career), fridge (snack, +6 energy weekly), garage door, stairs |
-| House, upstairs | Bed (sleep, +15 energy weekly), laptop (contract and estate), mirror (appearance), balcony |
-| Shopping Center, ground | Boot wall, outfit rail, kits and accessories, café (coffee, $25 for +6 energy weekly), escalator |
+| House, ground floor | TV (league tables), sofa (nap, or a movie night with a partner who lives with you), trophy cabinet (career), fridge (snack, +6 energy weekly), garage door, stairs |
+| House, upstairs | Bed (sleep, +15 energy weekly), phone (social media, dating, family), mirror (appearance), balcony |
+| Shopping Center, ground | Boot wall, outfit rail, kits, accessories and gifts, café (coffee, $25 for +6 energy weekly), date table (dinner with your partner, $60 weekly), escalator |
 | Shopping Center, upstairs | Fitness gear, car showroom, estate agent, barber (appearance), escalator |
-| Training ground | Gym and pitch (training), coach's office (+2 coach weekly), physio (+10 energy weekly), teammates wandering |
-| Stadium tunnel | Dressing room (squad), press room (+1 fame, +1 charm weekly once you have some fame), trophy room, tunnel to the pitch (match day) |
-| Town | Agent's office, park kickabout (20 energy for a chance of +1 attribute), bus stop to the stadium, fans once Fame passes 50 |
+| Training ground | Gym (timing mini game, better odds than menu training), pitch (training menu), coach's office (manager talks), physio (+10 energy weekly, or a week off an injury), teammates wandering |
+| Stadium tunnel | Dressing room (squad and your rival), press room (+1 fame, +1 charm weekly once you have some fame), trophy room, megastore (buy your own shirt once Fame passes 30), tunnel to the pitch (match day) |
+| Town | Agent's office (quests and sponsors), park keepy-uppies (timing mini game, 20 energy for a chance of +1 attribute), bus stop to the stadium, fans once Fame passes 50 |
 
 ## Kits and accessories
 
@@ -102,6 +102,31 @@ Accessories fill slots on your model: head, face, neck, wrist, hands and arm. He
 - **Man of the Match** presentation after any match you dominate, and a **debut** walk out of the tunnel before your first professional match.
 
 Every cutscene has a SKIP button.
+
+## Match depth
+
+- **Fouls and set pieces.** Mistimed slides are fouls. A free kick or penalty stops play: aim with the stick, hold SHOOT for power, or PASS for a short one. Fouls in the box are penalties and the keeper picks a side.
+- **Cards, bans and injuries.** A yellow costs coach popularity, a red costs more and bans you for the next match. A bad tackle can injure you for a few weeks, during which you can only sim; the physio takes a week off.
+- **Stamina.** Sprinting drains it and tired players slow down. Fitness gear raises the ceiling. With no stamina left you get substituted.
+- **Weather.** Rain makes the ball skid and slides travel further. Night games play under floodlights.
+- **Derbies.** Real rivalries (Manchester, Merseyside, El Clásico and the rest) get a louder crowd and a fame bonus for winning.
+- **Replays and highlights.** Every goal gets a slow-motion replay you can tap through. Your own goals are saved as clips and cut into a season highlights reel at the end of the year.
+- **Crowd and commentary.** Stands fill with your club's colours, chants rise on big moments, and John and Ally remember what happened last time you met an opponent.
+
+## Career
+
+- **Manager talks** in the coach's office: minutes, a position change, press conferences, a transfer request, or a check-in. Each has a cost and a cooldown.
+- **Agent quests and sponsors.** The agent offers goal, assist, clean sheet, rating and win targets over a run of matches, and brand deals that pay weekly.
+- **A rival for your shirt.** A teammate in your position competes for the starting place. Outperform him or lose your spot.
+- **Internationals.** Reach the call-up threshold for your nation and you play friendlies in the international breaks. Every fourth season is a World Cup you can play through stage by stage, or sim.
+- **Ageing and retirement.** From 31 pace and physical drop each season. Retire from 34, or earlier once the numbers fall away, for a lap of honour and a place in the Hall of Fame on the menu.
+
+## Life
+
+The phone upstairs has two tabs.
+
+- **Social.** Post once a week for fans and fame, with a small backlash risk. Brands approach you at Fame 25, 45, 65 and 85 with weekly deals.
+- **Dating and family.** Three people a week to ask out; Charm and Fame set the odds. Messages, gifts from the shop's gifts tab, café dates and movie nights build love. Love falls if you ignore them for two weeks and they leave under 10. After eight weeks and a real home you can ask them to move in, which gives energy every week and puts them in your house. With a ring from the shop and love at 85 you can propose, which plays the wedding. Married couples can start a family; the baby arrives eight weeks later with its own cutscene, and the children wander the house.
 
 ## Sound
 

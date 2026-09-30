@@ -17,14 +17,14 @@
         { x: 135, y: 308, w: 30, h: 14, to: 'training', spawn: { x: 200, y: 60 }, label: 'TRAINING GROUND' },
         { x: 535, y: 268, w: 30, h: 14, to: 'stadium', spawn: { x: 180, y: 60 }, label: 'STADIUM' },
         { x: 815, y: 158, w: 30, h: 14, to: 'agent', spawn: { x: 150, y: 220 }, label: "AGENT'S OFFICE" } ],
-      hots: [ { x: 720, y: 330, w: 200, h: 150, label: 'Park kickabout', action: 'kickabout', hint: 'costs 20 energy, chance of +1 attribute' },
+      hots: [ { x: 720, y: 330, w: 200, h: 150, label: 'Park kickabout', action: 'mini:kickabout', hint: 'keepy-uppies: 20 energy, chance of +1 attribute' },
               { x: 610, y: 190, w: 40, h: 40, label: 'Bus stop', action: 'bus', hint: 'ride to the stadium' } ] },
     house1: { w: 360, h: 300, view: 230, floor: 'wood', title: 'Home · ground floor',
       walls: [R(0, 0, 360, 14), R(0, 0, 10, 300), R(350, 0, 10, 300), R(0, 286, 360, 14), R(180, 14, 10, 120)],
       solids: [R(30, 30, 80, 40), R(30, 200, 60, 30), R(230, 30, 100, 26), R(300, 100, 40, 70), R(230, 200, 60, 60)],
       furniture: [
         { r: R(30, 30, 80, 40), c: '#3a3f58', label: 'TV', hot: { label: 'Watch the football on TV', action: 'open:table', hint: 'league tables and results' } },
-        { r: R(30, 90, 80, 30), c: '#7c5cff', label: 'SOFA', hot: { label: 'Sofa', action: 'perk:nap', hint: 'nap: +10 energy, once a week' } },
+        { r: R(30, 90, 80, 30), c: '#7c5cff', label: 'SOFA', hot: { label: 'Sofa', action: 'perk:sofa', hint: 'nap, or a movie night with your partner' } },
         { r: R(30, 200, 60, 30), c: '#c9a86a', label: 'TROPHIES', hot: { label: 'Trophy cabinet', action: 'open:career', hint: 'career and attributes' } },
         { r: R(230, 30, 100, 26), c: '#dfe4ea', label: 'KITCHEN', hot: { label: 'Fridge', action: 'perk:snack', hint: 'snack: +6 energy, once a week' } },
         { r: R(300, 100, 40, 70), c: '#8a6d3b', label: 'STAIRS', hot: { label: 'Go upstairs', action: 'map:house2:60:250' } },
@@ -36,18 +36,19 @@
       solids: [R(30, 30, 90, 60), R(200, 30, 60, 40), R(280, 30, 60, 60), R(40, 220, 60, 40), R(40, 230, 40, 60)],
       furniture: [
         { r: R(30, 30, 90, 60), c: '#4c6ef5', label: 'BED', hot: { label: 'Bed', action: 'perk:sleep', hint: 'sleep: +15 energy, once a week' } },
-        { r: R(200, 30, 60, 40), c: '#c9a86a', label: 'DESK', hot: { label: 'Laptop', action: 'open:contract', hint: 'contract and estate' } },
+        { r: R(200, 30, 60, 40), c: '#c9a86a', label: 'PHONE', hot: { label: 'Your phone', action: 'open:life', hint: 'social media, dating, family' } },
         { r: R(280, 30, 60, 60), c: '#e9edf7', label: 'MIRROR', hot: { label: 'Mirror', action: 'open:mirror', hint: 'change your appearance' } },
         { r: R(40, 220, 60, 40), c: '#8a6d3b', label: 'STAIRS', hot: { label: 'Go downstairs', action: 'map:house1:300:180' } },
         { r: R(220, 200, 100, 70), c: '#2d6fb5', label: 'BALCONY', hot: { label: 'Balcony', action: 'perk:balcony', hint: 'look out over the stadium' } } ],
       doors: [] },
     shop1: { w: 420, h: 320, view: 240, floor: 'tile', title: 'Shopping Center · ground floor', npcs: 3,
       walls: [R(0, 0, 420, 14), R(0, 0, 10, 320), R(410, 0, 10, 320), R(0, 306, 420, 14)],
-      solids: [R(30, 30, 110, 40), R(280, 30, 110, 40), R(30, 200, 90, 50), R(340, 180, 50, 90)],
+      solids: [R(30, 30, 110, 40), R(280, 30, 110, 40), R(30, 200, 90, 50), R(150, 200, 90, 50), R(340, 180, 50, 90)],
       furniture: [
         { r: R(30, 30, 110, 40), c: '#ff8a5c', label: 'BOOTS', hot: { label: 'Boot wall', action: 'open:shop:boots', hint: 'buy boots' } },
         { r: R(280, 30, 110, 40), c: '#d9603a', label: 'OUTFITS', hot: { label: 'Outfit rail', action: 'open:shop:outfits', hint: 'raise your charm' } },
         { r: R(30, 200, 90, 50), c: '#6b4a2b', label: 'CAFÉ', hot: { label: 'Café counter', action: 'perk:coffee', hint: 'coffee: $25 for +6 energy' } },
+        { r: R(150, 200, 90, 50), c: '#8e1f2f', label: 'DATE TABLE', hot: { label: 'Date night', action: 'perk:date', hint: 'dinner with your partner, $60, once a week' } },
         { r: R(340, 180, 50, 90), c: '#8f8f8f', label: 'ESCALATOR', hot: { label: 'Escalator up', action: 'map:shop2:330:250' } } ],
       doors: [ { x: 180, y: 306, w: 50, h: 14, to: 'town', spawn: { x: 400, y: 190 }, label: 'EXIT' } ] },
     shop2: { w: 420, h: 320, view: 240, floor: 'tile', title: 'Shopping Center · upstairs', npcs: 2,
@@ -64,18 +65,19 @@
       walls: [R(0, 0, 520, 12), R(0, 0, 10, 420), R(510, 0, 10, 420), R(0, 408, 520, 12)],
       solids: [R(30, 40, 120, 70), R(360, 40, 130, 70), R(360, 300, 130, 80)],
       furniture: [
-        { r: R(30, 40, 120, 70), c: '#3a3f58', label: 'GYM', hot: { label: 'Gym', action: 'open:training', hint: 'spend energy on attributes' } },
+        { r: R(30, 40, 120, 70), c: '#3a3f58', label: 'GYM', hot: { label: 'Gym session', action: 'mini:gym', hint: 'timing game: 34 energy, better odds than the menu' } },
         { r: R(360, 40, 130, 70), c: '#c9a86a', label: "COACH'S OFFICE", hot: { label: "Coach's office", action: 'open:talk', hint: 'a proper conversation with the manager' } },
         { r: R(360, 300, 130, 80), c: '#dfe4ea', label: 'PHYSIO', hot: { label: 'Physio room', action: 'perk:physio', hint: 'treatment: +10 energy, once a week' } },
         { r: R(60, 180, 240, 200), c: '#2f8f45', label: 'PITCH', pitch: true, hot: { label: 'Training pitch', action: 'open:training', hint: 'drills with the squad' } } ],
       doors: [ { x: 180, y: 12, w: 40, h: 12, to: 'town', spawn: { x: 150, y: 296 }, label: 'GATE' } ] },
     stadium: { w: 480, h: 360, view: 250, floor: 'concrete', title: 'Stadium · tunnel', mates: true,
       walls: [R(0, 0, 480, 12), R(0, 0, 10, 360), R(470, 0, 10, 360), R(0, 348, 480, 12), R(240, 120, 10, 130)],
-      solids: [R(30, 200, 180, 40), R(300, 40, 150, 60), R(300, 260, 150, 60)],
+      solids: [R(30, 200, 180, 40), R(300, 40, 150, 60), R(300, 260, 150, 60), R(300, 140, 150, 50)],
       furniture: [
         { r: R(30, 200, 180, 40), c: '#7c5cff', label: 'DRESSING ROOM', hot: { label: 'Dressing room', action: 'open:squad', hint: 'the squad' } },
         { r: R(300, 40, 150, 60), c: '#f3c34f', label: 'PRESS ROOM', hot: { label: 'Press conference', action: 'perk:press', hint: 'talk to the media, once a week' } },
         { r: R(300, 260, 150, 60), c: '#c9a86a', label: 'TROPHY ROOM', hot: { label: 'Trophy room', action: 'open:career' } },
+        { r: R(300, 140, 150, 50), c: '#63b3ff', label: 'MEGASTORE', hot: { label: 'Club megastore', action: 'perk:megastore', hint: 'your own replica shirt, once a season' } },
         { r: R(30, 300, 180, 40), c: '#2f8f45', label: 'TUNNEL → PITCH', hot: { label: 'Walk out to the pitch', action: 'open:stadium', hint: 'match day' } } ],
       doors: [ { x: 160, y: 12, w: 50, h: 12, to: 'town', spawn: { x: 550, y: 256 }, label: 'EXIT' } ] },
     agent: { w: 300, h: 260, view: 220, floor: 'carpet', title: "Agent's office",
@@ -105,6 +107,11 @@
       const n = (map.npcs || 0) + (map.outside && opts.fame >= 50 ? 5 : 0);
       for (let i = 0; i < n; i++) npcs.push({ x: 40 + Math.random() * (map.w - 80), y: map.outside ? 190 + Math.random() * 120 : 40 + Math.random() * (map.h - 80), look: SP.randomLook(), kit: { shirt: `hsl(${Math.floor(Math.random() * 360)} 45% 45%)`, shorts: '#2b2b2b' }, tx: 0, ty: 0, wait: Math.random() * 2, step: 0, fan: map.outside && opts.fame >= 50 && i >= (map.npcs || 0), done: false });
       if (map.mates && opts.teammates) opts.teammates.slice(0, 6).forEach((t, i) => npcs.push({ x: 60 + i * 60, y: map.id === 'training' ? 250 : 160, look: t.look || SP.randomLook(), kit: opts.kit, tx: 0, ty: 0, wait: 1 + Math.random() * 3, step: 0, mate: true, name: t.last }));
+      if ((map.id === 'house1' || map.id === 'house2') && opts.family) {
+        const f = opts.family;
+        if (f.partner && f.livesTogether) npcs.push({ x: map.id === 'house1' ? 200 : 120, y: map.id === 'house1' ? 120 : 160, look: f.partner.look, kit: f.partner.kit || { shirt: '#c0392b', shorts: '#2b2b2b' }, tx: 0, ty: 0, wait: 1, step: 0, mate: true, name: f.partner.name, home: true });
+        (f.children || []).forEach((c, i) => npcs.push({ x: 150 + i * 30, y: map.id === 'house1' ? 150 : 200, look: c.look, kit: { shirt: '#f3c34f', shorts: '#2b2b2b' }, tx: 0, ty: 0, wait: 1, step: 0, mate: true, name: c.name, small: true }));
+      }
     }
     function setMap(id, x, y) { map = MAPS[id]; map.id = id; me.x = x; me.y = y; cam.x = x; cam.y = y; spawnNpcs(); transition = 0.35; doorLock = true; titleEl.textContent = map.title || opts.title || ''; if (opts.onMap) opts.onMap(id); }
     map.id = Object.keys(MAPS).find(k => MAPS[k] === map); spawnNpcs(); titleEl.textContent = map.title || opts.title || '';
@@ -112,7 +119,18 @@
     window.addEventListener('resize', resize); resize();
     const inRect = (x, y, r, pad) => x > r.x - (pad || 0) && x < r.x + r.w + (pad || 0) && y > r.y - (pad || 0) && y < r.y + r.h + (pad || 0);
     function blocked(x, y) { return (map.walls || []).some(r => inRect(x, y, r, 4)) || (map.solids || []).some(r => inRect(x, y, r, 5)); }
+    // ---- timing mini game: press ENTER when the marker is in the green zone ----
+    let mini = null;
+    function startMini(cfg, done) { mini = { cfg, reps: cfg.reps || 5, hits: 0, i: 0, t: 0, marker: 0, dir: 1, speed: cfg.speed || 1.6, zone: [0.38, 0.62], flash: 0, done, msg: '' }; prompt.hidden = false; prompt.textContent = `${cfg.title}: press ENTER in the green (${mini.reps} reps)`; }
+    function miniPress() {
+      if (!mini) return; const inZone = mini.marker >= mini.zone[0] && mini.marker <= mini.zone[1];
+      if (inZone) mini.hits++; mini.flash = inZone ? 0.4 : -0.4; mini.i++;
+      mini.zone = [0.3 + Math.random() * 0.3, 0]; mini.zone[1] = mini.zone[0] + Math.max(0.12, 0.24 - mini.i * 0.02);
+      mini.speed += 0.25;
+      if (mini.i >= mini.reps) { const r = mini; mini = null; prompt.hidden = true; r.done(r.hits, r.reps); }
+    }
     function act() {
+      if (mini) { miniPress(); return; }
       if (!near) return;
       if (near.door) { const d = near.door; if (d.to) { setMap(d.to, d.spawn.x, d.spawn.y); } return; }
       const a = near.hot.action;
@@ -123,6 +141,7 @@
     prompt.onclick = act;
     function update(dt) {
       transition = Math.max(0, transition - dt);
+      if (mini) { mini.t += dt; mini.marker += mini.dir * mini.speed * dt * 0.5; if (mini.marker >= 1) { mini.marker = 1; mini.dir = -1; } if (mini.marker <= 0) { mini.marker = 0; mini.dir = 1; } mini.flash *= 0.9; return; }
       const s = ctl.state; const sp = 95;
       if (s.active && transition <= 0) { const mag = Math.hypot(s.x, s.y) || 1; const k = Math.min(1, mag / 0.55); const nx = me.x + s.x / mag * k * sp * dt, ny = me.y + s.y / mag * k * sp * dt; const stuck = blocked(me.x, me.y); if (stuck || !blocked(nx, me.y)) me.x = nx; if (stuck || !blocked(me.x, ny)) me.y = ny; me.fx = s.x; me.fy = s.y; me.step += dt * 14; me.moving = true; } else me.moving = false;
       me.x = clamp(me.x, 8, map.w - 8); me.y = clamp(me.y, 16, map.h - 6);
@@ -190,15 +209,21 @@
       for (const f of map.furniture || []) { ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.fillRect(f.r.x + 3, f.r.y + 3, f.r.w, f.r.h); ctx.fillStyle = f.c; ctx.fillRect(f.r.x, f.r.y, f.r.w, f.r.h); if (f.pitch) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(f.r.x + 8, f.r.y + 8, f.r.w - 16, f.r.h - 16); } if (f.label) label(f.label, f.r.x + f.r.w / 2, f.r.y + f.r.h / 2 + 3, f.c === '#e9edf7' || f.c === '#dfe4ea' ? '#333' : '#fff'); }
       for (const d of map.doors || []) { if (!map.outside) { ctx.fillStyle = '#2b1d0e'; ctx.fillRect(d.x, d.y, d.w, d.h); label(d.label, d.x + d.w / 2, d.y - 4, '#fff'); } }
       if (near) { const r = near.door || (near.hot && (near.hot.x !== undefined ? near.hot : null)); const f = !r && (map.furniture || []).find(f => f.hot === near.hot); const rr = r || (f && f.r); if (rr) { ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 2; ctx.strokeRect(rr.x - 3, rr.y - 3, rr.w + 6, rr.h + 6); } }
-      const items = npcs.map(p => ({ y: p.y, f: () => { SP.drawFigure(ctx, p.x, p.y, 1.1, p.look, p.kit, { step: p.moving ? p.step : 0 }); if (p.mate) label(p.name, p.x, p.y - 30, '#fff'); } }));
+      const items = npcs.map(p => ({ y: p.y, f: () => { SP.drawFigure(ctx, p.x, p.y, p.small ? 0.7 : 1.1, p.look, p.kit, { step: p.moving ? p.step : 0 }); if (p.mate) label(p.name, p.x, p.y - (p.small ? 20 : 30), '#fff'); } }));
       items.push({ y: me.y, f: () => { SP.drawFigure(ctx, me.x, me.y, 1.15, opts.look, opts.kit, { step: me.moving ? me.step : 0, acc: opts.acc }); ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.moveTo(me.x - 4, me.y - 30); ctx.lineTo(me.x + 4, me.y - 30); ctx.lineTo(me.x, me.y - 25); ctx.closePath(); ctx.fill(); } });
       items.sort((a, b) => a.y - b.y).forEach(i => i.f());
       if (map.outside && opts.fame >= 50) { ctx.fillStyle = '#fff'; ctx.font = '9px monospace'; ctx.textAlign = 'center'; npcs.filter(p => p.fan && !p.done && Math.hypot(me.x - p.x, me.y - p.y) < 200).forEach(p => ctx.fillText('!', p.x, p.y - 30)); }
+      if (mini) { ctx.setTransform(1, 0, 0, 1, 0, 0); const cw = canvas.width, chh = canvas.height; const bx = cw * 0.1, by = chh * 0.45, bw = cw * 0.8, bh = 26 * (cw / 420);
+        ctx.fillStyle = 'rgba(5,8,15,.85)'; ctx.fillRect(bx - 10, by - 60, bw + 20, bh + 110);
+        ctx.fillStyle = '#2c3a63'; ctx.fillRect(bx, by, bw, bh); ctx.fillStyle = mini.flash > 0.05 ? '#7dffb0' : mini.flash < -0.05 ? '#ff6b6b' : '#4fd37f'; ctx.fillRect(bx + bw * mini.zone[0], by, bw * (mini.zone[1] - mini.zone[0]), bh);
+        ctx.fillStyle = '#ffe14d'; ctx.fillRect(bx + bw * mini.marker - 3, by - 8, 6, bh + 16);
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(12 * cw / 420)}px monospace`; ctx.textAlign = 'center'; ctx.fillText(`${mini.cfg.title.toUpperCase()}  ·  ${mini.hits}/${mini.i} hits  ·  rep ${Math.min(mini.reps, mini.i + 1)}/${mini.reps}`, cw / 2, by - 30);
+        ctx.fillStyle = '#9aa3b8'; ctx.font = `${Math.round(11 * cw / 420)}px monospace`; ctx.fillText('press ENTER / SPACE when the marker is in the green', cw / 2, by + bh + 28); }
       if (transition > 0) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(0,0,0,${transition / 0.35})`; ctx.fillRect(0, 0, canvas.width, canvas.height); }
     }
     function frame(now) { if (!alive) return; const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); if (alive) draw(); raf = requestAnimationFrame(frame); }
     raf = requestAnimationFrame(frame);
-    return { destroy() { alive = false; cancelAnimationFrame(raf); ctl.destroy(); window.removeEventListener('resize', resize); host.innerHTML = ''; }, pos: () => ({ map: map.id, x: me.x, y: me.y }), goto: (id, x, y) => setMap(id, x, y), note, setSub: t => { stage.querySelector('.town-hud .arc-clock').textContent = t; } };
+    return { destroy() { alive = false; cancelAnimationFrame(raf); ctl.destroy(); window.removeEventListener('resize', resize); host.innerHTML = ''; }, pos: () => ({ map: map.id, x: me.x, y: me.y }), goto: (id, x, y) => setMap(id, x, y), note, setSub: t => { stage.querySelector('.town-hud .arc-clock').textContent = t; }, startMini };
   }
   root.PPL_TOWN = { start, MAPS };
 })(typeof window !== 'undefined' ? window : globalThis);

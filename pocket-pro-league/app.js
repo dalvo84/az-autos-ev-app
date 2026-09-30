@@ -165,6 +165,74 @@
   function isDerby(oppName) { return rivalOf(club().name) === oppName || rivalOf(oppName) === club().name; }
   function pickWeather() { const r = Math.random(); return r < 0.22 ? 'rain' : r < 0.5 ? 'night' : 'clear'; }
   const WEATHER_TXT = { rain: 'Rain lashing down. The ball will skid and the slide tackles will be long.', night: 'Under the floodlights tonight.', clear: 'Perfect conditions.' };
+  // ---------- Batch C: life — phone, dating, family ----------
+  const TRAITS = [['foodie', 'loves a long dinner'], ['homebody', 'happiest on the sofa'], ['adventurer', 'wants weekends away'], ['fan', 'never misses a match'], ['private', 'hates the spotlight'], ['ambitious', 'runs a business of their own']];
+  const FIRST_NAMES = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Morgan', 'Riley', 'Casey', 'Jamie', 'Robin', 'Charlie', 'Elena', 'Maya', 'Sofia', 'Zara', 'Noor', 'Aisha', 'Leo', 'Mateo', 'Kai', 'Theo'];
+  function life() { S.life = S.life || { status: 'single', partner: null, love: 0, since: 0, lastContact: 0, livesTogether: false, children: [], ring: false, posts: 0, weekPosted: 0, brandTier: 0, cands: null, expecting: 0, married: 0 }; return S.life; }
+  function followers() { const p = P(); return Math.round(p.fans * 1400 + p.fame * 6500 + (life().posts * 300)); }
+  function makeCandidate() { const t = E.pick(TRAITS); const nat = E.pick([lg().country, P().nat, E.pick(D.NATIONALITIES)]); const per = E.genPerson(nat, new Set()); return { name: E.pick(FIRST_NAMES) + ' ' + per.last, nat, trait: t[0], traitText: t[1], look: SP.randomLook(), kit: { shirt: `hsl(${Math.floor(Math.random() * 360)} 50% 45%)`, shorts: '#2b2b2b' } }; }
+  function lifeTick() {
+    const L = life(); const p = P();
+    if (L.status !== 'single' && L.partner) {
+      const gap = S.week - L.lastContact; if (gap >= 2) L.love = E.clamp(L.love - (gap >= 4 ? 6 : 3), 0, 100);
+      if (L.love < 10) { U.lifeNote = `${L.partner.name} has ended things. "You were never there."`; L.status = 'single'; L.partner = null; L.livesTogether = false; L.love = 0; p.fans = E.clamp(p.fans - 2, 0, 100); }
+      else if (L.livesTogether) p.energy = Math.min(E.maxEnergy(S), p.energy + 6);
+      if (L.expecting && S.week >= L.expecting) { L.expecting = 0; const child = { name: E.pick(FIRST_NAMES), look: Object.assign(SP.randomLook(), { skin: Math.random() < 0.5 ? p.look.skin : L.partner.look.skin, beard: false, hair: 1 }), born: S.week }; L.children.push(child); p.fame = E.clamp(p.fame + 3, 0, 100); p.fans = E.clamp(p.fans + 3, 0, 100); L.love = E.clamp(L.love + 10, 0, 100); U.pendingCut = { type: 'baby', data: cutData({ partner: L.partner, child }) }; }
+      if (L.children.length && S.week % 10 === 0) p.fans = E.clamp(p.fans + 1, 0, 100);
+    }
+    // brand approaches at fame thresholds
+    const tiers = [[25, 'Local Gym Chain', 150, 20], [45, 'Sports Drink', 500, 24], [65, 'Global Sportswear', 1400, 30], [85, 'Luxury Watchmaker', 3000, 40]];
+    const next = tiers[L.brandTier]; if (next && p.fame >= next[0] && !L.brandOffer) L.brandOffer = { name: next[1], weekly: next[2], weeks: next[3], tier: L.brandTier };
+  }
+  function familyOpts() { const L = life(); return { partner: L.partner, livesTogether: L.livesTogether, children: L.children }; }
+  const lifeView = () => {
+    const p = P(); const L = life(); const tab = U.lifeTab || 'social'; const canPost = L.weekPosted !== S.week;
+    let body = '';
+    if (tab === 'social') {
+      body = `<div class="card"><h3>@${esc(pname().toLowerCase().replace(/\s+/g, ''))}</h3><div class="kv"><span class="k">Followers</span><span class="gold">${followers().toLocaleString('en-US')}</span><span class="k">Posts</span><span>${L.posts}</span></div></div>
+        ${L.brandOffer ? `<div class="card hl"><h3>Brand approach</h3><p><b>${esc(L.brandOffer.name)}</b> want you: ${money(L.brandOffer.weekly)} a week for ${L.brandOffer.weeks} weeks.</p><div class="choices"><button type="button" class="sm primary" data-brand="yes">Sign the deal</button><button type="button" class="sm" data-brand="no">Decline</button></div></div>` : ''}
+        <div class="choices"><button type="button" class="sm warn" data-post="match" ${canPost ? '' : 'disabled'}>📸 Post a match update<span class="sub">fans +2, fame +1, small backlash risk</span></button><button type="button" class="sm" data-post="flex" ${canPost ? '' : 'disabled'}>🚗 Post the car and the house<span class="sub">charm +1, fans −1 if it looks like showing off</span></button>${L.status !== 'single' ? `<button type="button" class="sm" data-post="couple" ${canPost ? '' : 'disabled'}>❤ Post with ${esc(L.partner.name)}<span class="sub">love +4, fans +1</span></button>` : ''}</div>
+        ${canPost ? '' : '<p class="muted">You have posted this week. Once a week keeps the followers keen.</p>'}`;
+    } else if (tab === 'dating') {
+      if (L.status === 'single') {
+        if (!L.cands || L.cands.week !== S.week) L.cands = { week: S.week, list: [makeCandidate(), makeCandidate(), makeCandidate()] };
+        body = `<p class="muted">Charm ${p.charm}. Higher charm, better odds. Fame helps too.</p><div class="items">${L.cands.list.map((c, i) => `<div class="item"><div class="item-main"><b>${esc(c.name)}</b><span class="muted">${esc(c.nat)} · ${esc(c.traitText)}</span></div><div class="item-act"><button type="button" class="sm warn" data-ask="${i}">Ask out</button></div></div>`).join('')}</div>${U.lifeNote ? `<div class="notice">${U.lifeNote}</div>` : ''}`;
+      } else {
+        const weeks = S.week - L.since; const canMoveIn = L.love >= 60 && weeks >= 8 && p.estate !== 'h0' && !L.livesTogether; const canPropose = L.love >= 85 && weeks >= 20 && L.ring && L.status !== 'married' && L.status !== 'engaged';
+        body = `<div class="card hl"><h3>${esc(L.partner.name)} · ${esc(L.status)}</h3><div class="muted">${esc(L.partner.traitText)} · together ${weeks} weeks${L.livesTogether ? ' · living together' : ''}</div>${bar('Love', L.love, 'gold')}</div>
+          <div class="choices"><button type="button" class="sm" data-life="msg" ${L.lastContact === S.week ? 'disabled' : ''}>💬 Send a message<span class="sub">love +3, once a week</span></button><button type="button" class="sm" data-life="gifts">🎁 Buy a gift<span class="sub">shop, gifts tab</span></button>
+          ${canMoveIn ? '<button type="button" class="sm primary" data-life="movein">🏠 Ask them to move in<span class="sub">needs love 60+, 8 weeks, a real home</span></button>' : ''}
+          ${canPropose ? '<button type="button" class="sm primary" data-life="propose">💍 Propose<span class="sub">you bought the ring</span></button>' : (L.status === 'together' || L.status === 'dating') && L.status !== 'engaged' ? `<button type="button" class="sm" disabled>💍 Propose<span class="sub">love 85+, 20 weeks, and a ring from the shop</span></button>` : ''}
+          ${L.status === 'married' && !L.expecting && L.children.length < 3 && (!L.children.length || S.week - L.children[L.children.length - 1].born >= 20) ? '<button type="button" class="sm primary" data-life="family">👶 Start a family<span class="sub">a new arrival in about 8 weeks</span></button>' : ''}
+          ${L.expecting ? `<button type="button" class="sm" disabled>👶 Baby due in ${Math.max(0, L.expecting - S.week)} weeks</button>` : ''}
+          <button type="button" class="sm danger" data-life="breakup">💔 End it</button></div>
+          ${L.children.length ? `<div class="card"><h3>Family</h3>${L.children.map(c => `<div>👶 ${esc(c.name)} · ${Math.floor((S.week - c.born) / 40)} years</div>`).join('')}</div>` : ''}${U.lifeNote ? `<div class="notice">${U.lifeNote}</div>` : ''}`;
+      }
+    }
+    const html = `${toast()}<h2>📱 Phone</h2><div class="choices"><button type="button" class="sm ${tab === 'social' ? 'primary' : ''}" data-ltab="social">Social</button><button type="button" class="sm ${tab === 'dating' ? 'primary' : ''}" data-ltab="dating">${L.status === 'single' ? 'Dating' : 'Partner & family'}</button></div>${body}`;
+    const after = () => {
+      document.querySelectorAll('[data-ltab]').forEach(b => b.onclick = () => { U.lifeTab = b.dataset.ltab; U.lifeNote = null; render(); });
+      document.querySelectorAll('[data-post]').forEach(b => b.onclick = () => { const k = b.dataset.post; L.weekPosted = S.week; L.posts++; p.energy = Math.max(0, p.energy - 3);
+        if (k === 'match') { if (Math.random() < 0.1) { p.fans = E.clamp(p.fans - 3, 0, 100); U.toast = 'The comments turned on you. Fans −3. Maybe not after a defeat next time.'; } else { p.fans = E.clamp(p.fans + 2, 0, 100); if (p.fame < 60) p.fame = E.clamp(p.fame + 1, 0, 100); U.toast = 'Post is doing numbers. Fans +2, Fame +1.'; } }
+        if (k === 'flex') { if (Math.random() < 0.35) { p.fans = E.clamp(p.fans - 1, 0, 100); p.charm = E.clamp(p.charm + 1, 0, 100); U.toast = 'Charm +1, but the fans think you are showing off. Fans −1.'; } else { p.charm = E.clamp(p.charm + 1, 0, 100); U.toast = 'Tasteful. Charm +1.'; } }
+        if (k === 'couple') { L.love = E.clamp(L.love + 4, 0, 100); L.lastContact = S.week; p.fans = E.clamp(p.fans + 1, 0, 100); U.toast = `${esc(L.partner.name)} liked it. Love +4, Fans +1.`; }
+        save(); render(); });
+      document.querySelectorAll('[data-brand]').forEach(b => b.onclick = () => { const o = L.brandOffer; L.brandOffer = null; if (b.dataset.brand === 'yes') { p.sponsors = p.sponsors || []; p.sponsors.push({ name: o.name, weekly: o.weekly, weeksLeft: o.weeks }); L.brandTier = o.tier + 1; U.toast = `Signed with ${esc(o.name)}: ${money(o.weekly)} a week.`; } else { L.brandTier = o.tier + 1; U.toast = 'Declined. Bigger brands will come with more fame.'; } save(); render(); });
+      document.querySelectorAll('[data-ask]').forEach(b => b.onclick = () => { const c = L.cands.list[+b.dataset.ask]; const pr = 0.35 + p.charm / 150 + (p.fame >= 30 ? 0.2 : 0);
+        if (Math.random() < pr) { L.status = 'dating'; L.partner = c; L.love = 25; L.since = S.week; L.lastContact = S.week; L.cands = null; U.lifeNote = `${esc(c.name)} said yes. First date at the café is on you.`; }
+        else { L.cands.list.splice(+b.dataset.ask, 1); U.lifeNote = `${esc(c.name)} is not interested. Charm helps.`; }
+        save(); render(); });
+      document.querySelectorAll('[data-life]').forEach(b => b.onclick = () => { const k = b.dataset.life;
+        if (k === 'msg') { L.love = E.clamp(L.love + 3, 0, 100); L.lastContact = S.week; U.lifeNote = 'A long message and a longer reply. Love +3.'; }
+        if (k === 'gifts') { U.shopTab = 'gifts'; go('shop'); return; }
+        if (k === 'movein') { L.livesTogether = true; L.love = E.clamp(L.love + 10, 0, 100); L.status = 'together'; U.lifeNote = `${esc(L.partner.name)} moved in. They are in the house now, and you sleep better. Energy +6 a week.`; }
+        if (k === 'propose') { L.status = 'engaged'; L.ring = false; L.love = 100; save(); playCut('wedding', cutData({ partner: L.partner }), () => { L.status = 'married'; L.married = S.week; L.livesTogether = true; p.fame = E.clamp(p.fame + 5, 0, 100); p.charm = E.clamp(p.charm + 5, 0, 100); U.lifeNote = 'Married. Fame +5, Charm +5.'; save(); render(); }); return; }
+        if (k === 'family') { L.expecting = S.week + 8; U.lifeNote = 'A new arrival in about eight weeks. Play the weeks through.'; }
+        if (k === 'breakup') { if (!confirm(`End things with ${L.partner.name}?`)) return; L.status = 'single'; L.partner = null; L.livesTogether = false; L.love = 0; p.charm = E.clamp(p.charm - 1, 0, 100); U.lifeNote = 'Single again. The house is quiet.'; }
+        save(); render(); });
+    };
+    return { html, actions: [{ label: '← Back to town', fn: () => { U.lifeNote = null; go('hub'); } }], after };
+  };
   // ---------- Batch B: career ----------
   const NATIONS = { England: 86, Spain: 87, Italy: 84, Germany: 85, France: 88, Brazil: 88, Argentina: 87, Nigeria: 76, Netherlands: 84, Portugal: 85, USA: 76, Japan: 78, Senegal: 78, 'Saudi Arabia': 70,
     Croatia: 80, Belgium: 82, Uruguay: 81, Colombia: 79, Mexico: 77, Morocco: 80, Switzerland: 79, Denmark: 78, Sweden: 74, Poland: 76, Turkey: 77, Australia: 72, 'South Korea': 76, Ghana: 74, Egypt: 75, Serbia: 76 };
@@ -350,7 +418,7 @@
 
   // ---------- VIEWS ----------
   const VIEWS = {};
-  VIEWS.talk = talkView; VIEWS.agent = agentView; VIEWS.legacy = legacyView;
+  VIEWS.talk = talkView; VIEWS.agent = agentView; VIEWS.legacy = legacyView; VIEWS.life = lifeView;
 
   VIEWS.menu = () => {
     const saved = load();
@@ -502,6 +570,9 @@
   function gainEnergy(n) { const p = P(); const before = p.energy; p.energy = Math.min(E.maxEnergy(S), p.energy + n); return Math.round(p.energy - before); }
   const PERKS = {
     nap: () => perkOnce('nap') ? `Twenty minutes on the sofa. Energy +${gainEnergy(10)}.` : 'You already napped this week. The sofa judges you.',
+    sofa: () => { const L = life(); if (L.partner && L.livesTogether) { if (!perkOnce('sofa')) return 'You have had your evening in this week.'; L.love = E.clamp(L.love + 8, 0, 100); L.lastContact = S.week; return `Movie night with ${L.partner.name}. Love +8, Energy +${gainEnergy(10)}.`; } return PERKS.nap(); },
+    date: () => { const L = life(); const p = P(); if (!L.partner) return 'Nobody to take. Check the dating tab on your phone.'; if (p.money < 60) return 'Dinner is $60. You are short.'; if (!perkOnce('date')) return 'One date night a week. Keep them keen.'; p.money -= 60; const bonus = L.partner.trait === 'foodie' ? 5 : 0; L.love = E.clamp(L.love + 10 + bonus, 0, 100); L.lastContact = S.week; return `Dinner with ${L.partner.name}. Love +${10 + bonus}.${bonus ? ' They loved the food.' : ''}`; },
+    megastore: () => { const p = P(); if (p.fame < 30) return `Your shirt is not on sale yet. Fame 30 needed (you have ${p.fame}).`; if (S.flags.megaSeason === p.seasons) return 'You already bought your own shirt this season. That is enough.'; if (p.money < 80) return 'Replica shirt: $80. You are short.'; S.flags.megaSeason = p.seasons; p.money -= 80; p.fans = E.clamp(p.fans + 5, 0, 100); p.charm = E.clamp(p.charm + 1, 0, 100); return 'You bought your own shirt. A kid asked you to sign it. Fans +5, Charm +1.'; },
     sleep: () => perkOnce('sleep') ? `A proper night's sleep. Energy +${gainEnergy(15)}.` : 'You have slept enough this week. Go and train.',
     snack: () => perkOnce('snack') ? `Leftover pasta, cold, standing up. Energy +${gainEnergy(6)}.` : 'The fridge is empty. Shopping Center is across the road.',
     coffee: () => { const p = P(); if (p.money < 25) return 'Coffee is $25. You are $' + (25 - Math.round(p.money)) + ' short.'; if (!perkOnce('coffee')) return 'The barista cuts you off. One a week, athlete.'; p.money -= 25; return `Flat white. $25. Energy +${gainEnergy(6)}.`; },
@@ -516,12 +587,26 @@
       const [, screen, tab] = action.split(':');
       if (screen === 'shop') { U.shopTab = tab || 'boots'; go('shop'); }
       else if (screen === 'talk') { U.talkReply = null; U.talkPos = false; go('talk'); }
+      else if (screen === 'life') { U.lifeTab = 'social'; go('life'); }
       else if (screen === 'agent') go('agent');
       else if (screen === 'garage' || screen === 'contract' || screen === 'estate' || screen === 'mirror') { U.homeFocus = screen; go('home'); }
       else go(screen);
       return;
     }
     if (action.startsWith('perk:')) { const f = PERKS[action.slice(5)]; if (f) { U.town.note(f()); U.town.setSub(energySub()); save(); } return; }
+    if (action.startsWith('mini:')) {
+      const kind = action.slice(5); const cost = kind === 'gym' ? E.TRAIN_COST : 20;
+      if (p.injury > 0) { U.town.note('Injured. See the physio first.'); return; }
+      if (p.energy < cost) { U.town.note(`Not enough energy (${cost} needed).`); return; }
+      U.town.startMini({ title: kind === 'gym' ? 'Gym session' : 'Keepy-uppies', reps: 5, speed: kind === 'gym' ? 1.5 : 1.9 }, (hits, reps) => {
+        p.energy -= cost; if (kind === 'gym') S.trainedThisWeek = true;
+        const chance = (kind === 'gym' ? 0.3 : 0.15) + (hits / reps) * (kind === 'gym' ? 0.5 : 0.35) + E.trainBonus(S) / 150;
+        if (Math.random() < chance) { const at = kind === 'gym' ? E.weightedAttr(p.pos) : E.pick(E.ATTRS); p.attrs[at] = E.clamp(p.attrs[at] + 1, 20, 99); p.ovr = E.calcOVR(p.attrs, p.pos); U.town.note(`${hits}/${reps} clean. +1 ${attrLabel(at)}! OVR ${p.ovr}.`); }
+        else U.town.note(`${hits}/${reps} clean. No gain this time (${Math.round(chance * 100)}% chance).`);
+        if (kind === 'gym') p.coach = E.clamp(p.coach + 1, 0, 100);
+        U.town.setSub(energySub()); save(); });
+      return;
+    }
     if (action === 'bus') { U.town.note('The number 9 to the stadium. Free with a season ticket.'); U.town.goto('stadium', 180, 60); return; }
     if (action === 'kickabout') {
       if (p.energy < 20) { U.town.note('Too tired for a kickabout. Energy 20 needed.'); return; }
@@ -560,6 +645,7 @@
       ${maybeFanEncounter('hub')}
       ${pendingInternational() ? `<div class="notice">🌍 ${pendingInternational().kind === 'wc' ? 'WORLD CUP! ' + esc(p.nat) + ' need you. Four matches: two group games, a semi-final and the final.' : 'International call-up! ' + esc(p.nat) + ' friendly this week.'} Play it from the Stadium.</div>` : ''}
       ${benchedByRival() ? `<div class="notice">👀 ${esc(S.rival.name)} is in form (${S.rival.ovr}) and keeps the ${esc(p.pos)} shirt this week. Beat their form or win the coach over (60+).</div>` : ''}
+      ${U.lifeNote && U.screen === 'hub' ? `<div class="notice">${U.lifeNote}</div>` : ''}${life().brandOffer ? '<div class="notice">📱 A brand wants to talk. Check your phone upstairs.</div>' : ''}
       ${p.injury > 0 ? `<div class="notice">🩹 Injured: ${p.injury} week${p.injury > 1 ? 's' : ''} left. The physio at the training ground knocks a week off.</div>` : ''}${p.banned > 0 ? '<div class="notice">🟥 Suspended for the next match.</div>' : ''}
       ${p.fame >= 50 ? '<p class="muted">Fame 50+: people recognise you in the street now. Expect crowds.</p>' : ''}`;
     const actions = [
@@ -568,6 +654,7 @@
       { label: '🛍 Shopping Center', sub: 'Boots, outfits, gear', fn: () => go('shop') },
       { label: '🏃 Training Ground', sub: `${Math.floor(p.energy / E.TRAIN_COST)} sessions left`, fn: () => go('training') },
       { label: '🏟 Stadium · Match Day', cls: 'primary', sub: pendingInternational() ? 'International duty this week' : 'Play, sim or quick sim', fn: () => go('stadium') },
+      { label: '📱 Phone', sub: life().status === 'single' ? 'Social, dating' : `Social · ${life().partner.name}`, fn: () => { U.lifeTab = 'social'; go('life'); } },
       { label: '👥 Squad', fn: () => go('squad') },
       { label: '📊 League Tables', fn: () => go('table') },
       { label: '📈 Career & Attributes', fn: () => go('career') },
@@ -575,9 +662,10 @@
     ];
     const after = () => {
       bindFan();
+      if (U.pendingCut) { const c = U.pendingCut; U.pendingCut = null; playCut(c.type, c.data, () => render()); return; }
       if (U.townMenu || U.fan || U.forceFan || !TOWN) return;
       const host = fullscreenHost();
-      U.town = TOWN.start({ host, look: p.look, kit: myKit(), acc: myAcc(false), fame: p.fame, carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week, teammates: S.teammates,
+      U.town = TOWN.start({ host, look: p.look, kit: myKit(), acc: myAcc(false), fame: p.fame, family: familyOpts(), carIdx: D.CARS.findIndex(c => c.id === p.car), spawn: U.townPos, crowded: S.flags.fanWeek === S.week, teammates: S.teammates,
         title: `${club().name} · week ${S.week}`, sub: energySub(),
         onMenu: () => { U.townMenu = true; render(); },
         onAction: worldAction,
@@ -615,15 +703,15 @@
   VIEWS.shop = () => {
     const p = P(); const tab = U.shopTab || 'boots';
     const items = D.SHOP[tab];
-    const isAcc = tab === 'accessories';
+    const isAcc = tab === 'accessories'; const isGift = tab === 'gifts'; const L = life();
     const cur = tab === 'kits' ? p.kit : isAcc ? null : p[tab === 'boots' ? 'boots' : tab === 'outfits' ? 'outfit' : 'gear'];
-    const rows = items.map(it => { const equipped = isAcc ? p.acc[it.slot] === it.id : it.id === cur;
+    const rows = isGift ? items.map(it => `<div class="item"><div class="item-main"><b>${esc(it.name)}</b><span class="muted">${esc(it.desc)}</span><span class="fx">${it.ring ? (L.ring ? 'You have the ring' : 'Needed to propose') : `love +${it.love}`} · <span class="gold">${money(it.price)}</span></span></div><div class="item-act">${!L.partner ? '<span class="pill">No partner</span>' : it.ring && L.ring ? '<span class="pill ok">Bought</span>' : p.money < it.price ? `<button type="button" class="sm" disabled>Buy<span class="sub">${money(it.price - p.money)} short</span></button>` : `<button type="button" class="sm warn" data-gift="${it.id}">${it.ring ? 'Buy the ring' : 'Give'}</button>`}</div></div>`).join('') : items.map(it => { const equipped = isAcc ? p.acc[it.slot] === it.id : it.id === cur;
       return itemCard(it, { key: '', state: equipped ? 'cur' : p.owned.includes(it.id) ? 'owned' : 'buy', curLabel: isAcc ? 'Wearing' : 'Equipped', useLabel: isAcc ? 'Wear' : 'Equip', unequip: isAcc && equipped ? it.id : null,
         effects: [it.charm ? `+${it.charm} charm` : '', it.train ? `+${it.train} training` : '', it.energy ? `+${it.energy} max energy` : '', isAcc ? `${it.slot}${it.pitch ? ' · pitch OK' : ' · town only'}` : '', tab === 'kits' && !it.club ? 'worn in town' : ''] }); }).join('');
     const preview = `<div class="look"><canvas class="look-canvas" id="shop-preview" width="120" height="150"></canvas><div class="muted">This is how you look in town right now: kit, boots and accessories. Pitch-legal accessories show in matches too.</div></div>`;
     const html = `${toast()}<h2>🛍 Shopping Center</h2><div class="row"><span>Wallet: <span class="gold">${money(p.money)}</span></span><span class="muted">Boots and gear sharpen training. Outfits raise Charm, which pulls bigger clubs into the transfer window.</span></div>
       ${preview}
-      <div class="choices shoptabs"><button class="sm ${tab === 'boots' ? 'primary' : ''}" data-tab="boots">👟 Boots</button><button class="sm ${tab === 'outfits' ? 'primary' : ''}" data-tab="outfits">🧥 Outfits</button><button class="sm ${tab === 'kits' ? 'primary' : ''}" data-tab="kits">👕 Kits</button><button class="sm ${tab === 'accessories' ? 'primary' : ''}" data-tab="accessories">💍 Accessories</button><button class="sm ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🏋 Fitness gear</button></div>
+      <div class="choices shoptabs"><button class="sm ${tab === 'boots' ? 'primary' : ''}" data-tab="boots">👟 Boots</button><button class="sm ${tab === 'outfits' ? 'primary' : ''}" data-tab="outfits">🧥 Outfits</button><button class="sm ${tab === 'kits' ? 'primary' : ''}" data-tab="kits">👕 Kits</button><button class="sm ${tab === 'accessories' ? 'primary' : ''}" data-tab="accessories">💍 Accessories</button><button class="sm ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🏋 Fitness gear</button><button class="sm ${tab === 'gifts' ? 'primary' : ''}" data-tab="gifts">🎁 Gifts</button></div>
       <div class="items">${rows}</div>
       ${maybeFanEncounter('shop')}`;
     const after = () => {
@@ -635,6 +723,7 @@
       document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const it = items.find(x => x.id === b.dataset.buy); p.money -= it.price; p.owned.push(it.id); equip(it); if (it.charm) p.charm = E.clamp(p.charm + it.charm, 0, 100); U.toast = `Bought ${esc(it.name)}.${it.charm ? ` Charm +${it.charm}.` : ''}`; if (A) A.sfx('cash'); render(); });
       document.querySelectorAll('[data-eq]').forEach(b => b.onclick = () => { equip(items.find(x => x.id === b.dataset.eq)); render(); });
       document.querySelectorAll('[data-uneq]').forEach(b => b.onclick = () => { const it = items.find(x => x.id === b.dataset.uneq); delete p.acc[it.slot]; render(); });
+      document.querySelectorAll('[data-gift]').forEach(b => b.onclick = () => { const it = D.SHOP.gifts.find(x => x.id === b.dataset.gift); p.money -= it.price; if (it.ring) { L.ring = true; U.toast = 'The ring is in your pocket. Propose from your phone when the moment is right.'; } else { L.love = E.clamp(L.love + it.love, 0, 100); L.lastContact = S.week; U.toast = `${esc(L.partner.name)} loved the ${esc(it.name.toLowerCase())}. Love +${it.love}.`; } if (A) A.sfx('cash'); save(); render(); });
     };
     return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }], after };
   };
@@ -799,7 +888,7 @@
     if (live(m)) A.sfx(r.goal || r.assist ? 'goal' : r.concede ? 'bad' : r.type === 'save' || r.type === 'key' ? 'save' : r.ok ? 'click' : 'bad');
   }
   function tickAbsences() { const p = P(); if (p.injury > 0) p.injury--; if (p.banned > 0) p.banned--; }
-  function postMatch(m, ch) { questProgress(m, ch); paySponsors(ch); rivalTick(); if (!S.rival || S.rival.pos !== P().pos) makeRival(); }
+  function postMatch(m, ch) { questProgress(m, ch); paySponsors(ch); rivalTick(); if (!S.rival || S.rival.pos !== P().pos) makeRival(); lifeTick(); }
   function finish() {
     const m = U.match;
     if ((P().injury || 0) > 0 || (P().banned || 0) > 0) m.unused = true;
@@ -931,6 +1020,7 @@
     if (l && l.red) return `${esc(pname())} back after that red card. Head down, feet clean today.`;
     if (l && l.motm) return `Player of the match last time out for ${esc(pname())}.`;
     if (p.apps === 0 && h.length) return `New club, new season for ${esc(pname())}. ${h[h.length - 1].goals} goals last year.`;
+    if (life().partner && S.week % 3 === 0) return `${esc(life().partner.name)} in the stands tonight. No pressure.`;
     if (p.fame >= 60) return `The whole ground is here for one player, and they know it.`;
     return ['Big one, this.', 'Three points would settle a few nerves.', 'Plenty of scouts in the stand tonight.', 'You can feel the expectation.'][S.week % 4];
   }

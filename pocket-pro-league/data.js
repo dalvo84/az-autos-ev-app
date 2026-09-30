@@ -147,6 +147,15 @@
       { id: 'a11', name: 'Grip Gloves', price: 400, charm: 1, slot: 'hands', type: 'gloves', color: '#111111', pitch: true, desc: 'Allowed on the pitch. Cold-weather essential.' },
       { id: 'a12', name: 'Tattoo Sleeve', price: 2000, charm: 3, slot: 'arm', type: 'tattoo', color: '#3a4a5a', pitch: true, desc: 'Permanent. Shows on the pitch and in town.' },
     ],
+    gifts: [
+      { id: 'gf1', name: 'Flowers', price: 50, love: 5, desc: 'Never wrong.' },
+      { id: 'gf2', name: 'Dinner Voucher', price: 150, love: 8, desc: 'Somewhere with tablecloths.' },
+      { id: 'gf3', name: 'Perfume', price: 400, love: 10, desc: 'The one they mentioned once.' },
+      { id: 'gf4', name: 'Weekend Away', price: 2500, love: 16, desc: 'Phone off. Mostly.' },
+      { id: 'gf5', name: 'Jewellery', price: 5000, love: 20, desc: 'A small box that changes the mood of a room.' },
+      { id: 'gf6', name: 'Engagement Ring', price: 8000, love: 0, ring: true, desc: 'Buy it when you mean it. Propose from your phone.' },
+      { id: 'gf7', name: 'Holiday for Two', price: 15000, love: 30, desc: 'Two weeks somewhere the paparazzi cannot find.' },
+    ],
     gear: [
       { id: 'g0', name: 'No Gear', price: 0, energy: 0, train: 0, desc: 'Just you and the cones.' },
       { id: 'g1', name: 'Resistance Bands', price: 600, energy: 5, train: 3, desc: 'Cheap, effective, ugly.' },

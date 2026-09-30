@@ -24,7 +24,7 @@
       b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
     });
     // keyboard (computer): arrows / WASD move, Space shoot, P pass, Z skill
-    const keys = {}; const keyMap = { ' ': 'shoot', 'p': 'pass', 'z': 'skill' };
+    const keys = {}; const keyMap = { ' ': 'shoot', 'enter': 'shoot', 'p': 'pass', 'z': 'skill' };
     const touch = (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
     if (!touch) {
       wrap.classList.add('kbd');

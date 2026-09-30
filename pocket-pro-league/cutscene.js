@@ -193,6 +193,24 @@
     },
   };
 
+  SCENES.wedding = function (d) {
+    const W = 360, H = 240; const mates = ensureMates(d, 6);
+    const actors = mates.map((m, i) => ({ look: m.look, kit: suitKit, opts: { suit: true, tie: d.kit.shirt }, keys: [{ t: 0, x: 40 + i * 30, y: 215 }, { t: 7, x: 40 + i * 30, y: 215, pose: 'cheer' }, { t: 14, x: 40 + i * 30, y: 215, pose: 'cheer' }] }));
+    actors.push({ look: d.look, kit: suitKit, opts: { suit: true, tie: '#f3c34f', acc: d.acc }, scale: 1.8, keys: [{ t: 0, x: W / 2 - 22, y: 176 }, { t: 7, x: W / 2 - 22, y: 176, pose: 'cheer' }, { t: 14, x: W / 2 - 22, y: 176, pose: 'cheer' }] });
+    actors.push({ look: d.partner.look, kit: { shirt: '#f4f4f4', shorts: '#f4f4f4' }, scale: 1.8, keys: [{ t: 0, x: W + 30, y: 176 }, { t: 3.5, x: W / 2 + 22, y: 176 }, { t: 7, x: W / 2 + 22, y: 176, pose: 'cheer' }, { t: 14, x: W / 2 + 22, y: 176, pose: 'cheer' }] });
+    return { w: W, h: H, duration: 14, bg: (ctx, t, i) => BG.gala(ctx, t, Object.assign(i, { title: 'THE WEDDING' })), actors,
+      captions: [ { t: 0.5, who: 'Registrar', text: `We are gathered for ${d.name} and ${d.partner.name}.` }, { t: 4, who: d.partner.name, text: 'I do. Even on match days.' }, { t: 6.5, who: d.name, text: 'I do.' }, { t: 8.5, who: 'Ally', text: 'John, I am not crying. It is the confetti.' }, { t: 11, who: 'John', text: 'The whole squad in suits. Nobody looks comfortable. Congratulations to them both.' } ],
+      effects: { confetti: true, flashes: true, from: 7 }, banner: { t: 7, text: 'JUST MARRIED', sub: `${d.name} & ${d.partner.name}`, sfx: 'chant' } };
+  };
+  SCENES.baby = function (d) {
+    const W = 360, H = 240;
+    return { w: W, h: H, duration: 11, bg: (ctx, t, i) => { const { W, H } = i; ctx.fillStyle = '#b98b5a'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#2b2f45'; ctx.fillRect(0, 0, W, H * 0.6); ctx.fillStyle = '#242838'; for (let x = 0; x < W; x += 24) ctx.fillRect(x, 0, 12, H * 0.6); ctx.fillStyle = '#ffe9a8'; ctx.fillRect(40, 30, 60, 50); ctx.fillStyle = '#a97a4b'; for (let y = H * 0.6; y < H; y += 16) ctx.fillRect(0, y, W, 2); ctx.fillStyle = '#e9edf7'; ctx.fillRect(W / 2 - 40, 150, 80, 34); ctx.fillStyle = '#7c5cff'; ctx.fillRect(W / 2 - 36, 154, 72, 12); ctx.fillStyle = '#f3c34f'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center'; ctx.fillText('HOME', W / 2, 100); },
+      actors: [ { look: d.look, kit: d.kit, opts: { acc: d.acc }, scale: 1.8, keys: [{ t: 0, x: W / 2 - 50, y: 200 }, { t: 5, x: W / 2 - 50, y: 200, pose: 'cheer' }, { t: 11, x: W / 2 - 50, y: 200, pose: 'cheer' }] },
+        { look: d.partner.look, kit: d.partner.kit || { shirt: '#c0392b', shorts: '#2b2b2b' }, scale: 1.8, keys: [{ t: 0, x: W / 2 + 50, y: 200 }, { t: 11, x: W / 2 + 50, y: 200 }] },
+        { look: d.child.look, kit: { shirt: '#f3c34f', shorts: '#2b2b2b' }, scale: 1.0, keys: [{ t: 3, x: W / 2, y: 178 }, { t: 11, x: W / 2, y: 178 }] } ],
+      captions: [ { t: 0.5, who: d.partner.name, text: 'Say hello.' }, { t: 3.2, who: d.name, text: `Hello, ${d.child.name}.` }, { t: 6, who: 'Ally', text: `A new arrival for ${d.name}. Sleep is for the off-season.` }, { t: 8.5, who: 'John', text: 'First kick due in about two years.' } ],
+      effects: { confetti: true, from: 3 }, banner: { t: 3.2, text: 'WELCOME', sub: d.child.name, sfx: 'ding' } };
+  };
   SCENES.legacy = function (d) {
     const W = 360, H = 240; const mates = ensureMates(d, 6);
     const actors = mates.map((m, i) => ({ look: m.look, kit: d.kit, keys: [{ t: 0, x: 70 + i * 40, y: 215, pose: 'cheer' }, { t: 20, x: 70 + i * 40, y: 215, pose: 'cheer' }] }));
