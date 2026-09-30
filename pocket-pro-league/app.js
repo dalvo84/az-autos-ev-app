@@ -160,6 +160,11 @@
     const sr = $('#scene-root'); if (sr) sr.remove();
     try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) { /* ignore */ }
   }
+  // ---------- derbies, weather, discipline ----------
+  function rivalOf(name) { const r = D.RIVALS[name]; if (r) return r; const L = lg(); const i = L.clubs.findIndex(c => c.name === name); const rev = Object.keys(D.RIVALS).find(k => D.RIVALS[k] === name); if (rev && L.clubs.some(c => c.name === rev)) return rev; return L.clubs[(i + 1) % L.clubs.length].name; }
+  function isDerby(oppName) { return rivalOf(club().name) === oppName || rivalOf(oppName) === club().name; }
+  function pickWeather() { const r = Math.random(); return r < 0.22 ? 'rain' : r < 0.5 ? 'night' : 'clear'; }
+  const WEATHER_TXT = { rain: 'Rain lashing down. The ball will skid and the slide tackles will be long.', night: 'Under the floodlights tonight.', clear: 'Perfect conditions.' };
   // ---------- cutscenes ----------
   function cutData(extra) { const p = P(); return Object.assign({ look: p.look, kit: clubKit(), acc: myAcc(false), name: pname(), club: S.clubIdx >= 0 ? club().name : 'Riverside Academy', mates: S.teammates }, extra || {}); }
   // Plays a cutscene full screen, then calls done. Skippable. Falls through if the module is missing.
@@ -378,7 +383,7 @@
     sleep: () => perkOnce('sleep') ? `A proper night's sleep. Energy +${gainEnergy(15)}.` : 'You have slept enough this week. Go and train.',
     snack: () => perkOnce('snack') ? `Leftover pasta, cold, standing up. Energy +${gainEnergy(6)}.` : 'The fridge is empty. Shopping Center is across the road.',
     coffee: () => { const p = P(); if (p.money < 25) return 'Coffee is $25. You are $' + (25 - Math.round(p.money)) + ' short.'; if (!perkOnce('coffee')) return 'The barista cuts you off. One a week, athlete.'; p.money -= 25; return `Flat white. $25. Energy +${gainEnergy(6)}.`; },
-    physio: () => perkOnce('physio') ? `Ice bath and a rub down. Energy +${gainEnergy(10)}.` : 'Physio has seen you already this week.',
+    physio: () => { const p = P(); if (p.injury > 0) { if (!perkOnce('physio')) return 'Treatment done for this week. Rest.'; p.injury--; return p.injury > 0 ? `Treatment. ${p.injury} week${p.injury > 1 ? 's' : ''} of the injury left.` : 'Treatment. You are cleared to play.'; } return perkOnce('physio') ? `Ice bath and a rub down. Energy +${gainEnergy(10)}.` : 'Physio has seen you already this week.'; },
     coach: () => { const p = P(); if (!perkOnce('coach')) return 'The coach waves you out. "Show me on the pitch."'; p.coach = E.clamp(p.coach + 2, 0, 100); return p.coach >= 60 ? '"Keep doing what you are doing." Coach +2.' : p.coach >= 35 ? '"Work harder in training and you will start." Coach +2.' : '"You are not close to the team yet. Train." Coach +2.'; },
     press: () => { const p = P(); if (p.fame < 10) return 'Two journalists and a work-experience kid. Nobody asks a question.'; if (!perkOnce('press')) return 'The press officer says you have done enough talking this week.'; p.fame = E.clamp(p.fame + 1, 0, 100); p.charm = E.clamp(p.charm + 1, 0, 100); return 'You handle the questions well. Fame +1, Charm +1.'; },
     balcony: () => { const p = P(); const st = E.standings(lg()); const pos = st.findIndex(r => r.idx === S.clubIdx) + 1; return `Floodlights on the horizon. ${club().name} sit ${pos}${ord(pos)}. Fame ${p.fame}, fans ${p.fans}.`; },
@@ -429,6 +434,7 @@
       ${fixtureCard()}
       <div class="card"><h3>Status</h3>${bar('Energy', Math.round(p.energy / E.maxEnergy(S) * 100), 'sky')}${bar('Fame', p.fame, 'gold')}${bar('Fans', p.fans)}${bar('Coach', p.coach)}${bar('Chemistry', p.chem)}${bar('Charm', p.charm, 'gold')}</div>
       ${maybeFanEncounter('hub')}
+      ${p.injury > 0 ? `<div class="notice">🩹 Injured: ${p.injury} week${p.injury > 1 ? 's' : ''} left. The physio at the training ground knocks a week off.</div>` : ''}${p.banned > 0 ? '<div class="notice">🟥 Suspended for the next match.</div>' : ''}
       ${p.fame >= 50 ? '<p class="muted">Fame 50+: people recognise you in the street now. Expect crowds.</p>' : ''}`;
     const actions = [
       { label: '🗺 Walk the town', cls: 'primary', sub: 'Full-screen open world', fn: () => { U.townMenu = false; render(); } },
@@ -518,7 +524,7 @@
       <p class="muted">★ marks the attributes your position weights most.</p>`;
     const actions = E.ATTRS.map(a => {
       const chance = Math.round(E.clamp(0.26 + E.trainBonus(S) / 150 - (p.attrs[a] - 50) * 0.006 + (p.age <= 21 ? 0.05 : p.age <= 27 ? 0 : -0.1), 0.05, 0.8) * 100);
-      return { label: `${attrLabel(a)} ${p.attrs[a]}`, sub: `${chance}% chance of +1`, disabled: sessions < 1, fn: () => { const r = E.train(S, a); if (A && r.ok && r.gained) A.sfx('ding'); U.toast = r.ok ? (r.gained ? `<span class="green">+1 ${attrLabel(a)}!</span> Now ${p.attrs[a]}. OVR ${p.ovr}.` : `Hard session on ${attrLabel(a)}. No gain this time, but the coach saw you working.`) : r.reason; render(); } };
+      return { label: `${attrLabel(a)} ${p.attrs[a]}`, sub: p.injury > 0 ? 'Injured: see the physio' : `${chance}% chance of +1`, disabled: sessions < 1 || p.injury > 0, fn: () => { const r = E.train(S, a); if (A && r.ok && r.gained) A.sfx('ding'); U.toast = r.ok ? (r.gained ? `<span class="green">+1 ${attrLabel(a)}!</span> Now ${p.attrs[a]}. OVR ${p.ovr}.` : `Hard session on ${attrLabel(a)}. No gain this time, but the coach saw you working.`) : r.reason; render(); } };
     });
     actions.push({ label: '← Back to hub', fn: () => go('hub') });
     return { html, actions };
@@ -571,11 +577,12 @@
     const start = mode => () => { U.match = E.buildMatch(S, mode); U.match.introduced = new Set(); U.match.timeline = buildTimeline(U.match); U.match.pos = 0; U.match.shown = [];
       if (mode === 'quick') { advance(U.match, true); finish(); return; }
       go('match'); };
-    const unused = P().coach < 15;
+    const unused = P().coach < 15 || (P().injury || 0) > 0 || (P().banned || 0) > 0;
+    const whyOut = (P().injury || 0) > 0 ? `Injured: ${P().injury} week${P().injury > 1 ? 's' : ''} to go` : (P().banned || 0) > 0 ? 'Suspended this match' : 'Not in the squad this week';
     const play = mode => () => { U.arcadeMode = mode; go('arcade'); };
     const actions = [
-      { label: '🕹 Play Full Match', cls: 'primary', sub: unused ? 'Not in the squad this week' : 'Two halves, you control your player', disabled: unused, fn: play('full') },
-      { label: '⚡ Play Highlights', sub: unused ? 'Not in the squad this week' : 'Short halves, same controls', disabled: unused, fn: play('highlights') },
+      { label: '🕹 Play Full Match', cls: 'primary', sub: unused ? whyOut : 'Two halves, you control your player', disabled: unused, fn: play('full') },
+      { label: '⚡ Play Highlights', sub: unused ? whyOut : 'Short halves, same controls', disabled: unused, fn: play('highlights') },
       { label: '📝 Text Match', sub: 'Choice-based commentary', fn: start('full') },
       { label: '📜 Sim Match', sub: 'Rapid text scroll', fn: start('sim') },
       { label: '⏩ Quick Sim', sub: 'Instant result', fn: start('quick') },
@@ -647,9 +654,11 @@
     pushLine(m, 'SYS', `Rating now <b>${m.rating.toFixed(1)}</b>`, 'min');
     if (live(m)) A.sfx(r.goal || r.assist ? 'goal' : r.concede ? 'bad' : r.type === 'save' || r.type === 'key' ? 'save' : r.ok ? 'click' : 'bad');
   }
+  function tickAbsences() { const p = P(); if (p.injury > 0) p.injury--; if (p.banned > 0) p.banned--; }
   function finish() {
     const m = U.match;
-    U.result = E.finishMatch(S, m);
+    if ((P().injury || 0) > 0 || (P().banned || 0) > 0) m.unused = true;
+    U.result = E.finishMatch(S, m); tickAbsences();
     U.resultMatch = m;
     S.phase = 'hub';
     go('result');
@@ -720,10 +729,15 @@
       const nm = pl => pl ? (pl.isUser ? esc(pname()) : pl.team === 0 ? esc(mateRef({ name: pl.name, last: pl.last, pron: pl.pron || '' }, pl.pron ? introduced : null)) : `${esc(opp.name)}'s number ${pl.number}`) : 'someone';
       const starts = p.coach >= 35;
       const startMatch = () => { U.arcade = ARC.start(arcOpts); };
-      const arcOpts = { host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
+      const derby = isDerby(opp.name); const weather = pickWeather(); const gearItem = D.SHOP.gear.find(g => g.id === p.gear) || D.SHOP.gear[0];
+      const arcOpts = { host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', derby, weather, staminaMax: 100 + gearItem.energy * 1.5, onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
         secondsPerHalf: mode === 'highlights' ? 60 : 150, timeScale: U.testTimeScale || 1,
         onEvent: (type, d) => {
-          if (type === 'kickoff') { say('John', `${fx.isHome ? esc(club().name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); if (A) A.sfx('kickoff'); }
+          if (type === 'kickoff') { say('John', `${d.derby ? 'DERBY DAY. ' + esc(club().name) + ' against ' + esc(opp.name) + ', and the noise is something else. ' : ''}${fx.isHome ? esc(club().name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); say('Ally', memoryLine(opp) + ' ' + WEATHER_TXT[d.weather || 'clear']); if (A) { A.sfx('kickoff'); if (d.derby) setTimeout(() => A.sfx('chant'), 700); } }
+          else if (type === 'foul') { const by = d.by.isUser ? esc(pname()) : d.by.team === 0 ? nm(d.by) : `${esc(opp.name)}'s number ${d.by.number}`; const on = d.on.isUser ? esc(pname()) : d.on.team === 0 ? nm(d.on) : `${esc(opp.name)}'s number ${d.on.number}`;
+            say('John', d.injury ? `${on} is down and not getting up. That is a bad one from ${by}.` : d.card === 'red' ? `${by} is OFF! Second yellow. ${d.inBox ? 'And it is a penalty.' : ''}` : d.card ? `Yellow card for ${by}. ${d.inBox ? 'Penalty!' : 'Free kick.'}` : `Foul by ${by} on ${on}. ${d.inBox ? 'PENALTY!' : 'Free kick.'}`, d.on.team === 0 ? 'event' : 'bad', true); if (A) A.sfx(d.card ? 'bad' : 'click'); }
+          else if (type === 'injured') { say('Ally', `${esc(pname())} cannot continue. That looks like ${d.weeks} week${d.weeks > 1 ? 's' : ''} out.`, 'bad', true); }
+          else if (type === 'setpiece' && d.taker.isUser) { say('Ally', d.type === 'pen' ? `${esc(pname())} places the ball on the spot. Pick a corner.` : `${esc(pname())} over the free kick. Wall lined up.`, 'event'); }
           else if (type === 'goal') { const us = d.team === 0;
             if (us && d.hattrick) say('Ally', `HAT-TRICK! ${nm(d.scorer)} has three! ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}. Take the match ball home!`, 'goal', true);
             else if (us && d.late) say('Ally', `${d.minute} minutes gone and ${nm(d.scorer)} SCORES! ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}! The place has gone absolutely wild!`, 'goal', true);
@@ -739,8 +753,9 @@
           else if (type === 'fulltime') { say('John', `Full time. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}. ${esc(pname())} rated ${d.rating.toFixed(1)}.`, 'event', true); if (A) A.sfx('fulltime'); }
         },
         onEnd: res => {
-          const m = { fx, opp, club: club(), mode, score: res.score, rating: res.rating, goals: res.goals, assists: res.assists, saves: res.saves, keys: res.keys, unused: !res.played, starts, teamDiff: club().str - opp.str, shown: [], log: [], arcade: res };
-          U.arcade = null; U.result = E.finishMatch(S, m); U.resultMatch = m; S.phase = 'hub'; go('result');
+          const m = { fx, opp, club: club(), mode, score: res.score, rating: res.rating, goals: res.goals, assists: res.assists, saves: res.saves, keys: res.keys, unused: !res.played, starts, teamDiff: club().str - opp.str, shown: [], log: [], arcade: res, derby };
+          U.arcade = null; U.result = E.finishMatch(S, m); U.resultMatch = m; S.phase = 'hub';
+          afterArcade(res, m); tickAbsences(); go('result');
         } };
       if (p.apps === 0 && !S.flags.debutShown) { S.flags.debutShown = true; save(); playCut('debut', cutData({ club: club().name }), () => { const h = fullscreenHost(); arcOpts.host = h; const lg2 = document.createElement('div'); lg2.className = 'script arc-log'; h.appendChild(lg2); logEl = lg2; startMatch(); }); }
       else startMatch();
@@ -748,6 +763,27 @@
     return { html, actions: [{ label: '⏹ Abandon match', cls: 'danger', sub: 'Counts as a quick sim', fn: abandon }], after };
   };
 
+  // Consequences the text engine does not know about: derby glory, cards, bans, injuries, highlight clips
+  function afterArcade(res, m) {
+    const p = P(); const ch = U.result;
+    if (m.derby && ch.rating !== null) { const extra = Math.round(ch.fame * 1.0) + (ch.win ? 3 : 0); p.fame = E.clamp(p.fame + extra, 0, 100); p.fans = E.clamp(p.fans + (ch.win ? 4 : ch.draw ? 1 : -2), 0, 100); ch.derbyBonus = extra; }
+    if (res.cards) { if (res.cards.yellow) p.coach = E.clamp(p.coach - 2 * res.cards.yellow, 0, 100); if (res.cards.red) { p.coach = E.clamp(p.coach - 6, 0, 100); p.banned = 1; ch.banned = true; } }
+    if (res.injury) { p.injury = res.injury; ch.injury = res.injury; }
+    if (res.clips && res.clips.length) { S.highlights = (S.highlights || []).concat(res.clips.map(c => Object.assign({ week: S.week }, c))); S.highlights.sort((x, y) => ((y.hattrick ? 3 : 0) + (y.late ? 2 : 0)) - ((x.hattrick ? 3 : 0) + (x.late ? 2 : 0))); S.highlights = S.highlights.slice(0, 5); }
+    if (S.lastArcade = { opp: m.opp.name, score: res.score.slice(), goals: res.goals, week: S.week, derby: m.derby, motm: ch.motm, red: !!(res.cards && res.cards.red) }) { /* remembered for the commentators */ }
+  }
+  // John and Ally remember things
+  function memoryLine(opp) {
+    const p = P(); const l = S.lastArcade; const h = S.history || [];
+    if (p.injury) return `${esc(pname())} back from injury, and everyone will be watching that first tackle.`;
+    if (l && l.opp === opp.name) return `Last time these two met it finished ${l.score[0]}-${l.score[1]}.`;
+    if (l && l.goals >= 3) return `A hat-trick last week for ${esc(pname())}. Can there be a repeat?`;
+    if (l && l.red) return `${esc(pname())} back after that red card. Head down, feet clean today.`;
+    if (l && l.motm) return `Player of the match last time out for ${esc(pname())}.`;
+    if (p.apps === 0 && h.length) return `New club, new season for ${esc(pname())}. ${h[h.length - 1].goals} goals last year.`;
+    if (p.fame >= 60) return `The whole ground is here for one player, and they know it.`;
+    return ['Big one, this.', 'Three points would settle a few nerves.', 'Plenty of scouts in the stand tonight.', 'You can feel the expectation.'][S.week % 4];
+  }
   VIEWS.result = () => {
     const m = U.resultMatch, ch = U.result, p = P();
     if (!m || !ch) return VIEWS.hub();
@@ -757,7 +793,7 @@
     const html = `<h2>Full-time report</h2>
       <div class="score">${scoreline(m)}<small>${ch.win ? 'WIN · +3 pts' : ch.draw ? 'DRAW · +1 pt' : 'LOSS'} · ${esc(club().name)} now ${myPos}${ord(myPos)}</small></div>
       <div class="cards">
-        <div class="card ${ch.motm ? 'hl' : ''}"><h3>Your match</h3><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? 'Unused sub' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${m.saves}</span>` : `<span class="k">Key plays</span><span>${m.keys}</span>`}${m.arcade ? `<span class="k">Shots</span><span>${m.arcade.shots} (${m.arcade.onTarget} on target)</span><span class="k">Passes</span><span>${m.arcade.passesOk}/${m.arcade.passes}</span><span class="k">Tackles</span><span>${m.arcade.tackles}</span><span class="k">Touches</span><span>${m.arcade.touches}</span><span class="k">Difficulty</span><span>${esc(m.arcade.difficulty || '')}</span>` : ''}</div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>
+        <div class="card ${ch.motm ? 'hl' : ''}"><h3>Your match</h3><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? 'Unused sub' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${m.saves}</span>` : `<span class="k">Key plays</span><span>${m.keys}</span>`}${m.arcade ? `<span class="k">Shots</span><span>${m.arcade.shots} (${m.arcade.onTarget} on target)</span><span class="k">Passes</span><span>${m.arcade.passesOk}/${m.arcade.passes}</span><span class="k">Tackles</span><span>${m.arcade.tackles}</span><span class="k">Touches</span><span>${m.arcade.touches}</span><span class="k">Difficulty</span><span>${esc(m.arcade.difficulty || '')}</span>${m.arcade.weather && m.arcade.weather !== 'clear' ? `<span class="k">Conditions</span><span>${m.arcade.weather}</span>` : ''}${m.derby ? `<span class="k">Derby</span><span class="gold">Yes · fame +${ch.derbyBonus || 0}</span>` : ''}${m.arcade.cards && (m.arcade.cards.yellow || m.arcade.cards.red) ? `<span class="k">Cards</span><span class="red">${m.arcade.cards.red ? 'RED · banned next match' : m.arcade.cards.yellow + ' yellow'}</span>` : ''}${ch.injury ? `<span class="k">Injury</span><span class="red">${ch.injury} week${ch.injury > 1 ? 's' : ''} out</span>` : ''}` : ''}</div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>
         <div class="card"><h3>Changes</h3><div class="kv">${delta('Coach', ch.coach)}${delta('Fans', ch.fans)}${delta('Fame', ch.fame)}${delta('Chemistry', ch.chem)}${delta('Charm', ch.charm)}<span class="k">Bonus</span><span class="gold">${money(ch.money)}</span><span class="k">Wage</span><span class="gold">${money(p.contract.wage)}</span></div>${attrs ? `<div>${attrs} → OVR ${p.ovr}</div>` : ''}</div>
       </div>
       ${ch.motm ? `<div class="script">${scriptLine('Ally', `Player of the match, no argument: <b>${esc(p.name)}</b> (${esc(p.pron)}). Remember the pronunciation, John.`)}${scriptLine('John', 'Noted. Again.')}</div>` : ''}
@@ -798,6 +834,8 @@
       if (U.summary.finish === 1) S.honours.push({ season: U.summary.season, name: `${lgName} champion`, club: U.summary.club });
       awards.forEach(w => { const p = P(); p.fame = E.clamp(p.fame + w.fame, 0, 100); p.fans = E.clamp(p.fans + w.fans, 0, 100); if (w.charm) p.charm = E.clamp(p.charm + w.charm, 0, 100); S.honours.push({ season: U.summary.season, name: w.name, club: U.summary.club }); });
       const cuts = [];
+      if (S.highlights && S.highlights.length) cuts.push({ type: 'reel', data: cutData({ clips: S.highlights.slice(0, 5) }) });
+      S.highlights = [];
       if (U.summary.finish === 1) cuts.push({ type: 'trophy', data: cutData({ league: lgName, club: U.summary.club }) });
       awards.forEach(w => cuts.push({ type: 'award', data: cutData({ kind: w.kind, club: U.summary.club, line: w.line, stats: w.stats }) }));
       U.seasonCuts = cuts; save();

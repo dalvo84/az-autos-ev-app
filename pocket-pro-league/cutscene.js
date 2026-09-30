@@ -193,5 +193,36 @@
     },
   };
 
+  // Season highlights reel: plays saved goal clips (frames from the match engine) on a mini pitch
+  SCENES.reel = function (d) {
+    const W = 360, H = 240; const clips = d.clips || []; const per = 6.5; const dur = 1.5 + clips.length * per;
+    const PW = 600, PH = 900; // pitch units used by the engine
+    let fig = null;
+    return { w: W, h: H, duration: dur, actors: [],
+      bg: (ctx, t, i) => {
+        ctx.fillStyle = '#0b1230'; ctx.fillRect(0, 0, W, H);
+        const k = Math.min(clips.length - 1, Math.floor(Math.max(0, t - 1.5) / per)); const clip = clips[k]; if (!clip) { ctx.fillStyle = '#f3c34f'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.fillText('SEASON HIGHLIGHTS', W / 2, H / 2); return; }
+        const lt = Math.max(0, t - 1.5 - k * per); const fi = Math.min(clip.frames.length - 1, Math.floor(lt / 0.12)); const f = clip.frames[fi] || clip.frames[0];
+        // camera on the ball, zoomed
+        const zoom = 1.25; const cx = f.b[0], cy = f.b[1];
+        ctx.save(); ctx.translate(W / 2 - cx * zoom, H / 2 - cy * zoom); ctx.scale(zoom, zoom);
+        ctx.fillStyle = '#2f8f45'; ctx.fillRect(-100, -100, PW + 200, PH + 200); for (let y = -60; y < PH + 60; y += 60) { ctx.fillStyle = (y / 60) % 2 ? '#2e8a42' : '#33984b'; ctx.fillRect(-18, y, PW + 36, 60); }
+        ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, PW, PH); ctx.beginPath(); ctx.moveTo(0, PH / 2); ctx.lineTo(PW, PH / 2); ctx.stroke(); ctx.beginPath(); ctx.arc(PW / 2, PH / 2, 60, 0, Math.PI * 2); ctx.stroke();
+        for (const gy of [0, PH]) { ctx.strokeRect(PW / 2 - 170, gy === 0 ? 0 : PH - 135, 340, 135); ctx.strokeRect(PW / 2 - 95, gy === 0 ? 0 : PH - 48, 190, 48); ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(225, gy === 0 ? -22 : PH, 150, 22); }
+        const items = f.p.map(q => ({ y: q[2], q })); items.push({ y: f.b[1], ball: true }); items.sort((a, b) => a.y - b.y);
+        for (const it of items) {
+          if (it.ball) { ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(f.b[0], f.b[1] - f.b[2] * 0.25 - 2, 4.6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(f.b[0], f.b[1] - f.b[2] * 0.25 - 2, 3.6, 0, Math.PI * 2); ctx.fill(); continue; }
+          const q = it.q; const lk = clip.looks[q[0]]; if (!lk) continue;
+          SP.drawFigure(ctx, q[1], q[2], 1.0, lk.look, lk.kit, { step: fi > 0 ? fi * 1.1 : 0, number: lk.number, gloves: lk.isGK });
+          if (lk.isUser) { ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.moveTo(q[1] - 4, q[2] - 30); ctx.lineTo(q[1] + 4, q[2] - 30); ctx.lineTo(q[1], q[2] - 25); ctx.closePath(); ctx.fill(); }
+        }
+        ctx.restore();
+        ctx.fillStyle = 'rgba(5,8,15,.8)'; ctx.fillRect(0, 0, W, 18); ctx.fillStyle = '#f3c34f'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'left'; ctx.fillText(`GOAL ${k + 1}/${clips.length} · vs ${clip.opp} · ${clip.minute}'${clip.hattrick ? ' · HAT-TRICK' : clip.late ? ' · LATE' : ''}`, 6, 12);
+        if (fi >= clip.frames.length - 1) { ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, 0, W, H); }
+      },
+      captions: [{ t: 0.3, who: 'John', text: `${d.name}'s season in ${clips.length} goal${clips.length === 1 ? '' : 's'}. Sit back.` }].concat(clips.map((c, k) => ({ t: 1.6 + k * per, who: k % 2 ? 'John' : 'Ally', text: c.hattrick ? `The hat-trick goal against ${c.opp}. Three in one afternoon.` : c.late ? `${c.minute} minutes on the clock against ${c.opp}. Bedlam.` : `Against ${c.opp}, ${c.minute} minutes. ${['Tidy finish.', 'Look at the run.', 'Pure instinct.', 'Composure.'][k % 4]}` }))),
+      effects: {} };
+  };
+
   root.PPL_CUT = { play, SCENES, BG };
 })(typeof window !== 'undefined' ? window : globalThis);

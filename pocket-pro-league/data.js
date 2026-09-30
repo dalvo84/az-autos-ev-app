@@ -174,9 +174,22 @@
     { id: 'h4', name: 'Coastal Mansion', price: 3500000, charm: 22, energy: 20, fame: 6, desc: 'Helipad optional. Paparazzi not.' },
   ];
 
+  // ---- Rivalries (derby days). Unlisted clubs get their league neighbour. ----
+  const RIVALS = {
+    'Manchester City': 'Manchester United', 'Liverpool': 'Everton', 'Arsenal': 'Tottenham Hotspur', 'Chelsea': 'Fulham', 'Newcastle United': 'Sunderland', 'Aston Villa': 'Wolves',
+    'Brighton': 'Crystal Palace', 'West Ham United': 'Tottenham Hotspur', 'Nottingham Forest': 'Leeds United', 'Burnley': 'Leeds United', 'Bournemouth': 'Brentford',
+    'Real Madrid': 'Barcelona', 'Atlético Madrid': 'Real Madrid', 'Sevilla': 'Real Betis', 'Athletic Club': 'Real Sociedad', 'Valencia': 'Villarreal', 'Espanyol': 'Barcelona', 'Celta Vigo': 'Real Oviedo',
+    'Inter': 'AC Milan', 'Juventus': 'Torino', 'Roma': 'Lazio', 'Napoli': 'Roma', 'Fiorentina': 'Juventus', 'Genoa': 'Sassuolo', 'Bologna': 'Fiorentina',
+    'Bayern Munich': 'Borussia Dortmund', 'Bayer Leverkusen': '1. FC Köln', 'RB Leipzig': 'Union Berlin', 'Hamburger SV': 'Werder Bremen', 'FC St. Pauli': 'Hamburger SV', 'VfB Stuttgart': 'SC Freiburg', 'Borussia Mönchengladbach': '1. FC Köln',
+    'Paris Saint-Germain': 'Marseille', 'Lyon': 'Marseille', 'Monaco': 'Nice', 'Lille': 'Lens', 'Rennes': 'Nantes', 'Paris FC': 'Paris Saint-Germain',
+    'Al Hilal': 'Al Nassr', 'Al Ittihad': 'Al Ahli', 'Al Shabab': 'Al Hilal',
+    'LA Galaxy': 'LAFC', 'Seattle Sounders': 'Portland Timbers', 'New York Red Bulls': 'New York City FC', 'Inter Miami': 'Orlando City', 'FC Cincinnati': 'Columbus Crew', 'San Jose Earthquakes': 'LA Galaxy', 'Real Salt Lake': 'Colorado Rapids',
+    'Sheffield United': 'Sheffield Wednesday', 'Bristol City': 'Swansea City', 'Norwich City': 'Ipswich Town', 'Southampton': 'Portsmouth', 'Derby County': 'Leicester City', 'Stoke City': 'West Brom', 'Birmingham City': 'West Brom', 'Coventry City': 'Leicester City', 'Hull City': 'Middlesbrough', 'Blackburn Rovers': 'Preston North End', 'QPR': 'Millwall', 'Charlton Athletic': 'Millwall', 'Watford': 'QPR', 'Wrexham': 'Oxford United',
+  };
+
   // ---- Commentators ----
   const COMMENTATORS = { play: 'John', color: 'Ally' };
 
-  root.PPL_DATA = { POSITIONS, ATTR_LABELS, GK_ATTR_LABELS, LEAGUES, NAME_POOLS, NATIONALITIES, SHOP, CARS, ESTATES, COMMENTATORS };
+  root.PPL_DATA = { POSITIONS, ATTR_LABELS, GK_ATTR_LABELS, LEAGUES, NAME_POOLS, NATIONALITIES, SHOP, CARS, ESTATES, COMMENTATORS, RIVALS };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PPL_DATA;
 })(typeof window !== 'undefined' ? window : globalThis);
