@@ -165,6 +165,126 @@
   function isDerby(oppName) { return rivalOf(club().name) === oppName || rivalOf(oppName) === club().name; }
   function pickWeather() { const r = Math.random(); return r < 0.22 ? 'rain' : r < 0.5 ? 'night' : 'clear'; }
   const WEATHER_TXT = { rain: 'Rain lashing down. The ball will skid and the slide tackles will be long.', night: 'Under the floodlights tonight.', clear: 'Perfect conditions.' };
+  // ---------- Batch B: career ----------
+  const NATIONS = { England: 86, Spain: 87, Italy: 84, Germany: 85, France: 88, Brazil: 88, Argentina: 87, Nigeria: 76, Netherlands: 84, Portugal: 85, USA: 76, Japan: 78, Senegal: 78, 'Saudi Arabia': 70,
+    Croatia: 80, Belgium: 82, Uruguay: 81, Colombia: 79, Mexico: 77, Morocco: 80, Switzerland: 79, Denmark: 78, Sweden: 74, Poland: 76, Turkey: 77, Australia: 72, 'South Korea': 76, Ghana: 74, Egypt: 75, Serbia: 76 };
+  const NAT_KIT2 = { Croatia: ['#ffffff', '#1d3a8a'], Belgium: ['#c8102e', '#111111'], Uruguay: ['#63b3ff', '#111111'], Colombia: ['#f5d800', '#1d3a8a'], Mexico: ['#1e7a3e', '#ffffff'], Morocco: ['#c8102e', '#1e7a3e'], Switzerland: ['#c8102e', '#ffffff'], Denmark: ['#c8102e', '#ffffff'], Sweden: ['#f5d800', '#1d3a8a'], Poland: ['#ffffff', '#c8102e'], Turkey: ['#c8102e', '#ffffff'], Australia: ['#f5d800', '#1e7a3e'], 'South Korea': ['#c8102e', '#111111'], Ghana: ['#ffffff', '#111111'], Egypt: ['#c8102e', '#ffffff'], Serbia: ['#c8102e', '#1d3a8a'] };
+  function natKit(n) { const c = NAT_KIT[n] || NAT_KIT2[n] || ['#ffffff', '#222222']; return { shirt: c[0], shorts: c[1], pattern: 'plain' }; }
+  function callUpThreshold() { return (NATIONS[P().nat] || 78) - 18; }
+  function calledUp() { const p = P(); return p.ovr >= callUpThreshold() && p.fame >= 12 && !(p.injury > 0); }
+  function worldCupSeason() { return (P().seasons + 1) % 4 === 0; }
+  // International breaks at weeks 10 and 30 of the global week count; World Cup at week 30 of a World Cup season
+  function pendingInternational() {
+    const p = P(); const wk = S.week % 40; if (S.flags.intlWeek === S.week) return null;
+    if (wk === 30 && worldCupSeason() && !S.flags.wcDone) return { kind: 'wc' };
+    if ((wk === 10 || wk === 30) && calledUp()) return { kind: 'friendly' };
+    return null;
+  }
+  function randomOpponentNation() { const pool = Object.keys(NATIONS).filter(n => n !== P().nat); return pool[Math.floor(Math.random() * pool.length)]; }
+  function nationTeammates(nat, str) { return E.genTeammates(P().pos, nat, str - 2, nat).map(t => Object.assign(t, { look: SP.randomLook() })); }
+  // Special (non-league) match consequences: no league week is consumed
+  function finishSpecial(m, res) {
+    const p = P(); const r = res.played ? E.clamp(res.rating, 2, 10) : null; const win = res.score[0] > res.score[1], draw = res.score[0] === res.score[1];
+    p.caps = (p.caps || 0) + 1; p.intGoals = (p.intGoals || 0) + res.goals;
+    const fame = Math.round((res.goals * 3 + res.assists * 1.5 + (r && r >= 8.3 ? 4 : 0) + (win ? 3 : draw ? 1 : 0)) * (m.wc ? 1.6 : 1));
+    p.fame = E.clamp(p.fame + fame, 0, 100); p.fans = E.clamp(p.fans + Math.round(fame * 0.6), 0, 100); p.charm = E.clamp(p.charm + (win ? 1 : 0), 0, 100);
+    if (r !== null) p.formHist = (p.formHist || []).concat([r]).slice(-10);
+    return { rating: r, motm: r !== null && r >= 8.3, win, draw, fame, fans: Math.round(fame * 0.6), coach: 0, chem: 0, charm: win ? 1 : 0, money: 0, attrs: [] };
+  }
+  function startSpecial(kind, stage) {
+    const p = P(); const nat = p.nat; const str = NATIONS[nat] || 78;
+    const oppNat = randomOpponentNation(); const oppStr = (NATIONS[oppNat] || 78) + (stage === 'final' ? 4 : stage === 'semi' ? 2 : 0);
+    U.special = { kind, stage, nat, str, opp: { name: oppNat, str: oppStr }, teammates: nationTeammates(nat, str), kits: { home: natKit(nat), away: natKit(oppNat) } };
+    U.arcadeMode = 'highlights'; go('arcade');
+  }
+  function wcNextStage(stage, win, draw) {
+    if (stage === 'group1') return 'group2';
+    if (stage === 'group2') return (win || draw) ? 'semi' : null;
+    if (stage === 'semi') return win ? 'final' : null;
+    return null;
+  }
+  function afterSpecial(res, m) {
+    const sp = U.special; U.special = null; S.flags.intlWeek = S.week;
+    const ch = finishSpecial(m, res); U.result = ch; U.resultMatch = m; m.special = sp;
+    if (sp.kind === 'wc') {
+      const next = wcNextStage(sp.stage, ch.win, ch.draw);
+      if (sp.stage === 'final' && ch.win) { S.flags.wcDone = true; S.honours = S.honours || []; S.honours.push({ season: P().seasons + 1, name: 'World Cup winner', club: sp.nat }); P().fame = E.clamp(P().fame + 20, 0, 100); P().fans = E.clamp(P().fans + 15, 0, 100); U.afterResult = () => playCut('trophy', cutData({ league: 'World Cup', club: sp.nat, kit: natKit(sp.nat), mates: sp.teammates }), () => go('hub')); }
+      else if (next) { U.afterResult = () => startSpecial('wc', next); }
+      else { S.flags.wcDone = true; U.toast = `${sp.nat} are out of the World Cup at the ${sp.stage === 'group2' ? 'group stage' : sp.stage === 'semi' ? 'semi-final' : 'final'}.`; }
+    }
+    save();
+  }
+  // Manager talk
+  const TALKS = {
+    minutes: { label: 'Ask for more minutes', fn: () => { const p = P(); if (p.coach >= 50) { p.coach = E.clamp(p.coach + 3, 0, 100); return { who: 'Coach', text: 'You have earned it. Keep this up and the shirt is yours. (Coach +3)' }; } p.coach = E.clamp(p.coach - 3, 0, 100); return { who: 'Coach', text: 'Minutes are earned on the training pitch, not in my office. (Coach −3)' }; } },
+    position: { label: 'Ask to play a different position', fn: () => { U.talkPos = true; return { who: 'Coach', text: 'Go on then. Where do you see yourself?' }; } },
+    press: { label: 'Back the manager in the press', fn: () => { const p = P(); p.coach = E.clamp(p.coach + 5, 0, 100); p.fame = E.clamp(p.fame + 2, 0, 100); p.fans = E.clamp(p.fans - 1, 0, 100); return { who: 'Coach', text: 'I saw the interview. Loyalty gets remembered here. (Coach +5, Fame +2, Fans −1)' }; } },
+    transfer: { label: 'Request a transfer', fn: () => { const p = P(); p.coach = E.clamp(p.coach - 10, 0, 100); p.fans = E.clamp(p.fans - 5, 0, 100); S.flags.transferRequest = true; return { who: 'Coach', text: 'Noted. You will not be first name on the sheet while you are looking at the door. (Coach −10, Fans −5, better offers next window)' }; } },
+    checkin: { label: 'Just check in', fn: () => { const p = P(); p.coach = E.clamp(p.coach + 1, 0, 100); return { who: 'Coach', text: `Fine. Coach popularity ${p.coach}. ${p.coach >= 35 ? 'You start.' : 'You sit until that number moves.'} (Coach +1)` }; } },
+  };
+  const talkView = () => {
+    const p = P(); const cool = S.flags.talkWeek && S.week - S.flags.talkWeek < 4;
+    const html = `<h2>🗣 Coach's office</h2><div class="script">${scriptLine('Coach', cool ? `We spoke ${S.week - S.flags.talkWeek} week${S.week - S.flags.talkWeek === 1 ? '' : 's'} ago. Come back after a few games.` : `Sit down. What is on your mind, ${esc(pname())}?`)}${U.talkReply ? scriptLine(U.talkReply.who, U.talkReply.text, 'event') : ''}</div>
+      ${U.talkPos ? `<h3>Pick a position</h3><div class="choices">${Object.keys(D.POSITIONS).filter(k => k !== p.pos).map(k => `<button type="button" class="sm" data-pos="${k}">${k} · ${esc(D.POSITIONS[k].name)} · OVR ${E.calcOVR(p.attrs, k)}</button>`).join('')}</div>` : ''}`;
+    const actions = cool || U.talkReply ? [] : Object.entries(TALKS).map(([k, t]) => ({ label: t.label, fn: () => { S.flags.talkWeek = S.week; U.talkReply = t.fn(); save(); render(); } }));
+    actions.push({ label: '← Back to the training ground', fn: () => { U.talkReply = null; U.talkPos = false; go('hub'); } });
+    return { html, actions, after: () => { document.querySelectorAll('[data-pos]').forEach(b => b.onclick = () => { const k = b.dataset.pos; p.pos = k; p.ovr = E.calcOVR(p.attrs, k); p.coach = E.clamp(p.coach - 2, 0, 100); U.talkPos = false; U.talkReply = { who: 'Coach', text: `${k} it is. Prove it in training. (OVR now ${p.ovr}, Coach −2)` }; makeRival(); save(); render(); }); } };
+  };
+  // Positional rival: a named teammate who wants your shirt
+  function makeRival() {
+    const p = P(); const t = E.genPerson(lg().country, new Set([p.name]));
+    const attrs = E.genAttrs(p.pos, E.clamp(club().str - 3 + E.ri(-3, 4), 40, 92));
+    S.rival = { name: t.name, last: t.last, pron: t.pron, nat: t.nat, look: SP.randomLook(), pos: p.pos, attrs, ovr: E.calcOVR(attrs, p.pos), form: 50, week: S.week };
+  }
+  function rivalEff() { const r = S.rival; return r ? r.ovr + (r.form - 50) / 5 : -99; }
+  function userEff() { const p = P(); return p.ovr + (E.formAvg(p) - 6) * 4 + p.coach * 0.08; }
+  function rivalTick() { const r = S.rival; if (!r) return; r.form = E.clamp(r.form + E.ri(-8, 8), 10, 95); if ((S.week - r.week) % 8 === 0) { r.ovr = Math.min(90, r.ovr + 1); } }
+  function benchedByRival() { const p = P(); return S.rival && p.coach < 60 && rivalEff() > userEff() + 3; }
+  // Agent: quests and sponsors
+  const QUESTS = [
+    { id: 'goals3', text: 'Score 3 goals in the next 4 matches', type: 'goals', n: 3, within: 4, reward: { money: 4000, sponsor: { name: 'Velocity Boots', weekly: 250, weeks: 20 } } },
+    { id: 'assists3', text: 'Make 3 assists in the next 5 matches', type: 'assists', n: 3, within: 5, reward: { money: 3500, charm: 2 } },
+    { id: 'wins2', text: 'Win 2 of the next 3 matches', type: 'wins', n: 2, within: 3, reward: { money: 3000, sponsor: { name: 'Local Car Dealer', weekly: 200, weeks: 12 } } },
+    { id: 'motm1', text: 'Be man of the match in the next 4 matches', type: 'motm', n: 1, within: 4, reward: { money: 6000, charm: 3, sponsor: { name: 'Energy Drink', weekly: 400, weeks: 16 } } },
+    { id: 'rating7', text: 'Rate 7.0 or better in 3 of the next 4 matches', type: 'rating7', n: 3, within: 4, reward: { money: 5000, sponsor: { name: 'Sportswear Brand', weekly: 600, weeks: 24 } } },
+    { id: 'clean', text: 'Keep 2 clean sheets in the next 4 matches', type: 'clean', n: 2, within: 4, reward: { money: 4500, sponsor: { name: 'Gloves Co.', weekly: 300, weeks: 20 } }, def: true },
+  ];
+  function offeredQuests() { const p = P(); if (!S.questOffers || S.questOffers.week !== S.week) { const pool = QUESTS.filter(q => !q.def || ['GK', 'CB', 'LB', 'RB', 'CDM'].includes(p.pos)).filter(q => !(S.quests || []).some(x => x.id === q.id)); S.questOffers = { week: S.week, ids: E.pick([pool.slice(0, 3), pool.slice(-3), [pool[0], pool[2], pool[pool.length - 1]]]).filter(Boolean).map(q => q.id) }; } return S.questOffers.ids.map(id => QUESTS.find(q => q.id === id)).filter(Boolean); }
+  function questProgress(m, ch) {
+    const p = P(); S.quests = S.quests || []; const done = [];
+    for (const q of S.quests) {
+      q.left--; const won = ch.win, r = ch.rating;
+      if (q.type === 'goals') q.prog += m.goals; if (q.type === 'assists') q.prog += m.assists; if (q.type === 'wins' && won) q.prog++; if (q.type === 'motm' && ch.motm) q.prog++; if (q.type === 'rating7' && r !== null && r >= 7) q.prog++; if (q.type === 'clean' && m.score[1] === 0 && m.unused !== true) q.prog++;
+      if (q.prog >= q.n) { done.push(q); const rw = QUESTS.find(x => x.id === q.id).reward; p.money += rw.money || 0; if (rw.charm) p.charm = E.clamp(p.charm + rw.charm, 0, 100); if (rw.sponsor) { p.sponsors = p.sponsors || []; p.sponsors.push(Object.assign({}, rw.sponsor, { weeksLeft: rw.sponsor.weeks })); } q.state = 'done'; }
+      else if (q.left <= 0) { q.state = 'failed'; }
+    }
+    S.questLog = (S.questLog || []).concat(S.quests.filter(q => q.state).map(q => ({ id: q.id, state: q.state, week: S.week }))).slice(-10);
+    S.quests = S.quests.filter(q => !q.state);
+    if (done.length) ch.questDone = done.map(q => QUESTS.find(x => x.id === q.id).text);
+  }
+  function paySponsors(ch) { const p = P(); let total = 0; (p.sponsors || []).forEach(s => { total += s.weekly; s.weeksLeft--; }); p.sponsors = (p.sponsors || []).filter(s => s.weeksLeft > 0); p.money += total; if (ch) ch.sponsorPay = total; }
+  const agentView = () => {
+    const p = P(); const active = S.quests || []; const offers = offeredQuests();
+    const html = `${toast()}<h2>🕴 Agent's office</h2>
+      <div class="cards"><div class="card"><h3>Contract</h3><div class="kv"><span class="k">Club</span><span>${esc(p.contract.club)}</span><span class="k">Wage</span><span>${money(p.contract.wage)} / wk</span><span class="k">Left</span><span>${p.contract.weeksLeft} weeks</span><span class="k">Next window</span><span>week ${Math.ceil(S.week / 20) * 20 + 1}</span></div>${S.flags.transferRequest ? '<span class="pill gold">Transfer requested</span>' : ''}</div>
+      <div class="card"><h3>Sponsors</h3>${(p.sponsors || []).length ? (p.sponsors || []).map(s => `<div>${esc(s.name)} · <span class="gold">${money(s.weekly)}/wk</span> · ${s.weeksLeft} wks</div>`).join('') : '<p class="muted">No deals yet. Complete a quest or grow your fame.</p>'}</div></div>
+      <h3>Active quests</h3>${active.length ? active.map(q => `<div class="card"><b>${esc(QUESTS.find(x => x.id === q.id).text)}</b><div class="muted">Progress ${q.prog}/${q.n} · ${q.left} match${q.left === 1 ? '' : 'es'} left</div></div>`).join('') : '<p class="muted">None. Take one below (max two).</p>'}
+      <h3>On offer this week</h3><div class="items">${offers.map(q => `<div class="item"><div class="item-main"><b>${esc(q.text)}</b><span class="fx">Reward: ${money(q.reward.money || 0)}${q.reward.sponsor ? ` + ${esc(q.reward.sponsor.name)} ${money(q.reward.sponsor.weekly)}/wk for ${q.reward.sponsor.weeks} wks` : ''}${q.reward.charm ? ` + ${q.reward.charm} charm` : ''}</span></div><div class="item-act"><button type="button" class="sm warn" data-quest="${q.id}" ${active.length >= 2 || active.some(a => a.id === q.id) ? 'disabled' : ''}>Accept</button></div></div>`).join('')}</div>`;
+    return { html, actions: [{ label: '← Back to town', fn: () => go('hub') }], after: () => { document.querySelectorAll('[data-quest]').forEach(b => b.onclick = () => { const q = QUESTS.find(x => x.id === b.dataset.quest); S.quests = (S.quests || []).concat([{ id: q.id, n: q.n, prog: 0, left: q.within }]); U.toast = `Quest accepted: ${esc(q.text)}.`; save(); render(); }); } };
+  };
+  // Retirement and legacy
+  function retirementDue() { const p = P(); return p.age >= 34 || (p.age >= 32 && p.ovr < 60) || p.age >= 38; }
+  function legacyCard() {
+    const p = P(); const h = S.history || []; const clubs = new Set(h.map(x => x.club)); clubs.add(p.contract.club);
+    return { seasons: p.seasons, clubs: clubs.size, goals: h.reduce((s, x) => s + x.goals, 0) + p.goals, assists: h.reduce((s, x) => s + x.assists, 0) + p.assists, apps: h.reduce((s, x) => s + x.apps, 0) + p.apps, honours: (S.honours || []).length, caps: p.caps || 0, intGoals: p.intGoals || 0, peak: Math.max(p.ovr, ...h.map(x => x.ovr)), name: p.name, pos: p.pos, nat: p.nat };
+  }
+  const legacyView = () => {
+    const L = legacyCard(); const p = P();
+    const html = `<h2>🏁 Career over</h2><div class="card hl"><h3>${esc(p.name)} · ${esc(p.pos)} · ${esc(p.nat)}</h3><div class="kv"><span class="k">Seasons</span><span>${L.seasons}</span><span class="k">Clubs</span><span>${L.clubs}</span><span class="k">Apps</span><span>${L.apps}</span><span class="k">Goals</span><span>${L.goals}</span><span class="k">Assists</span><span>${L.assists}</span><span class="k">Caps</span><span>${L.caps} (${L.intGoals} goals)</span><span class="k">Peak OVR</span><span>${L.peak}</span><span class="k">Honours</span><span>${L.honours}</span></div></div>
+      ${(S.honours || []).length ? `<div class="card"><h3>Honours</h3>${S.honours.map(h => `<div>🏆 ${esc(h.name)} <span class="muted">· ${esc(h.club)}</span></div>`).join('')}</div>` : ''}
+      <p class="muted">This card is kept in the Hall of Fame on the menu. Start a new career whenever you like.</p>`;
+    return { html, actions: [{ label: '🏛 Save to Hall of Fame and start a new career', cls: 'primary', fn: () => { try { const hof = JSON.parse(localStorage.getItem('ppl_hof') || '[]'); hof.unshift(Object.assign(L, { honoursList: (S.honours || []).map(h => h.name) })); localStorage.setItem('ppl_hof', JSON.stringify(hof.slice(0, 10))); } catch (e) { /* ignore */ } S = null; try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } if (cloud.ref) { cloud.ref.delete().catch(() => {}); } U = { screen: 'intro' }; render(); } }] };
+  };
   // ---------- cutscenes ----------
   function cutData(extra) { const p = P(); return Object.assign({ look: p.look, kit: clubKit(), acc: myAcc(false), name: pname(), club: S.clubIdx >= 0 ? club().name : 'Riverside Academy', mates: S.teammates }, extra || {}); }
   // Plays a cutscene full screen, then calls done. Skippable. Falls through if the module is missing.
@@ -230,6 +350,7 @@
 
   // ---------- VIEWS ----------
   const VIEWS = {};
+  VIEWS.talk = talkView; VIEWS.agent = agentView; VIEWS.legacy = legacyView;
 
   VIEWS.menu = () => {
     const saved = load();
@@ -242,6 +363,7 @@
             L E A G U E   ·   C A R E E R   M O D E</pre>
       <p>A deep-sim football RPG. Start at sixteen in a regional academy final, get scouted, and climb from the Championship to the elite leagues of Europe. Every choice on the pitch feeds your rating, your coach, your fans and your bank balance.</p>
       ${saved ? `<div class="card hl"><h3>Saved career</h3><div>${esc(saved.player.name)} · ${esc(saved.player.pos)} · OVR ${saved.player.ovr} · Week ${saved.week} · ${esc(saved.player.contract.club)}</div><div class="muted">${saved.savedAt ? 'Last saved ' + new Date(saved.savedAt).toLocaleString() : ''}</div></div>` : '<p class="muted">No saved career yet.</p>'}
+      ${(() => { try { const hof = JSON.parse(localStorage.getItem('ppl_hof') || '[]'); return hof.length ? `<div class="card"><h3>🏛 Hall of Fame</h3>${hof.map(h => `<div>${esc(h.name)} · ${esc(h.pos)} · ${h.seasons} seasons · ${h.goals} goals · ${h.honours} honours · peak OVR ${h.peak}</div>`).join('')}</div>` : ''; } catch (e) { return ''; } })()}
       <p class="muted">${cloudLine()}</p>
       <p class="muted">Progress autosaves after every screen. ${A && A.hasSpeech() ? 'John and Ally speak through your browser\'s voices, with crowd noise and whistles synthesised live. Toggle with the sound button at the top.' : 'This browser has no speech voices, so commentary is text only. Crowd and whistle effects still play.'}</p>`;
     const actions = [];
@@ -393,6 +515,8 @@
     if (action.startsWith('open:')) {
       const [, screen, tab] = action.split(':');
       if (screen === 'shop') { U.shopTab = tab || 'boots'; go('shop'); }
+      else if (screen === 'talk') { U.talkReply = null; U.talkPos = false; go('talk'); }
+      else if (screen === 'agent') go('agent');
       else if (screen === 'garage' || screen === 'contract' || screen === 'estate' || screen === 'mirror') { U.homeFocus = screen; go('home'); }
       else go(screen);
       return;
@@ -434,6 +558,8 @@
       ${fixtureCard()}
       <div class="card"><h3>Status</h3>${bar('Energy', Math.round(p.energy / E.maxEnergy(S) * 100), 'sky')}${bar('Fame', p.fame, 'gold')}${bar('Fans', p.fans)}${bar('Coach', p.coach)}${bar('Chemistry', p.chem)}${bar('Charm', p.charm, 'gold')}</div>
       ${maybeFanEncounter('hub')}
+      ${pendingInternational() ? `<div class="notice">🌍 ${pendingInternational().kind === 'wc' ? 'WORLD CUP! ' + esc(p.nat) + ' need you. Four matches: two group games, a semi-final and the final.' : 'International call-up! ' + esc(p.nat) + ' friendly this week.'} Play it from the Stadium.</div>` : ''}
+      ${benchedByRival() ? `<div class="notice">👀 ${esc(S.rival.name)} is in form (${S.rival.ovr}) and keeps the ${esc(p.pos)} shirt this week. Beat their form or win the coach over (60+).</div>` : ''}
       ${p.injury > 0 ? `<div class="notice">🩹 Injured: ${p.injury} week${p.injury > 1 ? 's' : ''} left. The physio at the training ground knocks a week off.</div>` : ''}${p.banned > 0 ? '<div class="notice">🟥 Suspended for the next match.</div>' : ''}
       ${p.fame >= 50 ? '<p class="muted">Fame 50+: people recognise you in the street now. Expect crowds.</p>' : ''}`;
     const actions = [
@@ -441,7 +567,7 @@
       { label: '🏠 Home', sub: 'Contract, garage, estate', fn: () => go('home') },
       { label: '🛍 Shopping Center', sub: 'Boots, outfits, gear', fn: () => go('shop') },
       { label: '🏃 Training Ground', sub: `${Math.floor(p.energy / E.TRAIN_COST)} sessions left`, fn: () => go('training') },
-      { label: '🏟 Stadium · Match Day', cls: 'primary', sub: 'Play, sim or quick sim', fn: () => go('stadium') },
+      { label: '🏟 Stadium · Match Day', cls: 'primary', sub: pendingInternational() ? 'International duty this week' : 'Play, sim or quick sim', fn: () => go('stadium') },
       { label: '👥 Squad', fn: () => go('squad') },
       { label: '📊 League Tables', fn: () => go('table') },
       { label: '📈 Career & Attributes', fn: () => go('career') },
@@ -534,6 +660,7 @@
     const p = P();
     const rows = S.teammates.map(t => `<tr><td>${t.pos}</td><td>${esc(t.name)}</td><td class="muted">(${esc(t.pron)})</td><td>${esc(t.nat)}</td><td class="n">${t.ovr}</td></tr>`).join('');
     const html = `<h2>👥 ${esc(club().name)} squad</h2><p class="muted">Chemistry ${p.chem}: teammates look for you ${(1 + 2 * p.chem / 100).toFixed(1)}× as often as a stranger.</p>
+      ${S.rival ? `<div class="card ${benchedByRival() ? 'hl' : ''}"><h3>Your rival for the ${esc(p.pos)} shirt</h3><div><b>${esc(S.rival.name)}</b> <span class="muted">(${esc(S.rival.pron)})</span> · OVR ${S.rival.ovr}</div>${bar('Rival form', S.rival.form, 'gold')}<p class="muted">${benchedByRival() ? 'Currently ahead of you. Improve your form or coach popularity.' : 'You are ahead. Keep it that way.'}</p></div>` : ''}
       <div class="tablewrap"><table><thead><tr><th>Pos</th><th>Name</th><th>Say it</th><th>Nat</th><th class="n">OVR</th></tr></thead><tbody><tr class="me"><td>${p.pos}</td><td>${esc(p.name)} (you)</td><td class="muted">(${esc(p.pron)})</td><td>${esc(p.nat)}</td><td class="n">${p.ovr}</td></tr>${rows}</tbody></table></div>`;
     return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }] };
   };
@@ -554,7 +681,7 @@
     const p = P();
     const hist = S.history.map(h => `<tr><td>${h.season}</td><td>${esc(h.club)}</td><td>${esc(h.league)}</td><td class="n">${h.finish}${ord(h.finish)}</td><td class="n">${h.apps}</td><td class="n">${h.goals}</td><td class="n">${h.assists}</td><td class="n">${h.motm}</td><td class="n">${h.ovr}</td></tr>`).join('');
     const html = `<h2>📈 Career</h2>
-      <div class="cards"><div class="card"><h3>This season</h3><div class="kv"><span class="k">Apps</span><span>${p.apps}</span><span class="k">Goals</span><span>${p.goals}</span><span class="k">Assists</span><span>${p.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${p.saves}</span>` : ''}<span class="k">MOTM</span><span>${p.motm}</span><span class="k">Form (avg)</span><span>${E.formAvg(p).toFixed(2)}</span></div></div>
+      <div class="cards"><div class="card"><h3>This season</h3><div class="kv"><span class="k">Apps</span><span>${p.apps}</span><span class="k">Goals</span><span>${p.goals}</span><span class="k">Assists</span><span>${p.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${p.saves}</span>` : ''}<span class="k">MOTM</span><span>${p.motm}</span><span class="k">Form (avg)</span><span>${E.formAvg(p).toFixed(2)}</span><span class="k">Caps</span><span>${p.caps || 0} (${p.intGoals || 0} goals)</span><span class="k">Call-up needs</span><span>OVR ${callUpThreshold()}, fame 12</span></div></div>
       <div class="card"><h3>Attributes · OVR ${p.ovr}</h3>${E.ATTRS.map(a => bar(attrLabel(a), p.attrs[a])).join('')}</div></div>
       ${S.honours && S.honours.length ? `<div class="card hl"><h3>Honours</h3>${S.honours.map(h => `<div>🏆 ${esc(h.name)} <span class="muted">· season ${h.season} · ${esc(h.club)}</span></div>`).join('')}</div>` : ''}
       ${hist ? `<h3>Past seasons</h3><div class="tablewrap"><table><thead><tr><th>S</th><th>Club</th><th>League</th><th class="n">Fin</th><th class="n">Apps</th><th class="n">G</th><th class="n">A</th><th class="n">MOTM</th><th class="n">OVR</th></tr></thead><tbody>${hist}</tbody></table></div>` : '<p class="muted">No completed seasons yet.</p>'}`;
@@ -572,7 +699,8 @@
     }
     S.settings = S.settings || {}; const cur = S.settings.difficulty || 'amateur';
     const diffHtml = `<div class="card"><h3>Difficulty · ${esc(ARC.DIFFICULTY[cur].name)}</h3><div class="choices diff">${ARC.DIFF_ORDER.map(k => `<button type="button" class="sm ${k === cur ? 'primary' : ''} ${k === 'nightmare' ? 'danger' : ''}" data-diff="${k}">${esc(ARC.DIFFICULTY[k].name)}</button>`).join('')}</div><p class="muted">${esc(ARC.DIFFICULTY[cur].blurb)} Rating at full time ${ARC.DIFFICULTY[cur].bonus >= 0 ? '+' : ''}${ARC.DIFFICULTY[cur].bonus.toFixed(1)}.</p></div>`;
-    const html = `<h2>🏟 Match Day</h2>${fixtureCard()}${diffHtml}
+    const intl = pendingInternational();
+    const html = `<h2>🏟 Match Day</h2>${intl ? `<div class="card hl"><h3>🌍 ${intl.kind === 'wc' ? 'World Cup' : 'International friendly'}</h3><p>${esc(P().nat)} have called you up${intl.kind === 'wc' ? ' for the World Cup squad' : ''}. Played on top of the league week, no fixture is skipped.</p></div>` : ''}${fixtureCard()}${diffHtml}
       <p class="muted">Play Full Match and Highlights put you on the pitch: joystick or WASD to move, Shoot (hold for power), Pass, and Skill for a sprint burst or slide tackle. Text Match is the choice-based commentary version. Sim scrolls the match, Quick Sim jumps to the result. Chemistry ${P().chem}: teammates look for you ${(1 + 2 * P().chem / 100).toFixed(1)}× as often.</p>`;
     const start = mode => () => { U.match = E.buildMatch(S, mode); U.match.introduced = new Set(); U.match.timeline = buildTimeline(U.match); U.match.pos = 0; U.match.shown = [];
       if (mode === 'quick') { advance(U.match, true); finish(); return; }
@@ -580,14 +708,30 @@
     const unused = P().coach < 15 || (P().injury || 0) > 0 || (P().banned || 0) > 0;
     const whyOut = (P().injury || 0) > 0 ? `Injured: ${P().injury} week${P().injury > 1 ? 's' : ''} to go` : (P().banned || 0) > 0 ? 'Suspended this match' : 'Not in the squad this week';
     const play = mode => () => { U.arcadeMode = mode; go('arcade'); };
-    const actions = [
-      { label: '🕹 Play Full Match', cls: 'primary', sub: unused ? whyOut : 'Two halves, you control your player', disabled: unused, fn: play('full') },
+    const actions = [];
+    if (intl) actions.push({ label: `🌍 Play for ${esc(P().nat)}`, cls: 'warn', sub: intl.kind === 'wc' ? 'World Cup group game 1' : 'Friendly, highlights length', fn: () => startSpecial(intl.kind, 'group1') }, { label: '🌍 Sim the international', sub: intl.kind === 'wc' ? 'Sim the whole tournament' : 'Skip playing it', fn: () => {
+        let stage = 'group1'; const log = []; let trophy = false;
+        for (let guard = 0; guard < 5; guard++) {
+          const sp0 = { kind: intl.kind, stage, nat: P().nat, str: NATIONS[P().nat] || 78, opp: { name: randomOpponentNation(), str: 78 + (stage === 'final' ? 4 : stage === 'semi' ? 2 : 0) }, teammates: [] };
+          U.special = sp0; const sc = E.simScore(sp0.str, sp0.opp.str); const goals = Math.random() < 0.35 ? 1 : 0;
+          const res = { score: sc, rating: 6 + (sc[0] > sc[1] ? 0.8 : 0) + goals * 0.9, goals, assists: 0, saves: 0, keys: 0, played: true };
+          const m = { fx: { isHome: true }, opp: sp0.opp, club: { name: sp0.nat }, mode: 'sim', score: sc, goals, assists: 0, unused: false, wc: intl.kind === 'wc' };
+          afterSpecial(res, m); log.push(`${intl.kind === 'wc' ? stage + ': ' : ''}${sc[0]}-${sc[1]} v ${sp0.opp.name}`);
+          const win = sc[0] > sc[1], draw = sc[0] === sc[1];
+          if (intl.kind !== 'wc') break;
+          if (stage === 'final' && win) { trophy = true; break; }
+          const next = wcNextStage(stage, win, draw); if (!next) break; stage = next;
+        }
+        const f = U.afterResult; U.afterResult = null; U.result = null; U.resultMatch = null; S.flags.wcDone = intl.kind === 'wc' ? true : S.flags.wcDone;
+        U.toast = (intl.kind === 'wc' ? 'World Cup: ' : 'Friendly: ') + log.join(' · ') + (trophy ? ' · WORLD CHAMPIONS!' : '');
+        if (trophy && f) f(); else go('hub'); } });
+    actions.push(
+      { label: '🕹 Play Full Match', cls: 'primary', sub: unused ? whyOut : benchedByRival() ? `${esc(S.rival.last)} starts ahead of you` : 'Two halves, you control your player', disabled: unused, fn: play('full') },
       { label: '⚡ Play Highlights', sub: unused ? whyOut : 'Short halves, same controls', disabled: unused, fn: play('highlights') },
       { label: '📝 Text Match', sub: 'Choice-based commentary', fn: start('full') },
       { label: '📜 Sim Match', sub: 'Rapid text scroll', fn: start('sim') },
       { label: '⏩ Quick Sim', sub: 'Instant result', fn: start('quick') },
-      { label: '← Back to hub', fn: () => go('hub') },
-    ];
+      { label: '← Back to hub', fn: () => go('hub') });
     return { html, actions, after: () => { document.querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { S.settings.difficulty = b.dataset.diff; render(); }); } };
   };
 
@@ -655,10 +799,11 @@
     if (live(m)) A.sfx(r.goal || r.assist ? 'goal' : r.concede ? 'bad' : r.type === 'save' || r.type === 'key' ? 'save' : r.ok ? 'click' : 'bad');
   }
   function tickAbsences() { const p = P(); if (p.injury > 0) p.injury--; if (p.banned > 0) p.banned--; }
+  function postMatch(m, ch) { questProgress(m, ch); paySponsors(ch); rivalTick(); if (!S.rival || S.rival.pos !== P().pos) makeRival(); }
   function finish() {
     const m = U.match;
     if ((P().injury || 0) > 0 || (P().banned || 0) > 0) m.unused = true;
-    U.result = E.finishMatch(S, m); tickAbsences();
+    U.result = E.finishMatch(S, m); postMatch(m, U.result); tickAbsences();
     U.resultMatch = m;
     S.phase = 'hub';
     go('result');
@@ -718,22 +863,25 @@
   };
 
   VIEWS.arcade = () => {
-    const p = P(); const lgx = lg(); const fx = E.nextFixtureFor(lgx, S.clubIdx);
+    const p = P(); const lgx = lg(); const sp = U.special;
+    const fx = sp ? { isHome: true, opp: -1 } : E.nextFixtureFor(lgx, S.clubIdx);
     if (!fx) return VIEWS.stadium();
-    const opp = lgx.clubs[fx.opp]; const mode = U.arcadeMode || 'full';
+    const opp = sp ? sp.opp : lgx.clubs[fx.opp]; const mode = U.arcadeMode || 'full';
+    const myClub = sp ? { name: sp.nat, str: sp.str } : club();
+    const myMates = sp ? sp.teammates : S.teammates;
     const html = `<p class="muted">Match in progress in full screen.</p><div class="script" id="arc-log"></div>`;
     const abandon = () => { const m = E.buildMatch(S, 'quick'); m.introduced = new Set(); m.timeline = buildTimeline(m); m.pos = 0; m.shown = []; advance(m, true); U.match = m; finish(); };
     const after = () => {
       const host = fullscreenHost(); let logEl = document.createElement('div'); logEl.className = 'script arc-log'; host.appendChild(logEl);
       const introduced = new Set(); const say = (who, txt, cls, prio) => { const log = logEl; const el = document.createElement('div'); el.innerHTML = scriptLine(who, txt, cls, 'arc' + S.week + '-' + (log.childElementCount)); log.prepend(el.firstChild); while (log.childElementCount > 6) log.lastElementChild.remove(); if (A) A.speak(who, txt, prio ? { priority: true } : undefined); };
       const nm = pl => pl ? (pl.isUser ? esc(pname()) : pl.team === 0 ? esc(mateRef({ name: pl.name, last: pl.last, pron: pl.pron || '' }, pl.pron ? introduced : null)) : `${esc(opp.name)}'s number ${pl.number}`) : 'someone';
-      const starts = p.coach >= 35;
+      const starts = sp ? true : (p.coach >= 35 && !benchedByRival());
       const startMatch = () => { U.arcade = ARC.start(arcOpts); };
-      const derby = isDerby(opp.name); const weather = pickWeather(); const gearItem = D.SHOP.gear.find(g => g.id === p.gear) || D.SHOP.gear[0];
-      const arcOpts = { host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', derby, weather, staminaMax: 100 + gearItem.energy * 1.5, onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: S.teammates, club: club(), opp, isHome: fx.isHome, mode, chem: p.chem, starts,
+      const derby = sp ? false : isDerby(opp.name); const weather = pickWeather(); const gearItem = D.SHOP.gear.find(g => g.id === p.gear) || D.SHOP.gear[0];
+      const arcOpts = { host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', derby, weather, staminaMax: 100 + gearItem.energy * 1.5, kits: sp ? sp.kits : undefined, onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: myMates, club: myClub, opp, isHome: fx.isHome, mode, chem: sp ? 55 : p.chem, starts,
         secondsPerHalf: mode === 'highlights' ? 60 : 150, timeScale: U.testTimeScale || 1,
         onEvent: (type, d) => {
-          if (type === 'kickoff') { say('John', `${d.derby ? 'DERBY DAY. ' + esc(club().name) + ' against ' + esc(opp.name) + ', and the noise is something else. ' : ''}${fx.isHome ? esc(club().name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); say('Ally', memoryLine(opp) + ' ' + WEATHER_TXT[d.weather || 'clear']); if (A) { A.sfx('kickoff'); if (d.derby) setTimeout(() => A.sfx('chant'), 700); } }
+          if (type === 'kickoff') { say('John', `${sp ? (sp.kind === 'wc' ? `WORLD CUP ${esc(sp.stage.replace(/\d/, ' game ')).toUpperCase()}: ` : 'International friendly: ') + esc(sp.nat) + ' against ' + esc(opp.name) + '. ' : ''}${d.derby ? 'DERBY DAY. ' + esc(club().name) + ' against ' + esc(opp.name) + ', and the noise is something else. ' : ''}${fx.isHome ? esc(myClub.name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); say('Ally', memoryLine(opp) + ' ' + WEATHER_TXT[d.weather || 'clear']); if (A) { A.sfx('kickoff'); if (d.derby) setTimeout(() => A.sfx('chant'), 700); } }
           else if (type === 'foul') { const by = d.by.isUser ? esc(pname()) : d.by.team === 0 ? nm(d.by) : `${esc(opp.name)}'s number ${d.by.number}`; const on = d.on.isUser ? esc(pname()) : d.on.team === 0 ? nm(d.on) : `${esc(opp.name)}'s number ${d.on.number}`;
             say('John', d.injury ? `${on} is down and not getting up. That is a bad one from ${by}.` : d.card === 'red' ? `${by} is OFF! Second yellow. ${d.inBox ? 'And it is a penalty.' : ''}` : d.card ? `Yellow card for ${by}. ${d.inBox ? 'Penalty!' : 'Free kick.'}` : `Foul by ${by} on ${on}. ${d.inBox ? 'PENALTY!' : 'Free kick.'}`, d.on.team === 0 ? 'event' : 'bad', true); if (A) A.sfx(d.card ? 'bad' : 'click'); }
           else if (type === 'injured') { say('Ally', `${esc(pname())} cannot continue. That looks like ${d.weeks} week${d.weeks > 1 ? 's' : ''} out.`, 'bad', true); }
@@ -753,9 +901,11 @@
           else if (type === 'fulltime') { say('John', `Full time. ${esc(club().name)} ${d.score[0]}, ${esc(opp.name)} ${d.score[1]}. ${esc(pname())} rated ${d.rating.toFixed(1)}.`, 'event', true); if (A) A.sfx('fulltime'); }
         },
         onEnd: res => {
-          const m = { fx, opp, club: club(), mode, score: res.score, rating: res.rating, goals: res.goals, assists: res.assists, saves: res.saves, keys: res.keys, unused: !res.played, starts, teamDiff: club().str - opp.str, shown: [], log: [], arcade: res, derby };
-          U.arcade = null; U.result = E.finishMatch(S, m); U.resultMatch = m; S.phase = 'hub';
-          afterArcade(res, m); tickAbsences(); go('result');
+          const m = { fx, opp, club: myClub, mode, score: res.score, rating: res.rating, goals: res.goals, assists: res.assists, saves: res.saves, keys: res.keys, unused: !res.played, starts, teamDiff: myClub.str - opp.str, shown: [], log: [], arcade: res, derby, wc: sp && sp.kind === 'wc' };
+          U.arcade = null; S.phase = 'hub';
+          if (sp) { afterSpecial(res, m); go('result'); return; }
+          U.result = E.finishMatch(S, m); U.resultMatch = m;
+          afterArcade(res, m); postMatch(m, U.result); tickAbsences(); go('result');
         } };
       if (p.apps === 0 && !S.flags.debutShown) { S.flags.debutShown = true; save(); playCut('debut', cutData({ club: club().name }), () => { const h = fullscreenHost(); arcOpts.host = h; const lg2 = document.createElement('div'); lg2.className = 'script arc-log'; h.appendChild(lg2); logEl = lg2; startMatch(); }); }
       else startMatch();
@@ -788,13 +938,15 @@
     const m = U.resultMatch, ch = U.result, p = P();
     if (!m || !ch) return VIEWS.hub();
     const st = E.standings(lg()); const myPos = st.findIndex(r => r.idx === S.clubIdx) + 1;
+    if (m.special) { const spx = m.special; const html = `<h2>${spx.kind === 'wc' ? 'World Cup' : 'International friendly'}</h2><div class="score">${esc(spx.nat)} ${m.score[0]} — ${m.score[1]} ${esc(spx.opp.name)}<small>${ch.win ? 'WIN' : ch.draw ? 'DRAW' : 'LOSS'} · ${spx.kind === 'wc' ? esc(spx.stage) : 'friendly'}</small></div><div class="card"><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? '—' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span><span class="k">Caps</span><span>${p.caps}</span><span class="k">Fame</span><span class="green">+${ch.fame}</span></div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>`;
+      return { html, actions: [{ label: '▶ Continue', cls: 'primary', fn: () => { const f = U.afterResult; U.afterResult = null; U.resultMatch = null; U.result = null; if (f) f(); else go('hub'); } }] }; }
     const delta = (k, v) => `<span class="k">${k}</span><span class="${v > 0 ? 'green' : v < 0 ? 'red' : 'muted'}">${v > 0 ? '+' : ''}${v}</span>`;
     const attrs = ch.attrs.map(a => a[0] === '-' ? `<span class="red">−1 ${attrLabel(a.slice(1))}</span>` : `<span class="green">+1 ${attrLabel(a)}</span>`).join(', ');
     const html = `<h2>Full-time report</h2>
       <div class="score">${scoreline(m)}<small>${ch.win ? 'WIN · +3 pts' : ch.draw ? 'DRAW · +1 pt' : 'LOSS'} · ${esc(club().name)} now ${myPos}${ord(myPos)}</small></div>
       <div class="cards">
         <div class="card ${ch.motm ? 'hl' : ''}"><h3>Your match</h3><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? 'Unused sub' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${m.saves}</span>` : `<span class="k">Key plays</span><span>${m.keys}</span>`}${m.arcade ? `<span class="k">Shots</span><span>${m.arcade.shots} (${m.arcade.onTarget} on target)</span><span class="k">Passes</span><span>${m.arcade.passesOk}/${m.arcade.passes}</span><span class="k">Tackles</span><span>${m.arcade.tackles}</span><span class="k">Touches</span><span>${m.arcade.touches}</span><span class="k">Difficulty</span><span>${esc(m.arcade.difficulty || '')}</span>${m.arcade.weather && m.arcade.weather !== 'clear' ? `<span class="k">Conditions</span><span>${m.arcade.weather}</span>` : ''}${m.derby ? `<span class="k">Derby</span><span class="gold">Yes · fame +${ch.derbyBonus || 0}</span>` : ''}${m.arcade.cards && (m.arcade.cards.yellow || m.arcade.cards.red) ? `<span class="k">Cards</span><span class="red">${m.arcade.cards.red ? 'RED · banned next match' : m.arcade.cards.yellow + ' yellow'}</span>` : ''}${ch.injury ? `<span class="k">Injury</span><span class="red">${ch.injury} week${ch.injury > 1 ? 's' : ''} out</span>` : ''}` : ''}</div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>
-        <div class="card"><h3>Changes</h3><div class="kv">${delta('Coach', ch.coach)}${delta('Fans', ch.fans)}${delta('Fame', ch.fame)}${delta('Chemistry', ch.chem)}${delta('Charm', ch.charm)}<span class="k">Bonus</span><span class="gold">${money(ch.money)}</span><span class="k">Wage</span><span class="gold">${money(p.contract.wage)}</span></div>${attrs ? `<div>${attrs} → OVR ${p.ovr}</div>` : ''}</div>
+        <div class="card"><h3>Changes</h3><div class="kv">${delta('Coach', ch.coach)}${delta('Fans', ch.fans)}${delta('Fame', ch.fame)}${delta('Chemistry', ch.chem)}${delta('Charm', ch.charm)}<span class="k">Bonus</span><span class="gold">${money(ch.money)}</span><span class="k">Wage</span><span class="gold">${money(p.contract.wage)}</span></div>${attrs ? `<div>${attrs} → OVR ${p.ovr}</div>` : ''}${ch.sponsorPay ? `<div class="gold">Sponsors paid ${money(ch.sponsorPay)}</div>` : ''}${ch.questDone ? ch.questDone.map(t => `<div class="green">✔ Quest complete: ${esc(t)}</div>`).join('') : ''}</div>
       </div>
       ${ch.motm ? `<div class="script">${scriptLine('Ally', `Player of the match, no argument: <b>${esc(p.name)}</b> (${esc(p.pron)}). Remember the pronunciation, John.`)}${scriptLine('John', 'Noted. Again.')}</div>` : ''}
       <div class="card"><h3>${esc(lg().name)} · top of the table</h3><div class="tablewrap"><table><tbody>${st.slice(0, 5).map((r, i) => `<tr class="${r.idx === S.clubIdx ? 'me' : ''}"><td class="n">${i + 1}</td><td>${esc(r.club.name)}</td><td class="n">${r.p}</td><td class="n">${r.pts}</td></tr>`).join('')}${myPos > 5 ? `<tr class="me"><td class="n">${myPos}</td><td>${esc(club().name)}</td><td class="n">${lg().table[S.clubIdx].p}</td><td class="n">${lg().table[S.clubIdx].pts}</td></tr>` : ''}</tbody></table></div></div>
@@ -808,7 +960,7 @@
   // ---- PHASE 4: transfer window ----
   VIEWS.transfer = () => {
     const p = P();
-    if (!U.offers) U.offers = E.genOffers(S);
+    if (!U.offers) { if (S.flags.transferRequest) { const p = P(); p.charm += 15; U.offers = E.genOffers(S).filter(o => o.kind !== 'renewal'); p.charm -= 15; S.flags.transferRequest = false; } else U.offers = E.genOffers(S); }
     if (!U.offers.length) U.offers = E.startingOffers(S).slice(0, 2);
     const expired = p.contract.weeksLeft <= 0;
     const cards = U.offers.map(o => `<div class="card ${o.kind === 'renewal' ? '' : 'hl'}"><h3>${o.kind === 'renewal' ? 'Contract renewal' : 'Transfer offer'} · ${esc(o.leagueName)}</h3>
@@ -819,7 +971,7 @@
       <p>OVR ${p.ovr}, form ${E.formAvg(p).toFixed(1)}, charm ${p.charm}. ${p.charm >= 40 ? 'Your profile is pulling bigger clubs in.' : 'More charm would tempt bigger clubs.'} ${expired ? '<span class="red">Your contract has expired: you must sign somewhere.</span>' : `${p.contract.weeksLeft} weeks left on your current deal.`}</p>
       <div class="cards">${cards}</div>`;
     const actions = U.offers.map(o => ({ label: `✍ ${o.kind === 'renewal' ? 'Renew with' : 'Join'} ${esc(o.clubName)}`, cls: 'primary', sub: `${money(o.wage + o.imageRights)}/wk · ${esc(o.role)}`, fn: () => {
-      E.acceptOffer(S, o); p.contract.wage = o.wage + o.imageRights; U.offers = null; S.flags.transferWindow = false; U.welcome = o.kind !== 'renewal'; U.toast = o.kind === 'renewal' ? `New deal signed at ${esc(o.clubName)}.` : null; save();
+      E.acceptOffer(S, o); p.contract.wage = o.wage + o.imageRights; U.offers = null; S.flags.transferWindow = false; U.welcome = o.kind !== 'renewal'; if (o.kind !== 'renewal') makeRival(); U.toast = o.kind === 'renewal' ? `New deal signed at ${esc(o.clubName)}.` : null; save();
       playCut('contract', cutData({ money: money(o.wage + o.imageRights), weeks: o.weeks, role: o.role }), () => go('hub')); } }));
     actions.push({ label: '✋ Decline all offers', cls: 'warn', disabled: expired, sub: expired ? 'Contract expired' : 'Stay on current terms', fn: () => { U.offers = null; S.flags.transferWindow = false; U.toast = 'You stay put. The agent sighs audibly.'; go('hub'); } });
     return { html, actions };
@@ -846,7 +998,9 @@
       <div class="card"><h3>Your season</h3><div class="kv"><span class="k">Apps</span><span>${s.apps}</span><span class="k">Goals</span><span>${s.goals}</span><span class="k">Assists</span><span>${s.assists}</span><span class="k">MOTM</span><span>${s.motm}</span><span class="k">OVR</span><span>${s.ovr}</span></div></div></div>
       ${s.awards && s.awards.length ? `<div class="card hl"><h3>Honours</h3>${s.awards.map(w => `<div>🏆 ${esc(w.name)}</div>`).join('')}</div>` : ''}
       <div class="script">${scriptLine('John', `Another year older. <b>${esc(p.name)}</b> turns ${p.age}.`)}${scriptLine('Ally', s.finish <= 3 ? 'Top-three finish. The phone will be ringing.' : s.finish >= 15 ? 'Rough season. Time to knuckle down on the training ground.' : 'Solid, unspectacular. Next year has to be the step up.')}</div>`;
-    return { html, actions: [{ label: '▶ New season', cls: 'primary', fn: () => { U.summary = null; go('hub'); } }], after: () => { if (U.seasonCuts && U.seasonCuts.length) { const cuts = U.seasonCuts; U.seasonCuts = null; playCuts(cuts, () => render()); } } };
+    const acts = [{ label: '▶ New season', cls: 'primary', fn: () => { U.summary = null; S.flags.wcDone = false; go('hub'); } }];
+    if (retirementDue()) acts.unshift({ label: '🏁 Retire', cls: 'warn', sub: `Age ${p.age}, OVR ${p.ovr}. Lap of honour and a legacy card.`, fn: () => { const L = legacyCard(); playCut('legacy', cutData({ seasons: L.seasons, clubs: L.clubs, goals: L.goals, honours: L.honours, caps: L.caps }), () => go('legacy')); } });
+    return { html: html + (retirementDue() ? '<div class="notice">Your body is telling you something. Retire now, or go one more season.</div>' : '') + (s.declined ? '<p class="muted">Age has taken a little pace and power this year.</p>' : ''), actions: acts, after: () => { if (U.seasonCuts && U.seasonCuts.length) { const cuts = U.seasonCuts; U.seasonCuts = null; playCuts(cuts, () => render()); } } };
   };
 
   // ---------- boot ----------

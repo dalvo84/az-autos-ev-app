@@ -65,7 +65,7 @@
       solids: [R(30, 40, 120, 70), R(360, 40, 130, 70), R(360, 300, 130, 80)],
       furniture: [
         { r: R(30, 40, 120, 70), c: '#3a3f58', label: 'GYM', hot: { label: 'Gym', action: 'open:training', hint: 'spend energy on attributes' } },
-        { r: R(360, 40, 130, 70), c: '#c9a86a', label: "COACH'S OFFICE", hot: { label: "Coach's office", action: 'perk:coach', hint: 'a word with the coach, once a week' } },
+        { r: R(360, 40, 130, 70), c: '#c9a86a', label: "COACH'S OFFICE", hot: { label: "Coach's office", action: 'open:talk', hint: 'a proper conversation with the manager' } },
         { r: R(360, 300, 130, 80), c: '#dfe4ea', label: 'PHYSIO', hot: { label: 'Physio room', action: 'perk:physio', hint: 'treatment: +10 energy, once a week' } },
         { r: R(60, 180, 240, 200), c: '#2f8f45', label: 'PITCH', pitch: true, hot: { label: 'Training pitch', action: 'open:training', hint: 'drills with the squad' } } ],
       doors: [ { x: 180, y: 12, w: 40, h: 12, to: 'town', spawn: { x: 150, y: 296 }, label: 'GATE' } ] },
@@ -81,7 +81,7 @@
     agent: { w: 300, h: 260, view: 220, floor: 'carpet', title: "Agent's office",
       walls: [R(0, 0, 300, 14), R(0, 0, 10, 260), R(290, 0, 10, 260), R(0, 246, 300, 14)],
       solids: [R(90, 40, 120, 50)],
-      furniture: [ { r: R(90, 40, 120, 50), c: '#c9a86a', label: 'DESK', hot: { label: 'Talk to your agent', action: 'open:contract', hint: 'contract, transfer window timing' } } ],
+      furniture: [ { r: R(90, 40, 120, 50), c: '#c9a86a', label: 'DESK', hot: { label: 'Talk to your agent', action: 'open:agent', hint: 'quests, sponsors, transfer requests' } } ],
       doors: [ { x: 130, y: 246, w: 40, h: 14, to: 'town', spawn: { x: 830, y: 190 }, label: 'EXIT' } ] },
   };
 

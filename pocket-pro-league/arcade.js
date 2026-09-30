@@ -39,7 +39,7 @@
       { id: 'shoot', label: isGKUser ? 'KICK' : 'SHOOT', hint: 'hold = power' }, { id: 'pass', label: isGKUser ? 'THROW' : 'PASS', hint: 'to teammate' }, { id: 'skill', label: isGKUser ? 'DIVE' : 'SPRINT', hint: '' } ] });
 
     // ---- teams ----
-    const kits = SP.kitsFor(opts.isHome ? opts.club.name : opts.opp.name, opts.isHome ? opts.opp.name : opts.club.name);
+    const kits = opts.kits || SP.kitsFor(opts.isHome ? opts.club.name : opts.opp.name, opts.isHome ? opts.opp.name : opts.club.name);
     const myKit = opts.isHome ? kits.home : kits.away, oppKit = opts.isHome ? kits.away : kits.home;
     const players = [];
     function mk(team, slot, attrs, look, extra) {

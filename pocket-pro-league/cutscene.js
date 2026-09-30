@@ -193,6 +193,19 @@
     },
   };
 
+  SCENES.legacy = function (d) {
+    const W = 360, H = 240; const mates = ensureMates(d, 6);
+    const actors = mates.map((m, i) => ({ look: m.look, kit: d.kit, keys: [{ t: 0, x: 70 + i * 40, y: 215, pose: 'cheer' }, { t: 20, x: 70 + i * 40, y: 215, pose: 'cheer' }] }));
+    actors.push({ look: d.look, kit: d.kit, opts: { acc: d.acc, number: 10 }, scale: 1.9, keys: [{ t: 0, x: -30, y: 190 }, { t: 5, x: W / 2, y: 190 }, { t: 6, x: W / 2, y: 190, pose: 'cheer' }, { t: 20, x: W / 2, y: 190, pose: 'cheer' }] });
+    return { w: W, h: H, duration: 16, bg: BG.stadiumNight, actors,
+      props: [ { t0: 0, draw: (ctx, t) => { ctx.fillStyle = '#1d1d2e'; ctx.fillRect(W / 2 - 80, 172, 160, 22); ctx.fillStyle = '#f3c34f'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center'; ctx.fillText(`THANK YOU, ${(d.name || '').toUpperCase()}`, W / 2, 186); } } ],
+      captions: [
+        { t: 0.5, who: 'John', text: `A lap of honour for ${d.name}. ${d.seasons} seasons, ${d.clubs} clubs, ${d.goals} goals.` },
+        { t: 5.5, who: 'Ally', text: d.honours ? `${d.honours} honours in the cabinet. ${d.caps} caps. Not bad for a kid from Riverside.` : 'No trophies, but every one of these people knows the name.' },
+        { t: 10, who: 'John', text: 'Boots hung up. The story goes on in the stands.' } ],
+      effects: { confetti: true, fireworks: true, from: 5.5 },
+      banner: { t: 6, text: 'RETIRED', sub: `${d.name} · ${d.seasons} seasons`, sfx: 'chant' } };
+  };
   // Season highlights reel: plays saved goal clips (frames from the match engine) on a mini pitch
   SCENES.reel = function (d) {
     const W = 360, H = 240; const clips = d.clips || []; const per = 6.5; const dur = 1.5 + clips.length * per;

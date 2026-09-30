@@ -511,6 +511,8 @@
       apps: p.apps, goals: p.goals, assists: p.assists, motm: p.motm, ovr: p.ovr, age: p.age };
     state.history.push(summary);
     p.seasons++; p.age++;
+    // ageing: pace and power fade from 31, everything else slowly after 33
+    if (p.age >= 31) { p.attrs.pac = clamp(p.attrs.pac - ri(1, 3), 20, 99); p.attrs.phy = clamp(p.attrs.phy - ri(0, 2), 20, 99); if (p.age >= 33) for (const a of ['sho', 'pas', 'dri', 'def']) if (rnd() < 0.5) p.attrs[a] = clamp(p.attrs[a] - 1, 20, 99); p.ovr = calcOVR(p.attrs, p.pos); summary.declined = true; }
     p.apps = 0; p.goals = 0; p.assists = 0; p.saves = 0; p.motm = 0;
     if (pos === 1) { p.fame = clamp(p.fame + 8, 0, 100); p.fans = clamp(p.fans + 10, 0, 100); }
     resetSeason(state.world);
@@ -520,6 +522,6 @@
 
   root.PPL = { ATTRS, calcOVR, genAttrs, genTeammates, genPerson, newWorld, standings, nextFixtureFor, buildMatch, resolveMoment, autoChoice,
     finishMatch, train, TRAIN_COST, maxEnergy, trainBonus, currentLeague, currentClub, genOffers, startingOffers, acceptOffer, takePenalty,
-    PEN_DIRS, newGame, seasonRollover, byeWeek, formAvg, successProb, clamp, ri, pick, endWeek, roleFor };
+    PEN_DIRS, newGame, seasonRollover, byeWeek, simScore, weightedAttr, formAvg, successProb, clamp, ri, pick, endWeek, roleFor };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PPL;
 })(typeof window !== 'undefined' ? window : globalThis);
