@@ -1,7 +1,7 @@
-/* Pocket Pro League — walkable open world: town, house (two floors), shopping centre (two floors), training ground, stadium */
+/* FC1 (Football Civilian · Volume 1) — walkable open world: town, house (two floors), shopping centre (two floors), training ground, stadium */
 (function (root) {
   'use strict';
-  const SP = root.PPL_SPRITES, CT = root.PPL_CONTROLS;
+  const SP = root.FC1_SPRITES, CT = root.FC1_CONTROLS;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const R = (x, y, w, h, c) => ({ x, y, w, h, c });
 
@@ -236,5 +236,5 @@
     raf = requestAnimationFrame(frame);
     return { destroy() { alive = false; cancelAnimationFrame(raf); ctl.destroy(); window.removeEventListener('resize', resize); host.innerHTML = ''; }, pos: () => ({ map: map.id, x: me.x, y: me.y }), goto: (id, x, y) => setMap(id, x, y), note, setSub: t => { stage.querySelector('.town-hud .arc-clock').textContent = t; }, startMini };
   }
-  root.PPL_TOWN = { start, MAPS };
+  root.FC1_TOWN = { start, MAPS };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,9 +1,9 @@
-/* Pocket Pro League — commentator voices (Web Speech API) and synthesised crowd/whistle (Web Audio) */
+/* FC1 (Football Civilian · Volume 1) — commentator voices (Web Speech API) and synthesised crowd/whistle (Web Audio) */
 (function (root) {
   'use strict';
-  const PREF_KEY = 'ppl_sound';
+  const PREF_KEY = 'fc1_sound';
   let enabled = true;
-  try { enabled = localStorage.getItem(PREF_KEY) !== 'off'; } catch (e) { /* ignore */ }
+  try { enabled = (localStorage.getItem(PREF_KEY) || localStorage.getItem('ppl_sound')) !== 'off'; } catch (e) { /* ignore */ }
   let ctx = null, voices = [], voiceMap = null, unlocked = false;
   const synth = root.speechSynthesis || null;
   const queue = []; let speaking = false;
@@ -118,5 +118,5 @@
   function sfx(name) { if (!enabled || !unlocked) return; const f = SFX[name]; if (f) { try { f(); } catch (e) { /* ignore */ } } }
 
   function setEnabled(v) { enabled = !!v; try { localStorage.setItem(PREF_KEY, enabled ? 'on' : 'off'); } catch (e) { /* ignore */ } if (!enabled) stopSpeech(); }
-  root.PPL_AUDIO = { speak, sfx, toSpeech, unlock, stopSpeech, setEnabled, isEnabled: () => enabled, hasSpeech: () => !!synth, voiceNames: () => voiceMap ? { john: voiceMap.john && voiceMap.john.name, ally: voiceMap.ally && voiceMap.ally.name } : null };
+  root.FC1_AUDIO = { speak, sfx, toSpeech, unlock, stopSpeech, setEnabled, isEnabled: () => enabled, hasSpeech: () => !!synth, voiceNames: () => voiceMap ? { john: voiceMap.john && voiceMap.john.name, ally: voiceMap.ally && voiceMap.ally.name } : null };
 })(typeof window !== 'undefined' ? window : globalThis);

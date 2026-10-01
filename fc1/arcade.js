@@ -1,7 +1,7 @@
-/* Pocket Pro League — real-time top-down match engine (canvas) */
+/* FC1 (Football Civilian · Volume 1) — real-time top-down match engine (canvas) */
 (function (root) {
   'use strict';
-  const SP = root.PPL_SPRITES, CT = root.PPL_CONTROLS;
+  const SP = root.FC1_SPRITES, CT = root.FC1_CONTROLS;
   const W = 600, H = 900, GOAL_W = 150, GX0 = (W - GOAL_W) / 2, GX1 = (W + GOAL_W) / 2;
   const SLOTS = ['GK', 'RB', 'CB', 'CB', 'LB', 'CDM', 'CM', 'CAM', 'RW', 'ST', 'LW'];
   const FORM = [[.5, .05], [.84, .27], [.63, .2], [.37, .2], [.16, .27], [.5, .42], [.31, .54], [.69, .57], [.85, .68], [.5, .72], [.15, .68]];
@@ -632,5 +632,5 @@
       debugShot(power, aim, x, y) { user.x = x; user.y = y; user.fy = st.dir[0]; user.fx = 0; ball.owner = user; user.cool = 0; shoot(user, power, aim); },
       debugFoul(inBox) { const gy = goalY(0); user.x = W / 2 + 20; user.y = gy + (gy === 0 ? 1 : -1) * (inBox ? 100 : 220); const d = teamOf(1).find(p => !p.isGK); ball.owner = user; d.x = user.x + 5; d.y = user.y + 5; foul(d, user); } };
   }
-  root.PPL_ARCADE = { start, W, H, DIFFICULTY, DIFF_ORDER };
+  root.FC1_ARCADE = { start, W, H, DIFFICULTY, DIFF_ORDER };
 })(typeof window !== 'undefined' ? window : globalThis);

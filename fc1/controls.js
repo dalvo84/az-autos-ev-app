@@ -1,4 +1,4 @@
-/* Pocket Pro League — virtual joystick + action buttons (touch, mouse, keyboard) */
+/* FC1 (Football Civilian · Volume 1) — virtual joystick + action buttons (touch, mouse, keyboard) */
 (function (root) {
   'use strict';
   function create(host, opts) {
@@ -41,5 +41,5 @@
       destroy() { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); wrap.remove(); },
       setLabel(id, label, hint) { const b = wrap.querySelector('.ctl-' + id); if (b) { b.querySelector('span').textContent = label; if (hint !== undefined) b.querySelector('small').textContent = hint; } } };
   }
-  root.PPL_CONTROLS = { create };
+  root.FC1_CONTROLS = { create };
 })(typeof window !== 'undefined' ? window : globalThis);

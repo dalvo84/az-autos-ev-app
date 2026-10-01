@@ -1,7 +1,7 @@
-/* Pocket Pro League — cutscenes: contract signing, trophy lift, awards gala, debut, man of the match */
+/* FC1 (Football Civilian · Volume 1) — cutscenes: contract signing, trophy lift, awards gala, debut, man of the match */
 (function (root) {
   'use strict';
-  const SP = root.PPL_SPRITES;
+  const SP = root.FC1_SPRITES;
   const rnd = Math.random;
   const lerp = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
 
@@ -255,5 +255,5 @@
       effects: {} };
   };
 
-  root.PPL_CUT = { play, SCENES, BG };
+  root.FC1_CUT = { play, SCENES, BG };
 })(typeof window !== 'undefined' ? window : globalThis);

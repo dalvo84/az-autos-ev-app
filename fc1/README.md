@@ -1,4 +1,4 @@
-# Pocket Pro League
+# FC1 — Football Civilian, Volume 1
 
 A football career RPG in the style of a retro pixel mobile game: real-time matches, a walkable town, and a career with a life around it. Plain HTML, CSS and JavaScript with no build step.
 
@@ -7,7 +7,7 @@ A football career RPG in the style of a retro pixel mobile game: real-time match
 Open `index.html` in a browser, or serve the folder:
 
 ```
-python3 -m http.server 8080 --directory pocket-pro-league
+python3 -m http.server 8080 --directory fc1
 ```
 
 Progress autosaves to `localStorage` after every screen.
@@ -30,7 +30,7 @@ Progress autosaves to `localStorage` after every screen.
 `engine.js` loads in Node as well, which is how the balance was tuned:
 
 ```
-node -e "const E=require('./pocket-pro-league/engine.js'); console.log(E.newGame({name:'A',pron:'A',pos:'ST',nat:'England'}).player)"
+node -e "const E=require('./fc1/engine.js'); console.log(E.newGame({name:'A',pron:'A',pos:'ST',nat:'England'}).player)"
 ```
 
 ## Game loop

@@ -1,9 +1,9 @@
-/* Pocket Pro League — UI & flow */
+/* FC1 (Football Civilian · Volume 1) — UI & flow */
 (function () {
   'use strict';
-  const D = window.PPL_DATA, E = window.PPL, A = window.PPL_AUDIO, SP = window.PPL_SPRITES, ARC = window.PPL_ARCADE, TOWN = window.PPL_TOWN, CUT = window.PPL_CUT;
+  const D = window.FC1_DATA, E = window.FC1, A = window.FC1_AUDIO, SP = window.FC1_SPRITES, ARC = window.FC1_ARCADE, TOWN = window.FC1_TOWN, CUT = window.FC1_CUT;
   const $ = s => document.querySelector(s);
-  const SAVE_KEY = 'ppl_save_v1';
+  const SAVE_KEY = 'fc1_save_v1';
   let S = null;             // persistent game state
   let U = { screen: 'menu' }; // transient ui state
 
@@ -20,7 +20,7 @@
   // ---------- saving: this browser (localStorage) plus the artifact's per-user cloud store when available ----------
   const cloud = { ref: null, status: 'checking', lastSync: 0, busy: false, dirty: false, remote: null, error: null };
   const saveLocal = () => { try { if (S) localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } };
-  const load = () => { try { const j = localStorage.getItem(SAVE_KEY); return j ? JSON.parse(j) : null; } catch (e) { return null; } };
+  const load = () => { try { const j = localStorage.getItem(SAVE_KEY) || localStorage.getItem('ppl_save_v1'); return j ? JSON.parse(j) : null; } catch (e) { return null; } };
   const save = () => { if (!S) return; S.savedAt = Date.now(); saveLocal(); cloudSave(); };
   async function cloudSave() {
     if (!cloud.ref || !S) return;
@@ -388,7 +388,7 @@
     const html = `<h2>🏁 Career over</h2><div class="card hl"><h3>${esc(p.name)} · ${esc(p.pos)} · ${esc(p.nat)}</h3><div class="kv"><span class="k">Seasons</span><span>${L.seasons}</span><span class="k">Clubs</span><span>${L.clubs}</span><span class="k">Apps</span><span>${L.apps}</span><span class="k">Goals</span><span>${L.goals}</span><span class="k">Assists</span><span>${L.assists}</span><span class="k">Caps</span><span>${L.caps} (${L.intGoals} goals)</span><span class="k">Peak OVR</span><span>${L.peak}</span><span class="k">Honours</span><span>${L.honours}</span></div></div>
       ${(S.honours || []).length ? `<div class="card"><h3>Honours</h3>${S.honours.map(h => `<div>🏆 ${esc(h.name)} <span class="muted">· ${esc(h.club)}</span></div>`).join('')}</div>` : ''}
       <p class="muted">This card is kept in the Hall of Fame on the menu. Start a new career whenever you like.</p>`;
-    return { html, actions: [{ label: '🏛 Save to Hall of Fame and start a new career', cls: 'primary', fn: () => { try { const hof = JSON.parse(localStorage.getItem('ppl_hof') || '[]'); hof.unshift(Object.assign(L, { honoursList: (S.honours || []).map(h => h.name) })); localStorage.setItem('ppl_hof', JSON.stringify(hof.slice(0, 10))); } catch (e) { /* ignore */ } S = null; try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } if (cloud.ref) { cloud.ref.delete().catch(() => {}); } U = { screen: 'intro' }; render(); } }] };
+    return { html, actions: [{ label: '🏛 Save to Hall of Fame and start a new career', cls: 'primary', fn: () => { try { const hof = JSON.parse(localStorage.getItem('fc1_hof') || localStorage.getItem('ppl_hof') || '[]'); hof.unshift(Object.assign(L, { honoursList: (S.honours || []).map(h => h.name) })); localStorage.setItem('fc1_hof', JSON.stringify(hof.slice(0, 10))); } catch (e) { /* ignore */ } S = null; try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } if (cloud.ref) { cloud.ref.delete().catch(() => {}); } U = { screen: 'intro' }; render(); } }] };
   };
   // ---------- cutscenes ----------
   function cutData(extra) { const p = P(); return Object.assign({ look: p.look, kit: clubKit(), acc: myAcc(false), name: pname(), club: S.clubIdx >= 0 ? club().name : 'Riverside Academy', mates: S.teammates }, extra || {}); }
@@ -468,7 +468,7 @@
             L E A G U E   ·   C A R E E R   M O D E</pre>
       <p>A deep-sim football RPG. Start at sixteen in a regional academy final, get scouted, and climb from the Championship to the elite leagues of Europe. Every choice on the pitch feeds your rating, your coach, your fans and your bank balance.</p>
       ${saved ? `<div class="card hl"><h3>Saved career</h3><div>${esc(saved.player.name)} · ${esc(saved.player.pos)} · OVR ${saved.player.ovr} · Week ${saved.week} · ${esc(saved.player.contract.club)}</div><div class="muted">${saved.savedAt ? 'Last saved ' + new Date(saved.savedAt).toLocaleString() : ''}</div></div>` : '<p class="muted">No saved career yet.</p>'}
-      ${(() => { try { const hof = JSON.parse(localStorage.getItem('ppl_hof') || '[]'); return hof.length ? `<div class="card"><h3>🏛 Hall of Fame</h3>${hof.map(h => `<div>${esc(h.name)} · ${esc(h.pos)} · ${h.seasons} seasons · ${h.goals} goals · ${h.honours} honours · peak OVR ${h.peak}</div>`).join('')}</div>` : ''; } catch (e) { return ''; } })()}
+      ${(() => { try { const hof = JSON.parse(localStorage.getItem('fc1_hof') || localStorage.getItem('ppl_hof') || '[]'); return hof.length ? `<div class="card"><h3>🏛 Hall of Fame</h3>${hof.map(h => `<div>${esc(h.name)} · ${esc(h.pos)} · ${h.seasons} seasons · ${h.goals} goals · ${h.honours} honours · peak OVR ${h.peak}</div>`).join('')}</div>` : ''; } catch (e) { return ''; } })()}
       <p class="muted">${cloudLine()}</p>
       <p class="muted">Progress autosaves after every screen. ${A && A.hasSpeech() ? 'John and Ally speak through your browser\'s voices, with crowd noise and whistles synthesised live. Toggle with the sound button at the top.' : 'This browser has no speech voices, so commentary is text only. Crowd and whistle effects still play.'}</p>`;
     const actions = [];
@@ -1134,7 +1134,7 @@
   };
 
   // ---------- boot ----------
-  window.PPL_DEBUG = { setTimeScale: v => { U.testTimeScale = v; }, state: () => S, ui: () => U, cut: (type, extra, done) => playCut(type, cutData(extra || {}), done) };
+  window.FC1_DEBUG = { setTimeScale: v => { U.testTimeScale = v; }, state: () => S, ui: () => U, cut: (type, extra, done) => playCut(type, cutData(extra || {}), done) };
   const sndBtn = $('#snd');
   if (sndBtn && A) sndBtn.onclick = () => { A.unlock(); A.setEnabled(!A.isEnabled()); soundBtn(); if (A.isEnabled()) A.sfx('ding'); };
   function start(hot) {

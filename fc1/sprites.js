@@ -1,4 +1,4 @@
-/* Pocket Pro League — pixel character models and club kits */
+/* FC1 (Football Civilian · Volume 1) — pixel character models and club kits */
 (function (root) {
   'use strict';
   const SKIN = ['#f6d7b8', '#e9b98f', '#c98f5f', '#a4703f', '#734727', '#40281a'];
@@ -120,6 +120,6 @@
     px(-3, -11, 1.2, 3, '#fff6c9');
   }
 
-  root.PPL_SPRITES = { drawTrophy, SKIN, HAIR_COLORS, HAIR_STYLES, BOOTS, BUILDS, randomLook, defaultLook, kitsFor, baseKit, drawFigure };
-  if (typeof module !== 'undefined' && module.exports) module.exports = root.PPL_SPRITES;
+  root.FC1_SPRITES = { drawTrophy, SKIN, HAIR_COLORS, HAIR_STYLES, BOOTS, BUILDS, randomLook, defaultLook, kitsFor, baseKit, drawFigure };
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.FC1_SPRITES;
 })(typeof window !== 'undefined' ? window : globalThis);

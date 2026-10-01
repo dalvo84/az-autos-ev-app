@@ -1,4 +1,4 @@
-/* Pocket Pro League — static game data */
+/* FC1 (Football Civilian · Volume 1) — static game data */
 (function (root) {
   'use strict';
 
@@ -199,6 +199,6 @@
   // ---- Commentators ----
   const COMMENTATORS = { play: 'John', color: 'Ally' };
 
-  root.PPL_DATA = { POSITIONS, ATTR_LABELS, GK_ATTR_LABELS, LEAGUES, NAME_POOLS, NATIONALITIES, SHOP, CARS, ESTATES, COMMENTATORS, RIVALS };
-  if (typeof module !== 'undefined' && module.exports) module.exports = root.PPL_DATA;
+  root.FC1_DATA = { POSITIONS, ATTR_LABELS, GK_ATTR_LABELS, LEAGUES, NAME_POOLS, NATIONALITIES, SHOP, CARS, ESTATES, COMMENTATORS, RIVALS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.FC1_DATA;
 })(typeof window !== 'undefined' ? window : globalThis);

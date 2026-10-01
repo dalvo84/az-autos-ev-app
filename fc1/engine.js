@@ -1,7 +1,7 @@
-/* Pocket Pro League — game engine (pure logic, no DOM) */
+/* FC1 (Football Civilian · Volume 1) — game engine (pure logic, no DOM) */
 (function (root) {
   'use strict';
-  const D = root.PPL_DATA || (typeof require !== 'undefined' ? require('./data.js') : null);
+  const D = root.FC1_DATA || (typeof require !== 'undefined' ? require('./data.js') : null);
 
   // ---------- RNG ----------
   const rnd = () => Math.random();
@@ -520,8 +520,8 @@
     return summary;
   }
 
-  root.PPL = { ATTRS, calcOVR, genAttrs, genTeammates, genPerson, newWorld, standings, nextFixtureFor, buildMatch, resolveMoment, autoChoice,
+  root.FC1 = { ATTRS, calcOVR, genAttrs, genTeammates, genPerson, newWorld, standings, nextFixtureFor, buildMatch, resolveMoment, autoChoice,
     finishMatch, train, TRAIN_COST, maxEnergy, trainBonus, currentLeague, currentClub, genOffers, startingOffers, acceptOffer, takePenalty,
     PEN_DIRS, newGame, seasonRollover, byeWeek, simScore, weightedAttr, formAvg, successProb, clamp, ri, pick, endWeek, roleFor };
-  if (typeof module !== 'undefined' && module.exports) module.exports = root.PPL;
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.FC1;
 })(typeof window !== 'undefined' ? window : globalThis);
