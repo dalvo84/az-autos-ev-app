@@ -233,6 +233,43 @@
     };
     return { html, actions: [{ label: '← Back to town', fn: () => { U.lifeNote = null; go('hub'); } }], after };
   };
+  // ---------- City Hall: registrar weddings and the queue ----------
+  const JOBS = ['paramedic', 'architect', 'teacher', 'chef', 'session musician', 'vet', 'barista', 'journalist', 'physio', 'pilot', 'tattoo artist', 'nurse', 'graphic designer', 'firefighter'];
+  const LIKES = ['away days', 'late films', 'cold water swims', 'Sunday roasts', 'vinyl', 'long drives', 'dogs', 'board games', 'karaoke', 'hiking'];
+  function hallCandidate() { const c = makeCandidate(); const age = P().age + E.ri(-2, 4); return Object.assign(c, { age: Math.max(18, age), job: E.pick(JOBS), likes: E.pick(LIKES), why: E.pick(['renewing a passport', 'registering a business', 'paying a parking fine', 'collecting a birth certificate', 'arguing about bins']) }); }
+  const HALL_CHARM = 40, HALL_FAME = 25, HALL_FEE = 500;
+  const cityhallView = () => {
+    const p = P(); const L = life(); const tab = U.hallTab || 'registrar';
+    let body = '';
+    if (tab === 'registrar') {
+      const req = `<div class="kv"><span class="k">Charm</span><span class="${p.charm >= HALL_CHARM ? 'ok' : 'bad'}">${p.charm} / ${HALL_CHARM}</span><span class="k">Fame</span><span class="${p.fame >= HALL_FAME ? 'ok' : 'bad'}">${p.fame} / ${HALL_FAME}</span><span class="k">Fee</span><span class="gold">${money(HALL_FEE)}</span></div>`;
+      if (L.status === 'married') body = `<div class="card hl"><h3>Marriage certificate</h3><p>${esc(pname())} and ${esc(L.partner.name)}, married in week ${L.married}.${L.children.length ? ` Children: ${L.children.map(c => esc(c.name)).join(', ')}.` : ''}</p></div><p class="muted">The registrar nods. "Still going? Good."</p>`;
+      else if (L.status === 'single') body = `<div class="card"><h3>Registrar</h3><p>"Bring someone and we will talk. Charm ${HALL_CHARM} and Fame ${HALL_FAME} gets you a slot."</p>${req}</div><p class="muted">Nobody to marry yet. Try the queue, or the dating tab on your phone.</p>`;
+      else {
+        const ok = p.charm >= HALL_CHARM && p.fame >= HALL_FAME; const consent = L.love >= 40; const paid = p.money >= HALL_FEE;
+        body = `<div class="card hl"><h3>Marry ${esc(L.partner.name)}</h3><p>${esc(L.status === 'engaged' ? 'You are already engaged. The registrar has a slot this afternoon.' : 'No ring needed here. The registrar wants a name the city knows and someone who can hold a room.')}</p>${req}${bar('Love', L.love, 'gold')}</div>
+          <div class="choices">${ok && consent && paid ? `<button type="button" class="sm primary" data-hall="marry">💒 Get married today<span class="sub">${money(HALL_FEE)} · the whole squad in suits</span></button>` : `<button type="button" class="sm" disabled>💒 Get married<span class="sub">${!ok ? `Charm ${HALL_CHARM} and Fame ${HALL_FAME} needed` : !consent ? `${esc(L.partner.name)} wants a little more time (love 40)` : `${money(HALL_FEE - p.money)} short`}</span></button>`}</div>`;
+      }
+    } else {
+      if (L.status !== 'single') body = `<div class="card"><h3>The queue</h3><p>Someone in the queue smiles at you. You think of ${esc(L.partner.name)} and look at your shoes.</p></div>`;
+      else {
+        if (!L.hall || L.hall.week !== S.week) L.hall = { week: S.week, list: [hallCandidate(), hallCandidate(), hallCandidate()] };
+        body = `<p class="muted">Three people in the queue. Read them, pick one, ask. It is a coin flip: 50 / 50.</p><div class="items">${L.hall.list.map((c, i) => `<div class="item"><div class="item-main"><b>${esc(c.name)}, ${c.age}</b><span class="muted">${esc(c.nat)} · ${esc(c.job)} · here ${esc(c.why)}</span><span class="fx">${esc(c.traitText)} · likes ${esc(c.likes)}</span></div><div class="item-act"><button type="button" class="sm warn" data-hallask="${i}">Ask out<span class="sub">50 / 50</span></button></div></div>`).join('')}</div>${!L.hall.list.length ? '<p class="muted">The queue has moved on. Come back next week.</p>' : ''}`;
+      }
+      if (U.lifeNote) body += `<div class="notice">${U.lifeNote}</div>`;
+    }
+    const html = `${toast()}<h2>🏛 City Hall</h2><div class="choices"><button type="button" class="sm ${tab === 'registrar' ? 'primary' : ''}" data-htab="registrar">Registrar</button><button type="button" class="sm ${tab === 'queue' ? 'primary' : ''}" data-htab="queue">The queue</button></div>${body}`;
+    const after = () => {
+      document.querySelectorAll('[data-htab]').forEach(b => b.onclick = () => { U.hallTab = b.dataset.htab; U.lifeNote = null; render(); });
+      document.querySelectorAll('[data-hallask]').forEach(b => b.onclick = () => { const c = L.hall.list[+b.dataset.hallask]; L.hall.list.splice(+b.dataset.hallask, 1);
+        if (Math.random() < 0.5) { L.status = 'dating'; L.partner = c; L.love = 25; L.since = S.week; L.lastContact = S.week; L.cands = null; L.hall = null; U.lifeNote = `${esc(c.name)} said yes. "Text me when you are done with the ${esc(c.why.split(' ').pop())}." Dinner at the café is on you.`; if (A) A.sfx('ding'); }
+        else { U.lifeNote = `${esc(c.name)} said no, kindly. "Good luck on Saturday though."`; if (A) A.sfx('bad'); }
+        save(); render(); });
+      document.querySelectorAll('[data-hall]').forEach(b => b.onclick = () => { p.money -= HALL_FEE; L.status = 'engaged'; L.love = 100; save();
+        playCut('wedding', cutData({ partner: L.partner }), () => { L.status = 'married'; L.married = S.week; L.livesTogether = true; L.ring = false; p.fame = E.clamp(p.fame + 5, 0, 100); p.charm = E.clamp(p.charm + 5, 0, 100); U.toast = `Married at City Hall. Fame +5, Charm +5. ${esc(L.partner.name)} has moved in.`; save(); render(); }); });
+    };
+    return { html, actions: [{ label: '← Back to City Hall', fn: () => { U.lifeNote = null; go('hub'); } }], after };
+  };
   // ---------- Batch B: career ----------
   const NATIONS = { England: 86, Spain: 87, Italy: 84, Germany: 85, France: 88, Brazil: 88, Argentina: 87, Nigeria: 76, Netherlands: 84, Portugal: 85, USA: 76, Japan: 78, Senegal: 78, 'Saudi Arabia': 70,
     Croatia: 80, Belgium: 82, Uruguay: 81, Colombia: 79, Mexico: 77, Morocco: 80, Switzerland: 79, Denmark: 78, Sweden: 74, Poland: 76, Turkey: 77, Australia: 72, 'South Korea': 76, Ghana: 74, Egypt: 75, Serbia: 76 };
@@ -418,7 +455,7 @@
 
   // ---------- VIEWS ----------
   const VIEWS = {};
-  VIEWS.talk = talkView; VIEWS.agent = agentView; VIEWS.legacy = legacyView; VIEWS.life = lifeView;
+  VIEWS.talk = talkView; VIEWS.agent = agentView; VIEWS.legacy = legacyView; VIEWS.life = lifeView; VIEWS.cityhall = cityhallView;
 
   VIEWS.menu = () => {
     const saved = load();
@@ -579,6 +616,8 @@
     physio: () => { const p = P(); if (p.injury > 0) { if (!perkOnce('physio')) return 'Treatment done for this week. Rest.'; p.injury--; return p.injury > 0 ? `Treatment. ${p.injury} week${p.injury > 1 ? 's' : ''} of the injury left.` : 'Treatment. You are cleared to play.'; } return perkOnce('physio') ? `Ice bath and a rub down. Energy +${gainEnergy(10)}.` : 'Physio has seen you already this week.'; },
     coach: () => { const p = P(); if (!perkOnce('coach')) return 'The coach waves you out. "Show me on the pitch."'; p.coach = E.clamp(p.coach + 2, 0, 100); return p.coach >= 60 ? '"Keep doing what you are doing." Coach +2.' : p.coach >= 35 ? '"Work harder in training and you will start." Coach +2.' : '"You are not close to the team yet. Train." Coach +2.'; },
     press: () => { const p = P(); if (p.fame < 10) return 'Two journalists and a work-experience kid. Nobody asks a question.'; if (!perkOnce('press')) return 'The press officer says you have done enough talking this week.'; p.fame = E.clamp(p.fame + 1, 0, 100); p.charm = E.clamp(p.charm + 1, 0, 100); return 'You handle the questions well. Fame +1, Charm +1.'; },
+    notices: () => { const p = P(); const L = life(); const st = E.standings(lg()); const pos = st.findIndex(r => r.idx === S.clubIdx) + 1; return p.fame < 10 ? 'Planning notices, a lost cat, and nothing about you yet.' : `"${club().name} sit ${pos}${ord(pos)}." A clipping about you is pinned up${L.status === 'married' ? ', next to your wedding notice' : ''}. Fame ${p.fame}.`; },
+    bench: () => { const L = life(); return L.status === 'single' ? 'You sit. The queue shuffles forward. Somebody glances over twice.' : `You sit and think about ${L.partner.name}. Love ${L.love}.`; },
     balcony: () => { const p = P(); const st = E.standings(lg()); const pos = st.findIndex(r => r.idx === S.clubIdx) + 1; return `Floodlights on the horizon. ${club().name} sit ${pos}${ord(pos)}. Fame ${p.fame}, fans ${p.fans}.`; },
   };
   function worldAction(action) {
@@ -588,6 +627,7 @@
       if (screen === 'shop') { U.shopTab = tab || 'boots'; go('shop'); }
       else if (screen === 'talk') { U.talkReply = null; U.talkPos = false; go('talk'); }
       else if (screen === 'life') { U.lifeTab = 'social'; go('life'); }
+      else if (screen === 'cityhall') { U.hallTab = tab || 'registrar'; U.lifeNote = null; go('cityhall'); }
       else if (screen === 'agent') go('agent');
       else if (screen === 'garage' || screen === 'contract' || screen === 'estate' || screen === 'mirror') { U.homeFocus = screen; go('home'); }
       else go(screen);

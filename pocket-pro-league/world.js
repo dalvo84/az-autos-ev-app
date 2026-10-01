@@ -9,16 +9,17 @@
   // door: walk in to travel. hot: walk up and press ENTER. solid furniture blocks movement.
   const MAPS = {
     town: { w: 980, h: 560, view: 300, floor: 'grass', outside: true, npcs: 7,
-      walls: [], solids: [R(60, 60, 150, 110), R(300, 40, 200, 120), R(40, 320, 220, 150), R(420, 280, 260, 200), R(740, 60, 180, 100)],
+      walls: [], solids: [R(60, 60, 150, 110), R(300, 40, 200, 120), R(40, 320, 220, 150), R(420, 280, 260, 200), R(740, 60, 180, 100), R(560, 50, 150, 100)],
       decor: m => m.town(),
       doors: [
         { x: 120, y: 168, w: 30, h: 14, to: 'house1', spawn: { x: 170, y: 250 }, label: 'HOME' },
         { x: 385, y: 158, w: 30, h: 14, to: 'shop1', spawn: { x: 200, y: 270 }, label: 'SHOPPING CENTER' },
         { x: 135, y: 308, w: 30, h: 14, to: 'training', spawn: { x: 200, y: 60 }, label: 'TRAINING GROUND' },
         { x: 535, y: 268, w: 30, h: 14, to: 'stadium', spawn: { x: 180, y: 60 }, label: 'STADIUM' },
-        { x: 815, y: 158, w: 30, h: 14, to: 'agent', spawn: { x: 150, y: 220 }, label: "AGENT'S OFFICE" } ],
+        { x: 815, y: 158, w: 30, h: 14, to: 'agent', spawn: { x: 150, y: 220 }, label: "AGENT'S OFFICE" },
+        { x: 620, y: 148, w: 30, h: 14, to: 'cityhall', spawn: { x: 180, y: 230 }, label: 'CITY HALL' } ],
       hots: [ { x: 720, y: 330, w: 200, h: 150, label: 'Park kickabout', action: 'mini:kickabout', hint: 'keepy-uppies: 20 energy, chance of +1 attribute' },
-              { x: 610, y: 190, w: 40, h: 40, label: 'Bus stop', action: 'bus', hint: 'ride to the stadium' } ] },
+              { x: 700, y: 190, w: 40, h: 40, label: 'Bus stop', action: 'bus', hint: 'ride to the stadium' } ] },
     house1: { w: 360, h: 300, view: 230, floor: 'wood', title: 'Home · ground floor',
       walls: [R(0, 0, 360, 14), R(0, 0, 10, 300), R(350, 0, 10, 300), R(0, 286, 360, 14), R(180, 14, 10, 120)],
       solids: [R(30, 30, 80, 40), R(30, 200, 60, 30), R(230, 30, 100, 26), R(300, 100, 40, 70), R(230, 200, 60, 60)],
@@ -80,6 +81,15 @@
         { r: R(300, 140, 150, 50), c: '#63b3ff', label: 'MEGASTORE', hot: { label: 'Club megastore', action: 'perk:megastore', hint: 'your own replica shirt, once a season' } },
         { r: R(30, 300, 180, 40), c: '#2f8f45', label: 'TUNNEL → PITCH', hot: { label: 'Walk out to the pitch', action: 'open:stadium', hint: 'match day' } } ],
       doors: [ { x: 160, y: 12, w: 50, h: 12, to: 'town', spawn: { x: 550, y: 256 }, label: 'EXIT' } ] },
+    cityhall: { w: 360, h: 280, view: 230, floor: 'tile', title: 'City Hall', npcs: 3,
+      walls: [R(0, 0, 360, 14), R(0, 0, 10, 280), R(350, 0, 10, 280), R(0, 266, 360, 14)],
+      solids: [R(110, 36, 140, 46), R(20, 40, 60, 90), R(280, 40, 60, 110), R(30, 190, 70, 30)],
+      furniture: [
+        { r: R(110, 36, 140, 46), c: '#c9a86a', label: 'REGISTRAR', hot: { label: 'Registrar', action: 'open:cityhall:registrar', hint: 'get married here: Charm 40 and Fame 25' } },
+        { r: R(20, 40, 60, 90), c: '#e9edf7', label: 'NOTICES', hot: { label: 'Notice board', action: 'perk:notices', hint: 'what the city is saying about you' } },
+        { r: R(280, 40, 60, 110), c: '#7c5cff', label: 'QUEUE', hot: { label: 'The queue', action: 'open:cityhall:queue', hint: 'meet someone and ask them out' } },
+        { r: R(30, 190, 70, 30), c: '#8a6d3b', label: 'BENCH', hot: { label: 'Bench', action: 'perk:bench', hint: 'sit for a minute' } } ],
+      doors: [ { x: 160, y: 266, w: 40, h: 14, to: 'town', spawn: { x: 635, y: 195 }, label: 'EXIT' } ] },
     agent: { w: 300, h: 260, view: 220, floor: 'carpet', title: "Agent's office",
       walls: [R(0, 0, 300, 14), R(0, 0, 10, 260), R(290, 0, 10, 260), R(0, 246, 300, 14)],
       solids: [R(90, 40, 120, 50)],
@@ -181,7 +191,7 @@
       ctx.fillStyle = '#8f8f8f'; ctx.fillRect(0, 176, W, 4); ctx.fillRect(0, 300, W, 4);
       ctx.fillStyle = '#3b7d3f'; for (let i = 0; i < 60; i++) { const tx = ((i * 173) % (W + 400)) - 200, ty = ((i * 97) % (map.h + 500)) - 250; if (tx > -60 && tx < W + 60 && ty > -60 && ty < map.h + 60 && !(ty > 170 && ty < 310)) continue; ctx.beginPath(); ctx.arc(tx, ty, 14, 0, Math.PI * 2); ctx.fill(); }
       const B = [ { label: 'HOME', x: 60, y: 60, w: 150, h: 110, color: '#7c5cff', roof: '#5b3fd6' }, { label: 'SHOPPING CENTER', x: 300, y: 40, w: 200, h: 120, color: '#ff8a5c', roof: '#d9603a' },
-        { label: 'TRAINING GROUND', x: 40, y: 320, w: 220, h: 150, color: '#3fbf6b', roof: '#2a8a4a' }, { label: 'STADIUM', x: 420, y: 280, w: 260, h: 200, color: '#63b3ff', roof: '#2d6fb5' }, { label: "AGENT'S OFFICE", x: 740, y: 60, w: 180, h: 100, color: '#c9a86a', roof: '#8a6d3b' } ];
+        { label: 'TRAINING GROUND', x: 40, y: 320, w: 220, h: 150, color: '#3fbf6b', roof: '#2a8a4a' }, { label: 'STADIUM', x: 420, y: 280, w: 260, h: 200, color: '#63b3ff', roof: '#2d6fb5' }, { label: "AGENT'S OFFICE", x: 740, y: 60, w: 180, h: 100, color: '#c9a86a', roof: '#8a6d3b' }, { label: 'CITY HALL', x: 560, y: 50, w: 150, h: 100, color: '#e9edf7', roof: '#9aa3b8' } ];
       ctx.fillStyle = '#b9a77a'; for (const d of map.doors) { const dy = d.y < 200 ? [d.y + 12, 176] : [304, d.y]; ctx.fillRect(d.x + d.w / 2 - 12, Math.min(dy[0], dy[1]), 24, Math.abs(dy[1] - dy[0])); }
       for (const b of B) {
         ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(b.x + 6, b.y + 6, b.w, b.h); ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.fillStyle = b.roof; ctx.fillRect(b.x - 6, b.y - 14, b.w + 12, 20);
@@ -189,6 +199,7 @@
         label(b.label, b.x + b.w / 2, b.y - 20);
         if (b.label === 'STADIUM') { ctx.fillStyle = '#2f8f45'; ctx.fillRect(b.x + 30, b.y + 30, b.w - 60, b.h - 60); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(b.x + 36, b.y + 36, b.w - 72, b.h - 72); }
         if (b.label === 'HOME') { ctx.fillStyle = carColor; ctx.fillRect(b.x + b.w + 14, b.y + 70, 44, 22); ctx.fillStyle = '#9ad'; ctx.fillRect(b.x + b.w + 22, b.y + 74, 24, 8); ctx.fillStyle = '#111'; ctx.fillRect(b.x + b.w + 18, b.y + 90, 8, 6); ctx.fillRect(b.x + b.w + 46, b.y + 90, 8, 6); }
+        if (b.label === 'CITY HALL') { ctx.fillStyle = '#cfd6e6'; for (let i = 0; i < 4; i++) ctx.fillRect(b.x + 16 + i * 36, b.y + 20, 10, b.h - 24); ctx.fillStyle = '#9aa3b8'; ctx.fillRect(b.x + b.w / 2 - 2, b.y - 40, 4, 28); ctx.fillStyle = '#c0392b'; ctx.fillRect(b.x + b.w / 2 + 2, b.y - 40, 16, 10); }
         if (b.label === 'TRAINING GROUND') { ctx.fillStyle = '#ff7f27'; for (let i = 0; i < 5; i++) ctx.fillRect(b.x + 30 + i * 35, b.y + 100, 6, 10); }
       }
       for (const d of map.doors) { ctx.fillStyle = '#2b1d0e'; ctx.fillRect(d.x, d.y < 200 ? d.y - 14 : d.y, d.w, 26); }

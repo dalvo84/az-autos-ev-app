@@ -172,3 +172,5 @@ body.has-scene { overflow: hidden; }
 .cut-caption .what { font-size: 20px; line-height: 1.2; color: var(--ink); }
 .cut-banner { top: 12%; font-size: 22px; } .cut-banner small { display: block; font-size: 10px; color: var(--ink); margin-top: 8px; }
 .cut-skip { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; min-height: 32px; padding: 4px 10px; font-family: var(--font-pixel); font-size: 8px; box-shadow: none; border-width: 2px; background: rgba(5,8,15,.8); }
+
+.kv .ok { color: var(--pitch); } .kv .bad { color: var(--red); }

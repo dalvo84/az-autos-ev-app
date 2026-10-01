@@ -85,6 +85,7 @@ The town is full screen. Walking into a door takes you inside. Every room has fu
 | Shopping Center, upstairs | Fitness gear, car showroom, estate agent, barber (appearance), escalator |
 | Training ground | Gym (timing mini game, better odds than menu training), pitch (training menu), coach's office (manager talks), physio (+10 energy weekly, or a week off an injury), teammates wandering |
 | Stadium tunnel | Dressing room (squad and your rival), press room (+1 fame, +1 charm weekly once you have some fame), trophy room, megastore (buy your own shirt once Fame passes 30), tunnel to the pitch (match day) |
+| City Hall | Registrar (marry your partner with Charm 40, Fame 25 and $500, no ring needed), the queue (three people a week with their details, ask one out at 50/50), notice board, bench |
 | Town | Agent's office (quests and sponsors), park keepy-uppies (timing mini game, 20 energy for a chance of +1 attribute), bus stop to the stadium, fans once Fame passes 50 |
 
 ## Kits and accessories
@@ -126,7 +127,7 @@ Every cutscene has a SKIP button.
 The phone upstairs has two tabs.
 
 - **Social.** Post once a week for fans and fame, with a small backlash risk. Brands approach you at Fame 25, 45, 65 and 85 with weekly deals.
-- **Dating and family.** Three people a week to ask out; Charm and Fame set the odds. Messages, gifts from the shop's gifts tab, café dates and movie nights build love. Love falls if you ignore them for two weeks and they leave under 10. After eight weeks and a real home you can ask them to move in, which gives energy every week and puts them in your house. With a ring from the shop and love at 85 you can propose, which plays the wedding. Married couples can start a family; the baby arrives eight weeks later with its own cutscene, and the children wander the house.
+- **Dating and family.** Three people a week to ask out; Charm and Fame set the odds. Messages, gifts from the shop's gifts tab, café dates and movie nights build love. Love falls if you ignore them for two weeks and they leave under 10. After eight weeks and a real home you can ask them to move in, which gives energy every week and puts them in your house. With a ring from the shop and love at 85 you can propose, which plays the wedding. City Hall is the other route: with Charm 40, Fame 25 and $500 the registrar marries you the same day, as long as love is at least 40. The queue at City Hall is another way to meet someone: you see their age, job, nationality and what they like, pick one, and it is a straight 50/50. Married couples can start a family; the baby arrives eight weeks later with its own cutscene, and the children wander the house.
 
 ## Sound
 
