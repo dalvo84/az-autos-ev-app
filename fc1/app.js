@@ -460,12 +460,12 @@
   VIEWS.menu = () => {
     const saved = load();
     const html = `<pre class="ascii green">
- ____   ___   ____ _  _____ _____   ____  ____   ___
-|  _ \\ / _ \\ / ___| |/ / ____|_   _| |  _ \\|  _ \\ / _ \\
-| |_) | | | | |   | ' /|  _|   | |   | |_) | |_) | | | |
-|  __/| |_| | |___| . \\| |___  | |   |  __/|  _ <| |_| |
-|_|    \\___/ \\____|_|\\_\\_____| |_|   |_|   |_| \\_\\\\___/
-            L E A G U E   ·   C A R E E R   M O D E</pre>
+ _____ ____ _
+|  ___/ ___/ |
+| |_ | |   | |
+|  _|| |___| |
+|_|   \\____|_|
+ F O O T B A L L   C I V I L I A N   ·   V O L .  1</pre>
       <p>A deep-sim football RPG. Start at sixteen in a regional academy final, get scouted, and climb from the Championship to the elite leagues of Europe. Every choice on the pitch feeds your rating, your coach, your fans and your bank balance.</p>
       ${saved ? `<div class="card hl"><h3>Saved career</h3><div>${esc(saved.player.name)} · ${esc(saved.player.pos)} · OVR ${saved.player.ovr} · Week ${saved.week} · ${esc(saved.player.contract.club)}</div><div class="muted">${saved.savedAt ? 'Last saved ' + new Date(saved.savedAt).toLocaleString() : ''}</div></div>` : '<p class="muted">No saved career yet.</p>'}
       ${(() => { try { const hof = JSON.parse(localStorage.getItem('fc1_hof') || localStorage.getItem('ppl_hof') || '[]'); return hof.length ? `<div class="card"><h3>🏛 Hall of Fame</h3>${hof.map(h => `<div>${esc(h.name)} · ${esc(h.pos)} · ${h.seasons} seasons · ${h.goals} goals · ${h.honours} honours · peak OVR ${h.peak}</div>`).join('')}</div>` : ''; } catch (e) { return ''; } })()}
