@@ -31,10 +31,10 @@
   function toSpeech(html) {
     let t = String(html)
       .replace(/<i>\s*\([^)]*\)\s*<\/i>/g, ' ')            // stage directions like (groans) are not spoken
-      .replace(/<[^>]+>/g, ' ')
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
       .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
       .replace(/(\d+)'/g, '$1 minutes.')                   // 67' -> 67 minutes
-      .replace(/\b([\w'\-]+(?: [\w'\-]+)?) \(([^)]{2,40})\)/g, (m, name, pron) => /^[A-Za-z\-\s']+$/.test(pron) && /[A-Z]{2}|-/.test(pron) ? pron.replace(/-/g, ' ') : m)
+      .replace(/\b([\w'\-]+(?: [\w'\-]+)?) \(([^)]{2,40})\)/g, (m, name, pron) => { if (!/^[A-Za-z\-\s'\.]+$/.test(pron)) return m; const a = name.toLowerCase().replace(/[^a-z]/g, ''), b = pron.toLowerCase().replace(/[^a-z]/g, ''); if (a === b || a.endsWith(b) || b.endsWith(a)) return name; return pron.replace(/-/g, ' '); })
       .replace(/\(([^)]*)\)/g, '$1')
       .replace(/[⏪⏩🎯🪶⚽📺🏟🏁📋★✍✋😴]/g, '')
       .replace(/G+O+A+L+/gi, 'Goal')

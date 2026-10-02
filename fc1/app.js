@@ -14,6 +14,7 @@
   const lg = () => E.currentLeague(S);
   const P = () => S.player;
   const pname = () => P().nick ? P().nick : P().name.split(' ').slice(-1)[0];
+  const pr = x => x.pron && x.pron.toLowerCase() !== (x.name || '').toLowerCase() ? ` (${esc(x.pron)})` : '';
   const mateRef = (m, introduced) => { if (introduced && !introduced.has(m.name)) { introduced.add(m.name); return `${m.last} (${m.pron})`; } return m.last; };
   const dispW = s => [...s].reduce((n, ch) => n + (ch.codePointAt(0) > 0xFFFF || /[\u2600-\u27BF]/.test(ch) ? 2 : 1), 0);
   const fit = (s, w) => { let out = ''; for (const ch of [...s]) { if (dispW(out + ch) > w) break; out += ch; } return out + ' '.repeat(Math.max(0, w - dispW(out))); };
@@ -233,6 +234,57 @@
     };
     return { html, actions: [{ label: '← Back to town', fn: () => { U.lifeNote = null; go('hub'); } }], after };
   };
+
+  // ---------- tutorials: a guide screen and one-time tip cards ----------
+  const GUIDE = [
+    { id: 'match', icon: '⚽', title: 'Matches and controls', body: `<p>Move with the joystick (phone) or WASD / arrows (computer). <b>SHOOT</b> (Space): tap for a low shot, hold for power. <b>PASS</b> (P): pass with the ball, or press it <i>without</i> the ball to call for it. <b>SKILL</b> (Z): sprint with the ball, slide tackle without it, dive as a keeper.</p><p>Shots from inside the box go in about a third of the time at Amateur. Long shots rarely do. Your teammates push forward when you attack: look for the overlap down the wing and the runner ahead of you.</p><p>Mistimed slides are fouls. Yellow cards cost coach popularity, a red bans you for a match. Sprinting drains stamina, and tired players slow down.</p><p>Your rating comes from goals, assists, shots on target, completed passes and tackles won. Keep it above 7.0 and the coach, the fans and the money follow.</p>` },
+    { id: 'modes', icon: '🏟', title: 'Match day modes', body: `<p><b>Full Match</b> is two halves of 150 seconds on the pitch. <b>Highlights</b> is the same but shorter. <b>Sim</b> plays a text match with a few choices. <b>Quick Sim</b> settles it instantly.</p><p>Pick a difficulty before kick-off. It changes the opposition only: their speed, tackling, shooting and keeper. Harder levels add a small bonus to your rating.</p><p>Coach popularity under 35 puts you on the bench, under 15 out of the squad. A rival in your position can take your shirt if he outperforms you.</p>` },
+    { id: 'charm', icon: '✨', title: 'Charm', body: `<p>Charm is how you come across off the pitch. It tilts transfer offers toward bigger clubs, sets your odds on the dating app, and is one of the two keys to the City Hall registrar.</p><p>Raise it with outfits, accessories and the barber in the Shopping Center, press conferences at the stadium, and tasteful social media posts. Winning matches adds a little too.</p>` },
+    { id: 'fame', icon: '🌟', title: 'Fame and fans', body: `<p><b>Fame</b> is how widely you are known. Goals, man of the match awards, derbies, internationals and trophies raise it. Fame unlocks the press room (10), the megastore (30), an international call-up (12 plus the OVR threshold), brand deals (25, 45, 65, 85) and fan crowds in town (50).</p><p><b>Fans</b> are how much your own supporters love you. Posts, autographs, buying your own shirt and good performances raise it. Slipping away from fans or a bad post lowers it.</p>` },
+    { id: 'coach', icon: '📋', title: 'Coach, chemistry and energy', body: `<p><b>Coach</b> decides if you start. Train, visit the coach's office, play well, avoid cards. Under 35 you are a substitute.</p><p><b>Chemistry</b> is how much the squad looks for you. It rises with games together and training, and scales how often you get passed to.</p><p><b>Energy</b> is spent on training sessions and mini games. Sleep, the sofa, the fridge, coffee and the physio top it up once a week each. Fitness gear raises the ceiling.</p>` },
+    { id: 'home', icon: '🏠', title: 'Your house', body: `<p>Downstairs: TV for league tables, the sofa for a nap or a movie night with a partner who lives with you, the trophy cabinet for your career, the fridge for a snack, the garage for your cars. Upstairs: bed for a proper sleep, your phone, the mirror for your look, and the balcony.</p><p>Bigger houses come from the estate agent in the Shopping Center. You need a real home, not the academy digs, before a partner can move in.</p>` },
+    { id: 'shop', icon: '🛍', title: 'Shopping Center', body: `<p><b>Boots</b> add attributes. <b>Outfits</b> and <b>accessories</b> add Charm and change how you look in town. <b>Kits</b> are worn around town. <b>Fitness gear</b> raises your energy ceiling and training odds. <b>Gifts</b> are for your partner, including the engagement ring.</p><p>Upstairs: fitness gear, the car showroom, the estate agent and the barber. The café downstairs sells coffee for energy and has the date table.</p>` },
+    { id: 'train', icon: '🏃', title: 'Training', body: `<p>Each session costs energy for a chance at +1 to an attribute. The pitch menu lets you pick what to work on. The gym is a timing mini game with better odds: press ENTER when the marker is in the green. The park kickabout in town is a cheaper version.</p><p>Position matters: a striker gains most from shooting and pace, a centre-back from defending and physical.</p>` },
+    { id: 'money', icon: '💰', title: 'Money, contracts and transfers', body: `<p>Your wage lands weekly. Sponsors and brand deals add to it. Every 20 weeks the transfer window opens with up to three offers based on OVR, form and Charm. A transfer request through the manager or your agent brings more offers. Signing a deal plays the contract cutscene.</p>` },
+    { id: 'agent', icon: '🕴', title: 'Agent, quests and sponsors', body: `<p>The agent's office in town offers quests (score three in four games, keep two clean sheets, and so on) with cash and fame rewards, plus sponsor deals that pay weekly. Check in after a good run of form.</p>` },
+    { id: 'life', icon: '📱', title: 'Phone, dating and family', body: `<p>The phone is upstairs at home or in the quick menu. <b>Social</b>: post once a week for fans and fame, and sign brand deals when they come in. <b>Dating</b>: three people a week, odds set by Charm and Fame. Keep in touch every week or love fades. Gifts, café dates and movie nights build it.</p><p>Move in after eight weeks with love 60. Propose with a ring at love 85, or marry at City Hall with Charm 40 and Fame 25. Married couples can start a family.</p>` },
+    { id: 'cityhall', icon: '🏛', title: 'City Hall', body: `<p>The registrar marries you and your partner for $500 if you have Charm 40 and Fame 25 and love is at least 40. No ring needed. The queue has three people a week with their details: pick one and ask them out. It is a straight 50/50.</p>` },
+    { id: 'intl', icon: '🌍', title: 'Internationals and the World Cup', body: `<p>Reach your nation's OVR threshold with Fame 12 and you get called up for friendlies in the international breaks. Every fourth season is a World Cup you can play stage by stage or sim. Caps and international goals count toward your legacy.</p>` },
+    { id: 'end', icon: '🏆', title: 'Season end and retirement', body: `<p>At the end of each season: a highlights reel of your goals, a trophy lift if you won the league, and the awards gala. From 31 your pace drops each year. Retire from 34 for a lap of honour and a place in the Hall of Fame on the menu.</p>` },
+  ];
+  const guideView = () => {
+    const open = U.guideOpen || (U.guideFrom && GUIDE.some(g => g.id === U.guideFrom) ? U.guideFrom : null);
+    const html = `<h2>📘 How to play</h2><p class="muted">Tap a topic. Everything here is also explained the first time you reach that part of the game.</p>
+      <div class="items">${GUIDE.map(g => `<div class="item ${open === g.id ? 'cur' : ''}"><div class="item-main"><button type="button" class="sm guide-t" data-guide="${g.id}" style="text-align:left">${g.icon} ${g.title}</button>${open === g.id ? `<div class="guide-body">${g.body}</div>` : ''}</div></div>`).join('')}</div>`;
+    const after = () => { document.querySelectorAll('[data-guide]').forEach(b => b.onclick = () => { U.guideOpen = U.guideOpen === b.dataset.guide ? null : b.dataset.guide; U.guideFrom = null; render(); }); };
+    const back = U.guideBack || (S ? 'hub' : 'menu');
+    return { html, actions: [{ label: S ? '← Back' : '← Back to menu', fn: () => { U.guideOpen = null; go(back); } }], after };
+  };
+  // one-time tip cards, keyed by screen
+  const TIPS = {
+    hub: ['Welcome to town', 'Walk with the stick or WASD. Doors take you inside. Press ENTER or SPACE at anything with a label. Use the quick menu (☰) if you would rather tap. Every week: train, shop, then play the match at the stadium.', 'match'],
+    stadium: ['Match day', 'Full Match and Highlights put you on the pitch. Pick a difficulty first. On the pitch: joystick or WASD to move, SHOOT (Space) to shoot, PASS (P) to pass or call for the ball, SKILL (Z) to sprint, slide or dive. Your teammates push up when you attack.', 'match'],
+    home: ['Your house', 'Contract, cars and property live here. In the open world the house has two floors with furniture you can use: sofa, fridge, bed, phone and mirror each do something once a week.', 'home'],
+    shop: ['Shopping Center', 'Boots add attributes. Outfits and accessories raise Charm. Fitness gear raises your energy ceiling. Gifts are for a partner. Buy buttons show the price, greyed out when you are short.', 'shop'],
+    training: ['Training', 'Each session spends energy for a chance at +1 to an attribute. The gym in the open world is a timing mini game with better odds.', 'train'],
+    squad: ['Squad', 'Chemistry is how much these players look for you. A rival in your position can take your place if he outperforms you, so keep your rating up.', 'coach'],
+    transfer: ['Transfer window', 'Offers depend on OVR, form and Charm. Bigger clubs pay more and expect more. Signing plays the contract cutscene and resets your coach standing.', 'money'],
+    agent: ['Your agent', 'Quests pay cash and fame for targets over a run of matches. Sponsors pay weekly. A transfer request brings more offers at the next window.', 'agent'],
+    life: ['Your phone', 'Post once a week for fans and fame. On the dating tab, Charm and Fame set your odds. Message your partner every week or love fades.', 'life'],
+    cityhall: ['City Hall', 'Registrar: marry your partner with Charm 40, Fame 25 and $500. The queue: three people a week, read their details, ask one out, 50/50.', 'cityhall'],
+    talk: ['Manager talks', 'Each talk has a cost and a cooldown. Ask for minutes when your rating is high. A position change is permanent until you ask again.', 'coach'],
+  };
+  function tipCard(screen) {
+    if (!S) return '';
+    const t = TIPS[screen]; if (!t) return '';
+    S.flags.tuts = S.flags.tuts || {}; if (S.flags.tuts[screen]) return '';
+    return `<div class="card hl tip" id="tip"><h3>📘 ${t[0]}</h3><p>${t[1]}</p><div class="choices"><button type="button" class="sm primary" id="tip-ok">Got it</button><button type="button" class="sm" id="tip-more">Open the guide</button></div></div>`;
+  }
+  function bindTip(screen) {
+    const ok = $('#tip-ok'), more = $('#tip-more'); if (!ok) return;
+    ok.onclick = () => { S.flags.tuts[screen] = true; save(); $('#tip').remove(); };
+    more.onclick = () => { S.flags.tuts[screen] = true; U.guideBack = screen; U.guideFrom = TIPS[screen][2]; U.guideOpen = TIPS[screen][2]; go('guide'); };
+  }
   // ---------- City Hall: registrar weddings and the queue ----------
   const JOBS = ['paramedic', 'architect', 'teacher', 'chef', 'session musician', 'vet', 'barista', 'journalist', 'physio', 'pilot', 'tattoo artist', 'nurse', 'graphic designer', 'firefighter'];
   const LIKES = ['away days', 'late films', 'cold water swims', 'Sunday roasts', 'vinyl', 'long drives', 'dogs', 'board games', 'karaoke', 'hiking'];
@@ -428,11 +480,13 @@
     act.innerHTML = '';
     const view = VIEWS[U.screen === 'menu' ? 'menu' : (U.screen || S.phase)];
     const out = view();
-    scr.innerHTML = out.html;
+    const tipScreen = U.screen || (S && S.phase); const tipHtml = tipScreen === 'hub' ? (U.townMenu ? tipCard('hub') : '') : tipCard(tipScreen);
+    scr.innerHTML = tipHtml + out.html;
     act.innerHTML = (out.actions || []).map((a, i) => `<button id="act${i}" class="${a.cls || ''}" ${a.disabled ? 'disabled' : ''}>${a.label}${a.sub ? `<span class="sub">${a.sub}</span>` : ''}</button>`).join('');
     (out.actions || []).forEach((a, i) => { const b = $('#act' + i); if (b) b.onclick = a.fn; });
     fitDash(dash);
     if (out.after) out.after();
+    bindTip(tipScreen);
     speakNew(scr);
     soundBtn();
     if (S && U.screen !== 'menu') save();
@@ -455,7 +509,7 @@
 
   // ---------- VIEWS ----------
   const VIEWS = {};
-  VIEWS.talk = talkView; VIEWS.agent = agentView; VIEWS.legacy = legacyView; VIEWS.life = lifeView; VIEWS.cityhall = cityhallView;
+  VIEWS.talk = talkView; VIEWS.agent = agentView; VIEWS.legacy = legacyView; VIEWS.life = lifeView; VIEWS.cityhall = cityhallView; VIEWS.guide = guideView;
 
   VIEWS.menu = () => {
     const saved = load();
@@ -475,6 +529,7 @@
     const actions = [];
     if (saved) actions.push({ label: '▶ Continue career', cls: 'primary', fn: () => { S = saved; U = { screen: S.phase }; render(); } });
     actions.push({ label: '✚ New career', cls: saved ? 'warn' : 'primary', fn: () => { S = null; U = { screen: 'intro' }; render(); } });
+    actions.push({ label: '📘 How to play', fn: () => { U.guideBack = 'menu'; U.screen = 'guide'; render(); } });
     return { html, actions };
   };
 
@@ -506,7 +561,7 @@
       const name = $('#f-name').value.trim(), pron = $('#f-pron').value.trim(), pos = $('#f-pos').value, nat = $('#f-nat').value, nick = $('#f-nick').value.trim();
       if (name.length < 2) { $('#f-err').textContent = 'John needs a name to read out. Two characters minimum.'; return; }
       const look = U.look;
-      S = E.newGame({ name, pron: pron || name, pos, nat, nick });
+      S = E.newGame({ name, pron: pron.toLowerCase() === name.toLowerCase() ? '' : pron, pos, nat, nick });
       S.player.look = look;
       U = { screen: 'roster', look };
       render();
@@ -519,11 +574,11 @@
     const rows = S.teammates.map(t => `<tr><td>${t.pos}</td><td>${esc(t.name)}</td><td class="muted">(${esc(t.pron)})</td><td>${esc(t.nat)}</td><td class="n">${t.ovr}</td></tr>`).join('');
     const html = `<h2>Team sheet · Riverside Academy</h2>
       <div class="script">
-        ${scriptLine('John', `Right. <b>${esc(p.name)}</b>, said <b>${esc(p.pron)}</b>${p.nick ? `, known to the terraces as <b>${esc(p.nick)}</b>` : ''}. ${esc(D.POSITIONS[p.pos].name)}, flying the flag for ${esc(p.nat)}. Sixteen years old.`)}
+        ${scriptLine('John', `Right. <b>${esc(p.name)}</b>${p.pron ? `, said <b>${esc(p.pron)}</b>` : ''}${p.nick ? `, known to the terraces as <b>${esc(p.nick)}</b>` : ''}. ${esc(D.POSITIONS[p.pos].name)}, flying the flag for ${esc(p.nat)}. Sixteen years old.`)}
         ${scriptLine('Ally', 'And here\'s the rest of the academy side, with the pronunciations the producer has kindly scribbled for us. I will be using them. John will be ignoring them.')}
       </div>
       <div class="tablewrap"><table><thead><tr><th>Pos</th><th>Name</th><th>Say it</th><th>Nat</th><th class="n">OVR</th></tr></thead><tbody>
-        <tr class="me"><td>${p.pos}</td><td>${esc(p.name)} (you)</td><td class="muted">(${esc(p.pron)})</td><td>${esc(p.nat)}</td><td class="n">${p.ovr}</td></tr>${rows}</tbody></table></div>
+        <tr class="me"><td>${p.pos}</td><td>${esc(p.name)} (you)</td><td class="muted">${p.pron ? `(${esc(p.pron)})` : '—'}</td><td>${esc(p.nat)}</td><td class="n">${p.ovr}</td></tr>${rows}</tbody></table></div>
       <div class="card"><h3>Your starting attributes</h3>${E.ATTRS.map(a => bar(attrLabel(a), p.attrs[a])).join('')}</div>`;
     return { html, actions: [{ label: '▶ Skip to the 95th minute', cls: 'primary', fn: () => { U.pen = { attempts: 0, log: [] }; setPhase('prologue'); } }] };
   };
@@ -555,7 +610,7 @@
         if (r.result === 'goal') {
           pen.state = 'scored';
           pen.log.push(scriptLine('Ally', dir === 'Panenka' ? 'A PANENKA! In a final! At SIXTEEN! I need to sit down and I am already sitting down!' : 'GOOOAAAL! In it goes! The academy bench is on the pitch!', 'goal', 'pen' + pen.attempts + 'b'));
-          pen.log.push(scriptLine('John', `${esc(p.name)} (${esc(p.pron)}) wins it in the 95th minute! Remember the name.`, 'goal', 'pen' + pen.attempts + 'c'));
+          pen.log.push(scriptLine('John', `${esc(p.name)}${pr(p)} wins it in the 95th minute! Remember the name.`, 'goal', 'pen' + pen.attempts + 'c'));
           if (A) A.sfx('goal');
           p.fame = 3; p.fans = 10;
         } else {
@@ -698,6 +753,7 @@
       { label: '📱 Phone', sub: life().status === 'single' ? 'Social, dating' : `Social · ${life().partner.name}`, fn: () => { U.lifeTab = 'social'; go('life'); } },
       { label: '👥 Squad', fn: () => go('squad') },
       { label: '📊 League Tables', fn: () => go('table') },
+      { label: '📘 How to play', sub: 'Controls, charm, fame, house, shop', fn: () => { U.guideBack = 'hub'; go('guide'); } },
       { label: '📈 Career & Attributes', fn: () => go('career') },
       { label: '💾 Menu', fn: () => go('menu') },
     ];
@@ -711,6 +767,7 @@
         onMenu: () => { U.townMenu = true; render(); },
         onAction: worldAction,
         onCrowd: () => { if (S.flags.fanWeek === S.week) return; S.flags.fanWeek = S.week; U.fan = { place: 'hub' }; U.toast = null; U.townPos = U.town.pos(); U.forceFan = true; render(); } });
+      S.flags.tuts = S.flags.tuts || {}; if (!S.flags.tuts.town) { S.flags.tuts.town = true; setTimeout(() => U.town && U.town.note('Welcome to town. Walk with the stick or WASD, step into doors, press ENTER at anything with a label. ☰ MENU for the quick menu and the guide.', 9000), 600); }
     };
     return { html, actions, after };
   };
@@ -791,7 +848,7 @@
     const rows = S.teammates.map(t => `<tr><td>${t.pos}</td><td>${esc(t.name)}</td><td class="muted">(${esc(t.pron)})</td><td>${esc(t.nat)}</td><td class="n">${t.ovr}</td></tr>`).join('');
     const html = `<h2>👥 ${esc(club().name)} squad</h2><p class="muted">Chemistry ${p.chem}: teammates look for you ${(1 + 2 * p.chem / 100).toFixed(1)}× as often as a stranger.</p>
       ${S.rival ? `<div class="card ${benchedByRival() ? 'hl' : ''}"><h3>Your rival for the ${esc(p.pos)} shirt</h3><div><b>${esc(S.rival.name)}</b> <span class="muted">(${esc(S.rival.pron)})</span> · OVR ${S.rival.ovr}</div>${bar('Rival form', S.rival.form, 'gold')}<p class="muted">${benchedByRival() ? 'Currently ahead of you. Improve your form or coach popularity.' : 'You are ahead. Keep it that way.'}</p></div>` : ''}
-      <div class="tablewrap"><table><thead><tr><th>Pos</th><th>Name</th><th>Say it</th><th>Nat</th><th class="n">OVR</th></tr></thead><tbody><tr class="me"><td>${p.pos}</td><td>${esc(p.name)} (you)</td><td class="muted">(${esc(p.pron)})</td><td>${esc(p.nat)}</td><td class="n">${p.ovr}</td></tr>${rows}</tbody></table></div>`;
+      <div class="tablewrap"><table><thead><tr><th>Pos</th><th>Name</th><th>Say it</th><th>Nat</th><th class="n">OVR</th></tr></thead><tbody><tr class="me"><td>${p.pos}</td><td>${esc(p.name)} (you)</td><td class="muted">${p.pron ? `(${esc(p.pron)})` : '—'}</td><td>${esc(p.nat)}</td><td class="n">${p.ovr}</td></tr>${rows}</tbody></table></div>`;
     return { html, actions: [{ label: '← Back to hub', fn: () => go('hub') }] };
   };
 
@@ -922,7 +979,7 @@
     const r = E.resolveMoment(S, m, mo, idx);
     pushLine(m, 'John', `<b>${esc(pname())}</b> chooses: ${fillText(opt.label, m, mo.mate)}. <span class="muted">(${attrLabel(r.attr)} check, ${Math.round(r.prob * 100)}%)</span>`);
     pushLine(m, 'Ally', fillText(r.txt, m, mo.mate), r.goal || r.assist || r.type === 'save' || r.type === 'key' ? 'goal' : r.ok ? '' : 'bad');
-    if (r.goal) pushLine(m, 'John', `${esc(P().name)} (${esc(P().pron)})! ${scoreline(m)}.`, 'goal');
+    if (r.goal) pushLine(m, 'John', `${esc(P().name)}${pr(P())}! ${scoreline(m)}.`, 'goal');
     if (r.assist) pushLine(m, 'John', `Assist ${esc(pname())}. ${scoreline(m)}.`, 'goal');
     if (r.concede) pushLine(m, 'John', `...and it's in. ${esc(m.opp.name)} score. ${scoreline(m)}.`, 'bad');
     pushLine(m, 'SYS', `Rating now <b>${m.rating.toFixed(1)}</b>`, 'min');
@@ -1006,12 +1063,12 @@
       const introduced = new Set(); const say = (who, txt, cls, prio) => { const log = logEl; const el = document.createElement('div'); el.innerHTML = scriptLine(who, txt, cls, 'arc' + S.week + '-' + (log.childElementCount)); log.prepend(el.firstChild); while (log.childElementCount > 6) log.lastElementChild.remove(); if (A) A.speak(who, txt, prio ? { priority: true } : undefined); };
       const nm = pl => pl ? (pl.isUser ? esc(pname()) : pl.team === 0 ? esc(mateRef({ name: pl.name, last: pl.last, pron: pl.pron || '' }, pl.pron ? introduced : null)) : `${esc(opp.name)}'s number ${pl.number}`) : 'someone';
       const starts = sp ? true : (p.coach >= 35 && !benchedByRival());
-      const startMatch = () => { U.arcade = ARC.start(arcOpts); };
+      const startMatch = () => { U.arcade = ARC.start(arcOpts); S.flags.playedArcade = true; };
       const derby = sp ? false : isDerby(opp.name); const weather = pickWeather(); const gearItem = D.SHOP.gear.find(g => g.id === p.gear) || D.SHOP.gear[0];
-      const arcOpts = { host, difficulty: (S.settings && S.settings.difficulty) || 'amateur', derby, weather, staminaMax: 100 + gearItem.energy * 1.5, kits: sp ? sp.kits : undefined, onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: myMates, club: myClub, opp, isHome: fx.isHome, mode, chem: sp ? 55 : p.chem, starts,
+      const arcOpts = { host, tips: !S.flags.playedArcade, difficulty: (S.settings && S.settings.difficulty) || 'amateur', derby, weather, staminaMax: 100 + gearItem.energy * 1.5, kits: sp ? sp.kits : undefined, onExit: () => { if (confirm('Abandon the match? It will be quick-simmed instead.')) abandon(); }, user: { name: p.name, last: pname(), pos: p.pos, attrs: p.attrs, look: p.look, acc: myAcc(true), number: p.pos === 'GK' ? 1 : 10 }, teammates: myMates, club: myClub, opp, isHome: fx.isHome, mode, chem: sp ? 55 : p.chem, starts,
         secondsPerHalf: mode === 'highlights' ? 60 : 150, timeScale: U.testTimeScale || 1,
         onEvent: (type, d) => {
-          if (type === 'kickoff') { say('John', `${sp ? (sp.kind === 'wc' ? `WORLD CUP ${esc(sp.stage.replace(/\d/, ' game ')).toUpperCase()}: ` : 'International friendly: ') + esc(sp.nat) + ' against ' + esc(opp.name) + '. ' : ''}${d.derby ? 'DERBY DAY. ' + esc(club().name) + ' against ' + esc(opp.name) + ', and the noise is something else. ' : ''}${fx.isHome ? esc(myClub.name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b> (${esc(p.pron)}) starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); say('Ally', memoryLine(opp) + ' ' + WEATHER_TXT[d.weather || 'clear']); if (A) { A.sfx('kickoff'); if (d.derby) setTimeout(() => A.sfx('chant'), 700); } }
+          if (type === 'kickoff') { say('John', `${sp ? (sp.kind === 'wc' ? `WORLD CUP ${esc(sp.stage.replace(/\d/, ' game ')).toUpperCase()}: ` : 'International friendly: ') + esc(sp.nat) + ' against ' + esc(opp.name) + '. ' : ''}${d.derby ? 'DERBY DAY. ' + esc(club().name) + ' against ' + esc(opp.name) + ', and the noise is something else. ' : ''}${fx.isHome ? esc(myClub.name) : esc(opp.name)} get us under way. ${starts ? `<b>${esc(p.name)}</b>${pr(p)} starts.` : `<b>${esc(pname())}</b> starts on the bench.`}`); say('Ally', memoryLine(opp) + ' ' + WEATHER_TXT[d.weather || 'clear']); if (A) { A.sfx('kickoff'); if (d.derby) setTimeout(() => A.sfx('chant'), 700); } }
           else if (type === 'foul') { const by = d.by.isUser ? esc(pname()) : d.by.team === 0 ? nm(d.by) : `${esc(opp.name)}'s number ${d.by.number}`; const on = d.on.isUser ? esc(pname()) : d.on.team === 0 ? nm(d.on) : `${esc(opp.name)}'s number ${d.on.number}`;
             say('John', d.injury ? `${on} is down and not getting up. That is a bad one from ${by}.` : d.card === 'red' ? `${by} is OFF! Second yellow. ${d.inBox ? 'And it is a penalty.' : ''}` : d.card ? `Yellow card for ${by}. ${d.inBox ? 'Penalty!' : 'Free kick.'}` : `Foul by ${by} on ${on}. ${d.inBox ? 'PENALTY!' : 'Free kick.'}`, d.on.team === 0 ? 'event' : 'bad', true); if (A) A.sfx(d.card ? 'bad' : 'click'); }
           else if (type === 'injured') { say('Ally', `${esc(pname())} cannot continue. That looks like ${d.weeks} week${d.weeks > 1 ? 's' : ''} out.`, 'bad', true); }
@@ -1079,7 +1136,7 @@
         <div class="card ${ch.motm ? 'hl' : ''}"><h3>Your match</h3><div class="kv"><span class="k">Rating</span><span class="gold">${ch.rating === null ? 'Unused sub' : ch.rating.toFixed(1)}</span><span class="k">Goals</span><span>${m.goals}</span><span class="k">Assists</span><span>${m.assists}</span>${p.pos === 'GK' ? `<span class="k">Saves</span><span>${m.saves}</span>` : `<span class="k">Key plays</span><span>${m.keys}</span>`}${m.arcade ? `<span class="k">Shots</span><span>${m.arcade.shots} (${m.arcade.onTarget} on target)</span><span class="k">Passes</span><span>${m.arcade.passesOk}/${m.arcade.passes}</span><span class="k">Tackles</span><span>${m.arcade.tackles}</span><span class="k">Touches</span><span>${m.arcade.touches}</span><span class="k">Difficulty</span><span>${esc(m.arcade.difficulty || '')}</span>${m.arcade.weather && m.arcade.weather !== 'clear' ? `<span class="k">Conditions</span><span>${m.arcade.weather}</span>` : ''}${m.derby ? `<span class="k">Derby</span><span class="gold">Yes · fame +${ch.derbyBonus || 0}</span>` : ''}${m.arcade.cards && (m.arcade.cards.yellow || m.arcade.cards.red) ? `<span class="k">Cards</span><span class="red">${m.arcade.cards.red ? 'RED · banned next match' : m.arcade.cards.yellow + ' yellow'}</span>` : ''}${ch.injury ? `<span class="k">Injury</span><span class="red">${ch.injury} week${ch.injury > 1 ? 's' : ''} out</span>` : ''}` : ''}</div>${ch.motm ? '<span class="pill gold">★ Man of the Match</span>' : ''}</div>
         <div class="card"><h3>Changes</h3><div class="kv">${delta('Coach', ch.coach)}${delta('Fans', ch.fans)}${delta('Fame', ch.fame)}${delta('Chemistry', ch.chem)}${delta('Charm', ch.charm)}<span class="k">Bonus</span><span class="gold">${money(ch.money)}</span><span class="k">Wage</span><span class="gold">${money(p.contract.wage)}</span></div>${attrs ? `<div>${attrs} → OVR ${p.ovr}</div>` : ''}${ch.sponsorPay ? `<div class="gold">Sponsors paid ${money(ch.sponsorPay)}</div>` : ''}${ch.questDone ? ch.questDone.map(t => `<div class="green">✔ Quest complete: ${esc(t)}</div>`).join('') : ''}</div>
       </div>
-      ${ch.motm ? `<div class="script">${scriptLine('Ally', `Player of the match, no argument: <b>${esc(p.name)}</b> (${esc(p.pron)}). Remember the pronunciation, John.`)}${scriptLine('John', 'Noted. Again.')}</div>` : ''}
+      ${ch.motm ? `<div class="script">${scriptLine('Ally', `Player of the match, no argument: <b>${esc(p.name)}</b>${pr(p)}.${p.pron ? ' Remember the pronunciation, John.' : ''}`)}${scriptLine('John', 'Noted. Again.')}</div>` : ''}
       <div class="card"><h3>${esc(lg().name)} · top of the table</h3><div class="tablewrap"><table><tbody>${st.slice(0, 5).map((r, i) => `<tr class="${r.idx === S.clubIdx ? 'me' : ''}"><td class="n">${i + 1}</td><td>${esc(r.club.name)}</td><td class="n">${r.p}</td><td class="n">${r.pts}</td></tr>`).join('')}${myPos > 5 ? `<tr class="me"><td class="n">${myPos}</td><td>${esc(club().name)}</td><td class="n">${lg().table[S.clubIdx].p}</td><td class="n">${lg().table[S.clubIdx].pts}</td></tr>` : ''}</tbody></table></div></div>
       ${S.flags.transferWindow ? '<div class="notice">📋 The transfer window opens this week.</div>' : ''}${S.flags.seasonEnd ? '<div class="notice">🏁 That was the final round of the season.</div>' : ''}`;
     return { html, actions: [{ label: '▶ Continue', cls: 'primary', fn: () => { U.match = null; U.resultMatch = null; U.result = null; U.motmCut = false; go('hub'); } }], after: () => {

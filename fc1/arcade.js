@@ -165,14 +165,19 @@
       const ownerTeam = ball.owner ? ball.owner.team : -1;
       const h = homePos(p);
       let tx = h.x + (ball.x - W / 2) * 0.3, ty = h.y + (ball.y - H / 2) * 0.35;
-      const push = ownerTeam === p.team ? 55 : ownerTeam === 1 - p.team ? -60 : 0;
+      // attack in numbers: the deeper the ball is in the opposition half, the more bodies go forward with it
+      const gyA = goalY(p.team); const adv = clamp(1 - Math.abs(ball.y - gyA) / H, 0, 1); // 0 own goal line, 1 their goal line
+      const numbers = p.team === 0 ? 1 : 0.6; // the user's team commits more than the AI side
+      const push = ownerTeam === p.team ? 55 + 90 * adv * numbers * (p.slot <= 4 ? 0.45 : 1) : ownerTeam === 1 - p.team ? -60 : 0;
       ty += st.dir[p.team] * push;
       // offside line: never stand beyond the last outfield defender (or the ball) when attacking
       if (p.slot >= 6 && ownerTeam !== 1 - p.team) {
         const gy = goalY(p.team); const defs = teamOf(1 - p.team).filter(o => !o.isGK).map(o => o.y);
         const line = st.dir[p.team] < 0 ? Math.min(...defs) : Math.max(...defs);
         // a run may go 25 units past the line (the AI cannot time runs, so it gets a margin), never closer than 85 to goal
-        if (st.dir[p.team] < 0) ty = Math.max(ty, Math.min(line, ball.y) - 25); else ty = Math.min(ty, Math.max(line, ball.y) + 25);
+        // forwards may run up to 120 ahead of the ball (never past the line by more than 15); midfielders stay within 25 of it
+        const fwd = p.slot >= 8 && ownerTeam === p.team;
+        if (st.dir[p.team] < 0) ty = Math.max(ty, fwd ? Math.max(line - 15, ball.y - 120) : Math.min(line, ball.y) - 25); else ty = Math.min(ty, fwd ? Math.min(line + 15, ball.y + 120) : Math.max(line, ball.y) + 25);
         if (Math.abs(ty - gy) < 85) ty = gy + (gy === 0 ? 85 : -85);
       }
       if (p.isGK) return gkTarget(p);
@@ -188,8 +193,20 @@
         }
         if (danger && p.slot >= 1 && p.slot <= 4) { const o = ball.owner || ball; return { x: tx * 0.7 + o.x * 0.3, y: ty * 0.7 + o.y * 0.3 }; }
       } else if (ball.passTarget === p) return { x: ball.x + ball.vx * 0.3, y: ball.y + ball.vy * 0.3, chase: true };
-      // make a run when your team attacks
-      if (ownerTeam === p.team && p.slot >= 8 && rnd() < 0.5) ty += st.dir[p.team] * 25;
+      // make a run when your team attacks: forwards and midfielders break beyond the ball, full-backs overlap on their side
+      if (ownerTeam === p.team) {
+        if (p.slot >= 8 && rnd() < 0.5) ty += st.dir[p.team] * 25;
+        if (p.slot >= 5 && p.slot <= 7 && adv > 0.5 && rnd() < 0.5) ty += st.dir[p.team] * 30 * numbers;
+        if ((p.slot === 1 || p.slot === 4) && adv > 0.55) { ty += st.dir[p.team] * 60 * numbers; tx = p.slot === 1 ? Math.min(tx, 70) : Math.max(tx, W - 70); }
+        // the two nearest supporters offer a pass: one ahead, one square, so the man on the ball always has options
+        if (ball.owner && ball.owner !== p) {
+          const sup = mates.filter(q => q !== ball.owner).sort((a, b) => dist(a, ball.owner) - dist(b, ball.owner)).slice(0, 2);
+          const i = sup.indexOf(p);
+          if (i === 0) { tx = clamp(ball.owner.x + (ball.owner.x < W / 2 ? 110 : -110), 30, W - 30); ty = ball.owner.y + st.dir[p.team] * 70; }
+          else if (i === 1) { tx = clamp(ball.owner.x + (ball.owner.x < W / 2 ? -70 : 70), 30, W - 30); ty = ball.owner.y + st.dir[p.team] * -20; }
+        }
+      }
+      if (p.slot >= 5 && ownerTeam === p.team) { const defs = teamOf(1 - p.team).filter(o => !o.isGK).map(o => o.y); const line = st.dir[p.team] < 0 ? Math.min(...defs) : Math.max(...defs); const fwd = p.slot >= 8; if (st.dir[p.team] < 0) ty = Math.max(ty, fwd ? Math.max(line - 15, ball.y - 120) : Math.min(line, ball.y) - 25); else ty = Math.min(ty, fwd ? Math.min(line + 15, ball.y + 120) : Math.max(line, ball.y) + 25); if (Math.abs(ty - gyA) < 85) ty = gyA + (gyA === 0 ? 85 : -85); }
       return { x: clamp(tx, 20, W - 20), y: clamp(ty, 20, H - 20) };
     }
     function gkTarget(p) {
@@ -269,8 +286,11 @@
       const step = Math.min(d, sp * dt);
       p.vx = dx / d * sp; p.vy = dy / d * sp; p.x += dx / d * step; p.y += dy / d * step; p.fx = dx / d; p.fy = dy / d; p.step += dt * 14;
     }
+    const TIPS = ['TIP: move with the stick or WASD. Run at space, not at defenders.', 'TIP: press PASS without the ball to call for it. Teammates look for you.', 'TIP: hold SHOOT for power. A quick tap keeps it low and on target.', 'TIP: SKILL sprints with the ball, slides without it. Mistime a slide and it is a foul.', 'TIP: your teammates push up when you attack. Look for the overlap and the runner.', 'TIP: stamina drops when you sprint. A tired player is a slow player.'];
+    let tipI = 0, tipT = 0;
     function update(dt) {
       st.phaseT += dt;
+      if (opts.tips && st.phase === 'play' && tipI < TIPS.length) { tipT += dt; if (tipT > (tipI === 0 ? 2 : 9)) { tipT = 0; ticker(TIPS[tipI++]); } }
       if (st.phase === 'kickoff') { if (st.phaseT > 1.1) { st.phase = 'play'; } return; }
       if (st.phase === 'goal') {
         const c = st.celebration;
@@ -628,7 +648,24 @@
     reset(rnd() < 0.5 ? 0 : 1);
     banner(st.derby ? 'DERBY DAY' : 'KICK OFF', st.derby ? 2200 : 1200); emit('kickoff', { derby: st.derby, weather: st.weather });
     raf = requestAnimationFrame(frame);
-    return { destroy() { alive = false; cancelAnimationFrame(raf); ctl.destroy(); window.removeEventListener('resize', resize); host.innerHTML = ''; }, state: st, players, ball, user, endNow() { st.phase = 'end'; finish(); },
+    function probe() { // debug: how many bodies each side commits when attacking
+      const o = ball.owner; const ownerTeam = o ? o.team : -1;
+      const oppHalf = t => players.filter(p => p.team === t && !p.isGK && !p.benched && (st.dir[t] < 0 ? p.y < H / 2 : p.y > H / 2)).length;
+      const advFor = t => clamp(1 - Math.abs(ball.y - goalY(t)) / H, 0, 1);
+      const near = o ? players.filter(p => p.team === o.team && p !== o && !p.isGK && dist(p, o) < 140).length : 0;
+      return { ownerTeam, adv: advFor(0), adv1: advFor(1), inOppHalf0: oppHalf(0), inOppHalf1: oppHalf(1), near0: near };
+    }
+    function probeTargets(adv) { // debug: freeze a scenario and ask the AI where everyone wants to be
+      const H2 = H; const t = 0; const owner = players.find(p => p.team === 0 && p.slot === 7 && !p.benched) || players.find(p => p.team === 0 && !p.isGK && !p.isUser);
+      const gy = st.dir[0] < 0 ? 0 : H2; const by = gy + (gy === 0 ? 1 : -1) * (1 - adv) * H2;
+      ball.x = W / 2; ball.y = by; ball.z = 0; ball.vx = ball.vy = 0; ball.owner = owner; owner.x = W / 2; owner.y = by;
+      // opposition drops to a normal defensive shape
+      for (const p of players) if (p.team === 1 && !p.isGK) { const h = homePos(p); p.x = h.x; p.y = h.y + st.dir[1] * -60; }
+      const res = { oppHalf: 0, near: 0, ahead: 0, ids: [] };
+      for (const p of players) { if (p.team !== 0 || p.isGK || p.benched || p === owner || p.isUser) continue; const tg = aiTarget(p); const inOpp = st.dir[0] < 0 ? tg.y < H2 / 2 : tg.y > H2 / 2; const aheadB = st.dir[0] < 0 ? tg.y < by - 10 : tg.y > by + 10; if (inOpp) res.oppHalf++; if (Math.hypot(tg.x - owner.x, tg.y - owner.y) < 240) res.near++; if (aheadB) res.ahead++; res.ids.push([p.slot, Math.round(tg.x), Math.round(tg.y)]); }
+      return res;
+    }
+    return { destroy() { alive = false; cancelAnimationFrame(raf); ctl.destroy(); window.removeEventListener('resize', resize); host.innerHTML = ''; }, state: st, players, ball, user, probeTargets, probe, endNow() { st.phase = 'end'; finish(); },
       debugShot(power, aim, x, y) { user.x = x; user.y = y; user.fy = st.dir[0]; user.fx = 0; ball.owner = user; user.cool = 0; shoot(user, power, aim); },
       debugFoul(inBox) { const gy = goalY(0); user.x = W / 2 + 20; user.y = gy + (gy === 0 ? 1 : -1) * (inBox ? 100 : 220); const d = teamOf(1).find(p => !p.isGK); ball.owner = user; d.x = user.x + 5; d.y = user.y + 5; foul(d, user); } };
   }

@@ -174,3 +174,8 @@ body.has-scene { overflow: hidden; }
 .cut-skip { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; min-height: 32px; padding: 4px 10px; font-family: var(--font-pixel); font-size: 8px; box-shadow: none; border-width: 2px; background: rgba(5,8,15,.8); }
 
 .kv .ok { color: var(--pitch); } .kv .bad { color: var(--red); }
+
+.tip { border-style: dashed; }
+.guide-t { width: 100%; box-shadow: none; border-width: 2px; }
+.guide-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 4px 2px; }
+.guide-body p { max-width: none; }

@@ -104,7 +104,15 @@ Accessories fill slots on your model: head, face, neck, wrist, hands and arm. He
 
 Every cutscene has a SKIP button.
 
+## Tutorials
+
+- **How to play** on the menu and in the town quick menu: fourteen short topics covering controls, match modes, Charm, Fame and fans, coach and chemistry, the house, the shop, training, money and transfers, the agent, the phone, City Hall, internationals and retirement.
+- **First-visit tips**: the first time you reach the town, stadium, house, shop, training ground, squad, transfer window, agent, phone, City Hall or a manager talk, a dashed card explains it with a button through to the matching guide topic. Dismissed cards stay dismissed with the save.
+- **First match**: the ticker runs six control tips during your first played match.
+
 ## Match depth
+
+- **Attacking in numbers.** When your side has the ball, the deeper it gets the more bodies go with it: midfielders break beyond the ball, the full-back on the ball side overlaps, and the two nearest teammates offer one pass ahead and one square. The AI side commits a little less than yours.
 
 - **Fouls and set pieces.** Mistimed slides are fouls. A free kick or penalty stops play: aim with the stick, hold SHOOT for power, or PASS for a short one. Fouls in the box are penalties and the keeper picks a side.
 - **Cards, bans and injuries.** A yellow costs coach popularity, a red costs more and bans you for the next match. A bad tackle can injure you for a few weeks, during which you can only sim; the physio takes a week off.
@@ -131,7 +139,7 @@ The phone upstairs has two tabs.
 
 ## Sound
 
-John and Ally speak every commentary line through the browser's built-in speech voices. John is pitched low, Ally high, and the game prefers two different British English voices when the device has them. Pronunciation guides are used as the spoken form, so a teammate written as `Dyer (DYE-er)` is said the way the guide reads. Goals, misses, kick-off, full time and Man of the Match each trigger synthesised crowd and whistle effects. Browsers only allow audio after a tap, so sound starts on the first button press. The toggle in the title bar mutes everything and remembers the choice.
+John and Ally speak every commentary line through the browser's built-in speech voices. John is pitched low, Ally high, and the game prefers two different British English voices when the device has them. Pronunciation guides are used as the spoken form, so a teammate written as `Dyer (DYE-er)` is said the way the guide reads. A guide that just repeats the name is dropped, so the commentators never say a name twice. Goals, misses, kick-off, full time and Man of the Match each trigger synthesised crowd and whistle effects. Browsers only allow audio after a tap, so sound starts on the first button press. The toggle in the title bar mutes everything and remembers the choice.
 
 ## Mechanics worth knowing
 
