@@ -12,6 +12,8 @@ python3 -m http.server 8080 --directory fc1
 
 Progress autosaves to `localStorage` after every screen.
 
+`FC1.html` is the whole game in one file (CSS and every script inlined). Rebuild it after any change with `./build-single.sh`.
+
 ## Structure
 
 | File | Role |
